@@ -60,7 +60,7 @@ public class BanditController : MonoBehaviour
             if (d.sqrMagnitude <= combatRange * combatRange)
             {
                 if (_ranged.TryFireAt(chase))
-                    _motor.ApplyRangedDodgeImpulse(chase.position);
+                    _motor.ScheduleRangedDodgeImpulse(chase);
             }
         }
     }

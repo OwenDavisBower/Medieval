@@ -56,7 +56,7 @@ public class FollowerController : MonoBehaviour
             if (d.sqrMagnitude <= combatRange * combatRange)
             {
                 if (_ranged.TryFireAt(bandit))
-                    _motor.ApplyRangedDodgeImpulse(bandit.position);
+                    _motor.ScheduleRangedDodgeImpulse(bandit);
             }
         }
     }

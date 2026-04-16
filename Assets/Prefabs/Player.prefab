@@ -235,4 +235,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Character
   maxHealth: 100
   healthBarHeightOffset: 2.15
-  healthBarScale: 0.008
+  healthBarScale: 0.011

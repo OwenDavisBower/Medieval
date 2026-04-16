@@ -734,7 +734,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Character
   maxHealth: 100
   healthBarHeightOffset: 2.15
-  healthBarScale: 0.008
+  healthBarScale: 0.011
 --- !u!208 &1459529419
 NavMeshObstacle:
   m_ObjectHideFlags: 0

@@ -6,7 +6,7 @@ public class Character : MonoBehaviour
 {
     [SerializeField] float maxHealth = 100f;
     [SerializeField] float healthBarHeightOffset = 2.15f;
-    [SerializeField] float healthBarScale = 0.008f;
+    [SerializeField] float healthBarScale = 0.011f;
 
     float _current;
     Canvas _canvas;

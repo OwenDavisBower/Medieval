@@ -40,7 +40,11 @@ public class TargetSteeringMotor : MonoBehaviour
     [SerializeField] float arriveThreshold = 0.15f;
     [SerializeField] float acceleration = 14f;
     [Tooltip("Horizontal speed added sideways right after a ranged shot (strafe dodge).")]
-    [SerializeField] float postRangedDodgeImpulse = 2.2f;
+    [SerializeField] float postRangedDodgeImpulse = 3.6f;
+    [Tooltip("Fraction of dodge impulse applied away from the target (retreat after shooting).")]
+    [SerializeField] float postRangedDodgeRetreatRatio = 0.28f;
+    [Tooltip("Seconds after a successful shot before the dodge impulse is applied.")]
+    [SerializeField] float postRangedDodgeDelay = 0.14f;
 
     [Header("Orbit (annulus around anchor)")]
     [SerializeField] float minLoiterRadius = 2.5f;
@@ -89,6 +93,8 @@ public class TargetSteeringMotor : MonoBehaviour
     bool _orbitInitialized;
     bool _wanderInitialized;
     float _nextWanderPickTime;
+    Transform _pendingDodgeTarget;
+    float _pendingDodgeTime;
 
     public Transform AnchorTarget
     {
@@ -117,6 +123,21 @@ public class TargetSteeringMotor : MonoBehaviour
 
     public TargetSteeringSeparationGroup SeparationGroup => separationGroup;
 
+    /// <summary>Queues a dodge a short time after the shot; re-shooting replaces the pending dodge.</summary>
+    public void ScheduleRangedDodgeImpulse(Transform target)
+    {
+        if (target == null)
+            return;
+        if (postRangedDodgeDelay <= 0f)
+        {
+            ApplyRangedDodgeImpulse(target.position);
+            return;
+        }
+
+        _pendingDodgeTarget = target;
+        _pendingDodgeTime = Time.time + postRangedDodgeDelay;
+    }
+
     /// <summary>Small random sideways nudge on the horizontal plane after firing at <paramref name="targetPosition"/>.</summary>
     public void ApplyRangedDodgeImpulse(Vector3 targetPosition)
     {
@@ -135,12 +156,13 @@ public class TargetSteeringMotor : MonoBehaviour
         if (Random.value < 0.5f)
             perp = -perp;
 
-        Vector3 add = perp * postRangedDodgeImpulse;
+        Vector3 retreat = -flat * (postRangedDodgeImpulse * postRangedDodgeRetreatRatio);
+        Vector3 add = perp * postRangedDodgeImpulse + retreat;
         Vector3 v = _rb.linearVelocity;
         v.x += add.x;
         v.z += add.z;
         Vector3 h = new Vector3(v.x, 0f, v.z);
-        float cap = moveSpeed * 1.6f;
+        float cap = moveSpeed * 2.05f;
         if (h.sqrMagnitude > cap * cap)
             h = h.normalized * cap;
         v.x = h.x;
@@ -190,6 +212,7 @@ public class TargetSteeringMotor : MonoBehaviour
 
     void OnDisable()
     {
+        _pendingDodgeTarget = null;
         switch (separationGroup)
         {
             case TargetSteeringSeparationGroup.Followers:
@@ -211,6 +234,14 @@ public class TargetSteeringMotor : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (_pendingDodgeTarget != null && Time.time >= _pendingDodgeTime)
+        {
+            Transform dodgeTarget = _pendingDodgeTarget;
+            _pendingDodgeTarget = null;
+            if (dodgeTarget != null)
+                ApplyRangedDodgeImpulse(dodgeTarget.position);
+        }
+
         if (seekOverride != null)
         {
             Vector3 goal = seekOverride.position;
