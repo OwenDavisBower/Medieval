@@ -113,24 +113,7 @@ public class TerrainGenerator : MonoBehaviour
                 heights[z, x] = Mathf.Clamp(heights[z, x], 0.002f, 0.998f);
         }
 
-        float minH = float.MaxValue, maxH = float.MinValue;
-        for (int z = 0; z < res; z++)
-        {
-            for (int x = 0; x < res; x++)
-            {
-                float h = heights[z, x];
-                if (h < minH) minH = h;
-                if (h > maxH) maxH = h;
-            }
-        }
-
-        float midHeight = (minH + maxH) * 0.5f;
-
         data.SetHeights(0, 0, heights);
-
-        Vector3 terrainPos = terrain.transform.position;
-        terrainPos.y = -midHeight * data.size.y;
-        terrain.transform.position = terrainPos;
 
         var navSurface = GetComponent<NavMeshSurface>();
         if (navSurface != null)
