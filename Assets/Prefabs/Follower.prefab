@@ -223,7 +223,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FollowerController
   banditAggroRadius: 50
-  combatRange: 10
+  combatRange: 20
   eyeHeight: 1.5
   targetHeight: 1
   obstacleLayers:

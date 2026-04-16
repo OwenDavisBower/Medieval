@@ -12,7 +12,7 @@ public class BanditController : MonoBehaviour
     [SerializeField] LayerMask obstacleLayers = ~0;
 
     [Header("Combat")]
-    [SerializeField] float combatRange = 10f;
+    [SerializeField] float combatRange = 20f;
 
     TargetSteeringMotor _motor;
     RangedCombat _ranged;
@@ -58,7 +58,10 @@ public class BanditController : MonoBehaviour
             Vector3 d = chase.position - transform.position;
             d.y = 0f;
             if (d.sqrMagnitude <= combatRange * combatRange)
-                _ranged.TryFireAt(chase);
+            {
+                if (_ranged.TryFireAt(chase))
+                    _motor.ApplyRangedDodgeImpulse(chase.position);
+            }
         }
     }
 

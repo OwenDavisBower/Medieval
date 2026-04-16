@@ -6,7 +6,7 @@ public class FollowerController : MonoBehaviour
 {
     [Header("Combat")]
     [SerializeField] float banditAggroRadius = 50f;
-    [SerializeField] float combatRange = 10f;
+    [SerializeField] float combatRange = 20f;
     [SerializeField] float eyeHeight = 1.5f;
     [SerializeField] float targetHeight = 1f;
     [SerializeField] LayerMask obstacleLayers = ~0;
@@ -54,7 +54,10 @@ public class FollowerController : MonoBehaviour
             Vector3 d = bandit.position - transform.position;
             d.y = 0f;
             if (d.sqrMagnitude <= combatRange * combatRange)
-                _ranged.TryFireAt(bandit);
+            {
+                if (_ranged.TryFireAt(bandit))
+                    _motor.ApplyRangedDodgeImpulse(bandit.position);
+            }
         }
     }
 

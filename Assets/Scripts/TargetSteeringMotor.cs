@@ -39,6 +39,8 @@ public class TargetSteeringMotor : MonoBehaviour
     [SerializeField] float moveSpeed = 5f;
     [SerializeField] float arriveThreshold = 0.15f;
     [SerializeField] float acceleration = 14f;
+    [Tooltip("Horizontal speed added sideways right after a ranged shot (strafe dodge).")]
+    [SerializeField] float postRangedDodgeImpulse = 2.2f;
 
     [Header("Orbit (annulus around anchor)")]
     [SerializeField] float minLoiterRadius = 2.5f;
@@ -114,6 +116,37 @@ public class TargetSteeringMotor : MonoBehaviour
     }
 
     public TargetSteeringSeparationGroup SeparationGroup => separationGroup;
+
+    /// <summary>Small random sideways nudge on the horizontal plane after firing at <paramref name="targetPosition"/>.</summary>
+    public void ApplyRangedDodgeImpulse(Vector3 targetPosition)
+    {
+        if (postRangedDodgeImpulse <= 0f || _rb == null)
+            return;
+
+        Vector3 flat = targetPosition - transform.position;
+        flat.y = 0f;
+        if (flat.sqrMagnitude < 1e-4f)
+            return;
+        flat.Normalize();
+        Vector3 perp = Vector3.Cross(Vector3.up, flat);
+        if (perp.sqrMagnitude < 1e-6f)
+            return;
+        perp.Normalize();
+        if (Random.value < 0.5f)
+            perp = -perp;
+
+        Vector3 add = perp * postRangedDodgeImpulse;
+        Vector3 v = _rb.linearVelocity;
+        v.x += add.x;
+        v.z += add.z;
+        Vector3 h = new Vector3(v.x, 0f, v.z);
+        float cap = moveSpeed * 1.6f;
+        if (h.sqrMagnitude > cap * cap)
+            h = h.normalized * cap;
+        v.x = h.x;
+        v.z = h.z;
+        _rb.linearVelocity = v;
+    }
 
     public void InitializeOrbitRandom()
     {

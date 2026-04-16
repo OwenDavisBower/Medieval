@@ -228,7 +228,7 @@ MonoBehaviour:
   obstacleLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  combatRange: 10
+  combatRange: 20
 --- !u!114 &7720116209973403168
 MonoBehaviour:
   m_ObjectHideFlags: 0

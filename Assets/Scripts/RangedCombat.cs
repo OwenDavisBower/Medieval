@@ -18,12 +18,13 @@ public class RangedCombat : MonoBehaviour
         _ownerCollider = GetComponentInChildren<Collider>();
     }
 
-    public void TryFireAt(Transform target)
+    /// <returns>True if a shot was fired this call.</returns>
+    public bool TryFireAt(Transform target)
     {
         if (arrowPrefab == null || target == null)
-            return;
+            return false;
         if (Time.time < _nextFireTime)
-            return;
+            return false;
 
         Vector3 origin = transform.position + Vector3.up * launchHeight;
         Vector3 aim = target.position + Vector3.up * targetAimHeight;
@@ -54,6 +55,7 @@ public class RangedCombat : MonoBehaviour
         }
 
         _nextFireTime = Time.time + fireInterval;
+        return true;
     }
 
     static Vector3 LobbedLaunchVelocity(Vector3 from, Vector3 to)
