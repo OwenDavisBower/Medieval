@@ -14,6 +14,7 @@ public class FollowerController : MonoBehaviour
     TargetSteeringMotor _motor;
     RangedCombat _ranged;
     MeleeCombat _melee;
+    Character _character;
     bool _isRanged = true;
     BanditController[] _banditsCache;
     float _banditsCacheTime;
@@ -23,6 +24,7 @@ public class FollowerController : MonoBehaviour
         _motor = GetComponent<TargetSteeringMotor>();
         _ranged = GetComponent<RangedCombat>();
         _melee = GetComponent<MeleeCombat>();
+        _character = GetComponent<Character>();
     }
 
     /// <summary>Call once after spawn: ranged (bow) or melee, never both.</summary>
@@ -49,6 +51,8 @@ public class FollowerController : MonoBehaviour
     {
         TryAssignPlayerAnchor();
         _motor.SeekHoldDistance = _isRanged ? combatRange : 0f;
+        if (_character != null)
+            _motor.MoveSpeedScale = _character.MovementSpeedMultiplier;
     }
 
     void TryAssignPlayerAnchor()
@@ -63,6 +67,12 @@ public class FollowerController : MonoBehaviour
         if (_motor.CanScheduleRangedDodge && !_motor.HasPendingRangedDodge &&
             ArrowProjectile.TryGetIncomingDodgeReference(transform.root, out Vector3 dodgeRef))
             _motor.ScheduleRangedDodgeImpulse(dodgeRef);
+
+        if (_character != null && _character.ShouldFleeFromCombatThreat)
+        {
+            _motor.SeekOverride = null;
+            return;
+        }
 
         Transform bandit = FindBanditTarget();
         _motor.SeekOverride = bandit;

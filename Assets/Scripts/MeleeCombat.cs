@@ -45,7 +45,10 @@ public class MeleeCombat : MonoBehaviour
         var character = target.GetComponentInParent<Character>();
         if (character != null && character.transform.root != _selfRoot)
         {
-            character.TakeDamage(damage);
+            float dmg = damage;
+            if (_selfCharacter != null)
+                dmg *= _selfCharacter.MeleeDamageMultiplier;
+            character.TakeDamage(dmg);
             character.ApplyAttackStun(hitMeleeStunDuration);
         }
 

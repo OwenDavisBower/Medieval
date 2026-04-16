@@ -30,10 +30,14 @@ public class RangedCombat : MonoBehaviour
         if (Time.time < _nextFireTime)
             return false;
 
+        float aimScale = 1f;
+        if (_selfCharacter != null)
+            aimScale = _selfCharacter.RangedAimErrorMultiplier;
+
         Vector3 origin = transform.position + Vector3.up * launchHeight;
         Vector3 aim = target.position + Vector3.up * targetAimHeight;
-        Vector2 xz = Random.insideUnitCircle * horizontalAimError;
-        aim += new Vector3(xz.x, Random.Range(-verticalAimError, verticalAimError), xz.y);
+        Vector2 xz = Random.insideUnitCircle * (horizontalAimError * aimScale);
+        aim += new Vector3(xz.x, Random.Range(-verticalAimError, verticalAimError) * aimScale, xz.y);
 
         Vector3 velocity = LobbedLaunchVelocity(origin, aim);
 

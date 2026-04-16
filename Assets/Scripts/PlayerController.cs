@@ -9,11 +9,13 @@ public class PlayerController : MonoBehaviour
 
     Rigidbody _rb;
     Transform _cam;
+    Character _character;
     bool _snappedToTerrain;
 
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
+        _character = GetComponent<Character>();
         _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
         if (Camera.main != null)
             _cam = Camera.main.transform;
@@ -77,7 +79,10 @@ public class PlayerController : MonoBehaviour
             move.Normalize();
 
         Vector3 velocity = _rb.linearVelocity;
-        Vector3 targetHorizontal = move * moveSpeed;
+        float speed = moveSpeed;
+        if (_character != null)
+            speed *= _character.MovementSpeedMultiplier;
+        Vector3 targetHorizontal = move * speed;
         velocity.x = targetHorizontal.x;
         velocity.z = targetHorizontal.z;
         _rb.linearVelocity = velocity;

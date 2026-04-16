@@ -37,6 +37,8 @@ public class TargetSteeringMotor : MonoBehaviour
 
     [Header("Motion")]
     [SerializeField] float moveSpeed = 5f;
+    [Tooltip("Applied to moveSpeed (e.g. from Character dexterity).")]
+    [SerializeField] float moveSpeedScale = 1f;
     [SerializeField] float arriveThreshold = 0.15f;
     [SerializeField] float acceleration = 14f;
     [Tooltip("Horizontal speed added sideways right after a ranged shot (strafe dodge).")]
@@ -118,6 +120,15 @@ public class TargetSteeringMotor : MonoBehaviour
         set => seekHoldDistance = value;
     }
 
+    /// <summary>Scales base move speed (e.g. from Character dexterity). Clamped to a small positive minimum.</summary>
+    public float MoveSpeedScale
+    {
+        get => moveSpeedScale;
+        set => moveSpeedScale = Mathf.Max(0.05f, value);
+    }
+
+    float EffectiveMoveSpeed => moveSpeed * moveSpeedScale;
+
     public TargetSteeringMovementMode Mode
     {
         get => mode;
@@ -171,7 +182,7 @@ public class TargetSteeringMotor : MonoBehaviour
         v.x += add.x;
         v.z += add.z;
         Vector3 h = new Vector3(v.x, 0f, v.z);
-        float cap = moveSpeed * 2.05f;
+        float cap = EffectiveMoveSpeed * 2.05f;
         if (h.sqrMagnitude > cap * cap)
             h = h.normalized * cap;
         v.x = h.x;
@@ -364,9 +375,9 @@ public class TargetSteeringMotor : MonoBehaviour
         {
             Vector3 desiredDir = flat.normalized;
             desiredDir = AdjustForObstacles(desiredDir);
-            Vector3 desired = desiredDir * moveSpeed;
+            Vector3 desired = desiredDir * EffectiveMoveSpeed;
             desired += ComputeSeparation();
-            float maxHorizSpeed = moveSpeed;
+            float maxHorizSpeed = EffectiveMoveSpeed;
             if (desired.sqrMagnitude > maxHorizSpeed * maxHorizSpeed)
                 desired = desired.normalized * maxHorizSpeed;
 
