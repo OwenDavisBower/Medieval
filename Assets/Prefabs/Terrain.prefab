@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1378809667031709191}
   - component: {fileID: 1791036906628755996}
   - component: {fileID: 4629028451685561943}
+  - component: {fileID: 5827364519283746510}
   m_Layer: 0
   m_Name: Terrain
   m_TagString: Untagged
@@ -93,3 +94,28 @@ TerrainCollider:
   serializedVersion: 2
   m_TerrainData: {fileID: 15600000, guid: 281adc8b2db7743a4bf670eaa8c54e84, type: 2}
   m_EnableTreeColliders: 1
+--- !u!114 &5827364519283746510
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9085109988866658179}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a3c2d1e4f5b6a7987654321fedcba09, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _seed: 42
+  _baseHeight: 0.44
+  _hillStrength: 0.072
+  _hillFrequency: 2.4
+  _hillOctaves: 4
+  _riverCount: 2
+  _riverDepth: 0.052
+  _riverHalfWidth: 0.028
+  _riverSegments: 16
+  _lakeCount: 5
+  _lakeDepth: 0.038
+  _lakeRadiusMin: 0.035
+  _lakeRadiusMax: 0.085
