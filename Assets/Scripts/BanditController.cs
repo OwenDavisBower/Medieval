@@ -50,6 +50,10 @@ public class BanditController : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (_motor.CanScheduleRangedDodge && !_motor.HasPendingRangedDodge &&
+            ArrowProjectile.TryGetIncomingDodgeReference(transform.root, out Vector3 dodgeRef))
+            _motor.ScheduleRangedDodgeImpulse(dodgeRef);
+
         Transform chase = FindChaseTarget();
         _motor.SeekOverride = chase;
 
@@ -58,10 +62,7 @@ public class BanditController : MonoBehaviour
             Vector3 d = chase.position - transform.position;
             d.y = 0f;
             if (d.sqrMagnitude <= combatRange * combatRange)
-            {
-                if (_ranged.TryFireAt(chase))
-                    _motor.ScheduleRangedDodgeImpulse(chase);
-            }
+                _ranged.TryFireAt(chase);
         }
     }
 

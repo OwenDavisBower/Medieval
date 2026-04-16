@@ -46,6 +46,10 @@ public class FollowerController : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (_motor.CanScheduleRangedDodge && !_motor.HasPendingRangedDodge &&
+            ArrowProjectile.TryGetIncomingDodgeReference(transform.root, out Vector3 dodgeRef))
+            _motor.ScheduleRangedDodgeImpulse(dodgeRef);
+
         Transform bandit = FindBanditTarget();
         _motor.SeekOverride = bandit;
 
@@ -54,10 +58,7 @@ public class FollowerController : MonoBehaviour
             Vector3 d = bandit.position - transform.position;
             d.y = 0f;
             if (d.sqrMagnitude <= combatRange * combatRange)
-            {
-                if (_ranged.TryFireAt(bandit))
-                    _motor.ScheduleRangedDodgeImpulse(bandit);
-            }
+                _ranged.TryFireAt(bandit);
         }
     }
 

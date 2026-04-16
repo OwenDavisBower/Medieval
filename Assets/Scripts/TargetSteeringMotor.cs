@@ -43,8 +43,10 @@ public class TargetSteeringMotor : MonoBehaviour
     [SerializeField] float postRangedDodgeImpulse = 3.6f;
     [Tooltip("Fraction of dodge impulse applied away from the target (retreat after shooting).")]
     [SerializeField] float postRangedDodgeRetreatRatio = 0.28f;
-    [Tooltip("Seconds after a successful shot before the dodge impulse is applied.")]
+    [Tooltip("Reaction delay before applying a scheduled ranged dodge impulse.")]
     [SerializeField] float postRangedDodgeDelay = 0.14f;
+    [Tooltip("Minimum time between ranged dodge impulses (incoming projectile dodges).")]
+    [SerializeField] float rangedDodgeCooldown = 0.42f;
 
     [Header("Orbit (annulus around anchor)")]
     [SerializeField] float minLoiterRadius = 2.5f;
@@ -93,8 +95,9 @@ public class TargetSteeringMotor : MonoBehaviour
     bool _orbitInitialized;
     bool _wanderInitialized;
     float _nextWanderPickTime;
-    Transform _pendingDodgeTarget;
+    Vector3? _pendingDodgeReferencePosition;
     float _pendingDodgeTime;
+    float _lastRangedDodgeApplyTime = float.NegativeInfinity;
 
     public Transform AnchorTarget
     {
@@ -123,18 +126,22 @@ public class TargetSteeringMotor : MonoBehaviour
 
     public TargetSteeringSeparationGroup SeparationGroup => separationGroup;
 
-    /// <summary>Queues a dodge a short time after the shot; re-shooting replaces the pending dodge.</summary>
-    public void ScheduleRangedDodgeImpulse(Transform target)
+    /// <summary>Whether another ranged dodge can be scheduled (cooldown after the last applied dodge).</summary>
+    public bool CanScheduleRangedDodge => Time.time >= _lastRangedDodgeApplyTime + rangedDodgeCooldown;
+
+    /// <summary>True while a dodge impulse is queued but not yet applied.</summary>
+    public bool HasPendingRangedDodge => _pendingDodgeReferencePosition.HasValue;
+
+    /// <summary>Queues a dodge after <see cref="postRangedDodgeDelay"/>; replaces any pending dodge.</summary>
+    public void ScheduleRangedDodgeImpulse(Vector3 dodgeReferenceWorldPosition)
     {
-        if (target == null)
-            return;
         if (postRangedDodgeDelay <= 0f)
         {
-            ApplyRangedDodgeImpulse(target.position);
+            ApplyRangedDodgeImpulse(dodgeReferenceWorldPosition);
             return;
         }
 
-        _pendingDodgeTarget = target;
+        _pendingDodgeReferencePosition = dodgeReferenceWorldPosition;
         _pendingDodgeTime = Time.time + postRangedDodgeDelay;
     }
 
@@ -143,6 +150,8 @@ public class TargetSteeringMotor : MonoBehaviour
     {
         if (postRangedDodgeImpulse <= 0f || _rb == null)
             return;
+
+        _lastRangedDodgeApplyTime = Time.time;
 
         Vector3 flat = targetPosition - transform.position;
         flat.y = 0f;
@@ -212,7 +221,7 @@ public class TargetSteeringMotor : MonoBehaviour
 
     void OnDisable()
     {
-        _pendingDodgeTarget = null;
+        _pendingDodgeReferencePosition = null;
         switch (separationGroup)
         {
             case TargetSteeringSeparationGroup.Followers:
@@ -234,12 +243,11 @@ public class TargetSteeringMotor : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (_pendingDodgeTarget != null && Time.time >= _pendingDodgeTime)
+        if (_pendingDodgeReferencePosition.HasValue && Time.time >= _pendingDodgeTime)
         {
-            Transform dodgeTarget = _pendingDodgeTarget;
-            _pendingDodgeTarget = null;
-            if (dodgeTarget != null)
-                ApplyRangedDodgeImpulse(dodgeTarget.position);
+            Vector3 dodgeRef = _pendingDodgeReferencePosition.Value;
+            _pendingDodgeReferencePosition = null;
+            ApplyRangedDodgeImpulse(dodgeRef);
         }
 
         if (seekOverride != null)
