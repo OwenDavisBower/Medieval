@@ -135,6 +135,7 @@ GameObject:
   - component: {fileID: 7018862032686843754}
   - component: {fileID: 481191335029085937}
   - component: {fileID: 8820116209973403167}
+  - component: {fileID: 7720116209973403168}
   m_Layer: 0
   m_Name: Bandit
   m_TagString: Untagged
@@ -226,6 +227,25 @@ MonoBehaviour:
   obstacleLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+  combatRange: 10
+--- !u!114 &7720116209973403168
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4e5f678901234567890abcdef4512ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RangedCombat
+  arrowPrefab: {fileID: 7100000006000006, guid: f678901234567890abcdef4512abcdef, type: 3}
+  fireInterval: 1.15
+  launchHeight: 1.45
+  targetAimHeight: 1
+  horizontalAimError: 1.8
+  verticalAimError: 0.35
 --- !u!114 &8820116209973403167
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -241,6 +261,7 @@ MonoBehaviour:
   mode: 2
   anchorTarget: {fileID: 0}
   seekOverride: {fileID: 0}
+  seekHoldDistance: 0
   moveSpeed: 5
   arriveThreshold: 0.15
   acceleration: 14

@@ -11,7 +11,11 @@ public class BanditController : MonoBehaviour
 
     [SerializeField] LayerMask obstacleLayers = ~0;
 
+    [Header("Combat")]
+    [SerializeField] float combatRange = 10f;
+
     TargetSteeringMotor _motor;
+    RangedCombat _ranged;
     Transform _player;
     FollowerController[] _followersCache;
     float _followersCacheTime;
@@ -29,6 +33,7 @@ public class BanditController : MonoBehaviour
     void Awake()
     {
         _motor = GetComponent<TargetSteeringMotor>();
+        _ranged = GetComponent<RangedCombat>();
     }
 
     void Start()
@@ -39,12 +44,22 @@ public class BanditController : MonoBehaviour
         var p = GameObject.Find("Player");
         if (p != null)
             _player = p.transform;
+
+        _motor.SeekHoldDistance = combatRange;
     }
 
     void FixedUpdate()
     {
         Transform chase = FindChaseTarget();
         _motor.SeekOverride = chase;
+
+        if (chase != null && _ranged != null)
+        {
+            Vector3 d = chase.position - transform.position;
+            d.y = 0f;
+            if (d.sqrMagnitude <= combatRange * combatRange)
+                _ranged.TryFireAt(chase);
+        }
     }
 
     Transform FindChaseTarget()

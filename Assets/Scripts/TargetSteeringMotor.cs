@@ -32,6 +32,8 @@ public class TargetSteeringMotor : MonoBehaviour
     [SerializeField] Transform anchorTarget;
     [Tooltip("When set, steering seeks this transform (e.g. chase target) regardless of mode.")]
     [SerializeField] Transform seekOverride;
+    [Tooltip("When > 0 and seek override is set, horizontal distance at or below this stops closing in (ranged standoff).")]
+    [SerializeField] float seekHoldDistance;
 
     [Header("Motion")]
     [SerializeField] float moveSpeed = 5f;
@@ -97,6 +99,12 @@ public class TargetSteeringMotor : MonoBehaviour
     {
         get => seekOverride;
         set => seekOverride = value;
+    }
+
+    public float SeekHoldDistance
+    {
+        get => seekHoldDistance;
+        set => seekHoldDistance = value;
     }
 
     public TargetSteeringMovementMode Mode
@@ -172,7 +180,19 @@ public class TargetSteeringMotor : MonoBehaviour
     {
         if (seekOverride != null)
         {
-            ApplySteering(seekOverride.position);
+            Vector3 goal = seekOverride.position;
+            if (seekHoldDistance > 0f)
+            {
+                Vector3 flat = goal - transform.position;
+                flat.y = 0f;
+                if (flat.sqrMagnitude <= seekHoldDistance * seekHoldDistance)
+                {
+                    ApplySteering(transform.position);
+                    return;
+                }
+            }
+
+            ApplySteering(goal);
             return;
         }
 
