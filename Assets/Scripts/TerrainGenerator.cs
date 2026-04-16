@@ -961,6 +961,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     {
         readonly List<MeshFilter> _filters = new();
         readonly List<MeshRenderer> _renderers = new();
+        readonly List<MeshCollider> _colliders = new();
         readonly List<Mesh> _meshes = new();
         Mesh[] _meshUploadSlots = Array.Empty<Mesh>();
         NativeArray<int> _lodLevels;
@@ -986,6 +987,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             _totalChunks = chunkAxis * chunkAxis;
             _filters.Clear();
             _renderers.Clear();
+            _colliders.Clear();
             _meshes.Clear();
 
             var chunkWorld = worldSize / math.max(1, chunkAxis);
@@ -1000,11 +1002,15 @@ public sealed class TerrainGenerator : MonoBehaviour
                     go.transform.localPosition = new Vector3(x * chunkWorld, 0f, z * chunkWorld);
                     var mf = go.AddComponent<MeshFilter>();
                     var mr = go.AddComponent<MeshRenderer>();
+                    var mc = go.AddComponent<MeshCollider>();
                     var mesh = new Mesh { name = $"{chunkName}_{x}_{z}" };
                     mesh.hideFlags = HideFlags.DontSave;
                     mf.sharedMesh = mesh;
+                    mc.sharedMesh = mesh;
+                    mc.convex = false;
                     _filters.Add(mf);
                     _renderers.Add(mr);
+                    _colliders.Add(mc);
                     _meshes.Add(mesh);
                 }
             }
@@ -1050,6 +1056,7 @@ public sealed class TerrainGenerator : MonoBehaviour
 
             _filters.Clear();
             _renderers.Clear();
+            _colliders.Clear();
             _meshes.Clear();
             _meshUploadSlots = Array.Empty<Mesh>();
 
@@ -1228,7 +1235,19 @@ public sealed class TerrainGenerator : MonoBehaviour
             Mesh.ApplyAndDisposeWritableMeshData(meshDataArray, _meshUploadSlots, MeshUpdateFlags.Default);
 
             for (var i = 0; i < _totalChunks; i++)
-                _meshes[i].RecalculateBounds();
+            {
+                var mesh = _meshes[i];
+                mesh.RecalculateBounds();
+                if (i < _colliders.Count)
+                {
+                    var mc = _colliders[i];
+                    if (mc != null)
+                    {
+                        mc.sharedMesh = null;
+                        mc.sharedMesh = mesh;
+                    }
+                }
+            }
         }
 
         int SelectLod(int chunkIndex, int chunkAxis, float worldSize, Transform? camera, float lod1, float lod2)
