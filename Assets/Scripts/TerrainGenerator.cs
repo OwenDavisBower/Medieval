@@ -47,7 +47,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Heightmap resolution in texels per axis.</summary>
     public int worldResolution = 512;
 
-    /// <summary>World extent along X and Z in Unity units.</summary>
+    /// <summary>World extent along X and Z in Unity units; terrain spans this transform's XZ position ± half.</summary>
     public float worldSize = 1024f;
 
     /// <summary>Baseline terrain height in world units.</summary>
@@ -271,8 +271,7 @@ public sealed class TerrainGenerator : MonoBehaviour
         }
         else
         {
-            var localMid = new Vector3(worldSize * 0.5f, 0f, worldSize * 0.5f);
-            worldCenter = transform.TransformPoint(localMid);
+            worldCenter = transform.TransformPoint(Vector3.zero);
             worldCenter.y = yMid;
         }
 
@@ -749,8 +748,8 @@ public sealed class TerrainGenerator : MonoBehaviour
         /// </summary>
         public static float SampleDf(NativeArray<float> df, int resolution, float worldSize, Vector3 worldOrigin, Vector2 worldXz)
         {
-            var fx = (worldXz.x - worldOrigin.x) / worldSize * (resolution - 1);
-            var fz = (worldXz.y - worldOrigin.z) / worldSize * (resolution - 1);
+            var fx = (worldXz.x - worldOrigin.x + worldSize * 0.5f) / worldSize * (resolution - 1);
+            var fz = (worldXz.y - worldOrigin.z + worldSize * 0.5f) / worldSize * (resolution - 1);
             var ix = math.clamp((int)math.floor(fx), 0, resolution - 2);
             var iz = math.clamp((int)math.floor(fz), 0, resolution - 2);
             var tx = fx - ix;
@@ -782,8 +781,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var res = Resolution;
                 var ix = index % res;
                 var iz = index / res;
-                var wx = WorldOrigin.x + (ix + 0.5f) / res * WorldSize;
-                var wz = WorldOrigin.z + (iz + 0.5f) / res * WorldSize;
+                var wx = WorldOrigin.x + ((ix + 0.5f) / res - 0.5f) * WorldSize;
+                var wz = WorldOrigin.z + ((iz + 0.5f) / res - 0.5f) * WorldSize;
                 var p = new float2(wx, wz);
 
                 var best = float.MaxValue;
@@ -814,8 +813,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var res = Resolution;
                 var ix = index % res;
                 var iz = index / res;
-                var wx = WorldOrigin.x + (ix + 0.5f) / res * WorldSize;
-                var wz = WorldOrigin.z + (iz + 0.5f) / res * WorldSize;
+                var wx = WorldOrigin.x + ((ix + 0.5f) / res - 0.5f) * WorldSize;
+                var wz = WorldOrigin.z + ((iz + 0.5f) / res - 0.5f) * WorldSize;
                 var p = new float2(wx, wz);
 
                 var best = float.MaxValue;
@@ -901,8 +900,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var res = Resolution;
                 var ix = index % res;
                 var iz = index / res;
-                var wx = WorldOrigin.x + (ix + 0.5f) / res * WorldSize;
-                var wz = WorldOrigin.z + (iz + 0.5f) / res * WorldSize;
+                var wx = WorldOrigin.x + ((ix + 0.5f) / res - 0.5f) * WorldSize;
+                var wz = WorldOrigin.z + ((iz + 0.5f) / res - 0.5f) * WorldSize;
 
                 var pathDist = PathDf[index];
                 var riverDist = RiverDf[index];
@@ -1001,8 +1000,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var res = SplatResolution;
                 var ix = index % res;
                 var iz = index / res;
-                var wx = WorldOrigin.x + (ix + 0.5f) / res * WorldSize;
-                var wz = WorldOrigin.z + (iz + 0.5f) / res * WorldSize;
+                var wx = WorldOrigin.x + ((ix + 0.5f) / res - 0.5f) * WorldSize;
+                var wz = WorldOrigin.z + ((iz + 0.5f) / res - 0.5f) * WorldSize;
 
                 var h = SampleHeightBilinear(wx, wz);
                 var gx = SampleHeightBilinear(wx + 0.75f, wz);
@@ -1046,8 +1045,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             float SampleHeightBilinear(float wx, float wz)
             {
                 var hr = HeightResolution;
-                var fx = (wx - WorldOrigin.x) / WorldSize * (hr - 1);
-                var fz = (wz - WorldOrigin.z) / WorldSize * (hr - 1);
+                var fx = (wx - WorldOrigin.x + WorldSize * 0.5f) / WorldSize * (hr - 1);
+                var fz = (wz - WorldOrigin.z + WorldSize * 0.5f) / WorldSize * (hr - 1);
                 var ix = math.clamp((int)math.floor(fx), 0, hr - 2);
                 var iz = math.clamp((int)math.floor(fz), 0, hr - 2);
                 var tx = fx - ix;
@@ -1069,8 +1068,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 float wx,
                 float wz)
             {
-                var fx = (wx - worldOrigin.x) / worldSize * (resolution - 1);
-                var fz = (wz - worldOrigin.z) / worldSize * (resolution - 1);
+                var fx = (wx - worldOrigin.x + worldSize * 0.5f) / worldSize * (resolution - 1);
+                var fz = (wz - worldOrigin.z + worldSize * 0.5f) / worldSize * (resolution - 1);
                 var ix = math.clamp((int)math.floor(fx), 0, resolution - 2);
                 var iz = math.clamp((int)math.floor(fz), 0, resolution - 2);
                 var tx = fx - ix;
@@ -1136,7 +1135,7 @@ public sealed class TerrainGenerator : MonoBehaviour
                     go.transform.SetParent(root, false);
                     go.transform.localRotation = Quaternion.identity;
                     go.transform.localScale = Vector3.one;
-                    go.transform.localPosition = new Vector3(x * chunkWorld, 0f, z * chunkWorld);
+                    go.transform.localPosition = new Vector3(-worldSize * 0.5f + x * chunkWorld, 0f, -worldSize * 0.5f + z * chunkWorld);
                     var mf = go.AddComponent<MeshFilter>();
                     var mr = go.AddComponent<MeshRenderer>();
                     var mc = go.AddComponent<MeshCollider>();
@@ -1393,7 +1392,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             var cx = chunkIndex % chunkAxis;
             var cz = chunkIndex / chunkAxis;
             var chunkWorld = worldSize / chunkAxis;
-            var localCenter = new Vector3((cx + 0.5f) * chunkWorld, 0f, (cz + 0.5f) * chunkWorld);
+            var localCenter = new Vector3(-worldSize * 0.5f + (cx + 0.5f) * chunkWorld, 0f, -worldSize * 0.5f + (cz + 0.5f) * chunkWorld);
             if (camera == null || _terrainRoot == null)
                 return 0;
 
@@ -1495,10 +1494,10 @@ public sealed class TerrainGenerator : MonoBehaviour
                         var t = vStart + z * vertsPerAxis + x;
                         var lx = x / (float)seg * chunkWorld;
                         var lz = z / (float)seg * chunkWorld;
-                        var worldX = WorldOrigin.x + cx * chunkWorld + lx;
-                        var worldZ = WorldOrigin.z + cz * chunkWorld + lz;
+                        var worldX = WorldOrigin.x - WorldSize * 0.5f + cx * chunkWorld + lx;
+                        var worldZ = WorldOrigin.z - WorldSize * 0.5f + cz * chunkWorld + lz;
                         var h = SampleHeight(worldX, worldZ);
-                        var uv0 = new float2((worldX - WorldOrigin.x) / WorldSize, (worldZ - WorldOrigin.z) / WorldSize);
+                        var uv0 = new float2((worldX - WorldOrigin.x) / WorldSize + 0.5f, (worldZ - WorldOrigin.z) / WorldSize + 0.5f);
 
                         var dhdx = (SampleHeight(worldX + 0.5f, worldZ) - SampleHeight(worldX - 0.5f, worldZ));
                         var dhdz = (SampleHeight(worldX, worldZ + 0.5f) - SampleHeight(worldX, worldZ - 0.5f));
@@ -1541,8 +1540,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             float SampleHeight(float worldX, float worldZ)
             {
                 var hr = HeightResolution;
-                var fx = (worldX - WorldOrigin.x) / WorldSize * (hr - 1);
-                var fz = (worldZ - WorldOrigin.z) / WorldSize * (hr - 1);
+                var fx = (worldX - WorldOrigin.x + WorldSize * 0.5f) / WorldSize * (hr - 1);
+                var fz = (worldZ - WorldOrigin.z + WorldSize * 0.5f) / WorldSize * (hr - 1);
                 var ix = math.clamp((int)math.floor(fx), 0, hr - 2);
                 var iz = math.clamp((int)math.floor(fz), 0, hr - 2);
                 var tx = fx - ix;
