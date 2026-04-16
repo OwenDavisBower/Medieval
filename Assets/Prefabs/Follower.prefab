@@ -138,6 +138,7 @@ GameObject:
   - component: {fileID: 7720116209973403168}
   - component: {fileID: 881191335029085900}
   - component: {fileID: 991191335029085903}
+  - component: {fileID: 5555830013420853836}
   m_Layer: 0
   m_Name: Follower
   m_TagString: Untagged
@@ -310,6 +311,7 @@ MonoBehaviour:
   hitChance: 0.88
   damage: 14
   knockbackImpulse: 4.2
+  hitMeleeStunDuration: 0.28
 --- !u!114 &991191335029085903
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -325,3 +327,19 @@ MonoBehaviour:
   maxHealth: 100
   healthBarHeightOffset: 2.15
   healthBarScale: 0.011
+--- !u!208 &5555830013420853836
+NavMeshObstacle:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Shape: 1
+  m_Extents: {x: 0.5, y: 0.5, z: 0.5}
+  m_MoveThreshold: 0.1
+  m_Carve: 0
+  m_CarveOnlyStationary: 1
+  m_Center: {x: 0, y: 0, z: 0}
+  m_TimeToStationary: 0.5
