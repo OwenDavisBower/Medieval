@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Unity.AI.Navigation;
@@ -128,6 +129,10 @@ public sealed class TerrainGenerator : MonoBehaviour
     double _navMeshRebuildDueTime;
     Vector2 _lastNavMeshFocusXz = new(float.NaN, float.NaN);
 
+    AsyncOperation? _navMeshUpdateOp;
+    bool _navMeshRebuildQueuedAfterAsync;
+    Coroutine? _navMeshUpdateCoroutine;
+
     readonly List<Vector2> _gizmoPathPoints = new();
     readonly List<Vector2> _gizmoRiverPoints = new();
 
@@ -160,6 +165,12 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     void OnDestroy()
     {
+        if (_navMeshUpdateCoroutine != null)
+        {
+            StopCoroutine(_navMeshUpdateCoroutine);
+            _navMeshUpdateCoroutine = null;
+        }
+
         DisposeNativeBuffers();
         _chunkManager.Dispose();
         if (_splatmapTexture != null)
@@ -279,10 +290,55 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         EnsureNavMeshSurface();
         ApplyNavMeshCameraVolume();
-        navMeshSurface!.BuildNavMesh();
+        var surface = navMeshSurface!;
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            surface.BuildNavMesh();
+            if (cameraTransform != null)
+                _lastNavMeshFocusXz = new Vector2(cameraTransform.position.x, cameraTransform.position.z);
+            return;
+        }
+#endif
+
+        if (surface.navMeshData == null)
+        {
+            surface.BuildNavMesh();
+            if (cameraTransform != null)
+                _lastNavMeshFocusXz = new Vector2(cameraTransform.position.x, cameraTransform.position.z);
+            return;
+        }
+
+        if (_navMeshUpdateOp != null && !_navMeshUpdateOp.isDone)
+        {
+            _navMeshRebuildQueuedAfterAsync = true;
+            return;
+        }
+
+        _navMeshUpdateOp = surface.UpdateNavMesh(surface.navMeshData);
+        if (_navMeshUpdateCoroutine != null)
+            StopCoroutine(_navMeshUpdateCoroutine);
+        _navMeshUpdateCoroutine = StartCoroutine(WaitForNavMeshUpdateCoroutine());
+    }
+
+    IEnumerator WaitForNavMeshUpdateCoroutine()
+    {
+        if (_navMeshUpdateOp == null)
+            yield break;
+
+        yield return _navMeshUpdateOp;
+        _navMeshUpdateOp = null;
+        _navMeshUpdateCoroutine = null;
 
         if (cameraTransform != null)
             _lastNavMeshFocusXz = new Vector2(cameraTransform.position.x, cameraTransform.position.z);
+
+        if (_navMeshRebuildQueuedAfterAsync)
+        {
+            _navMeshRebuildQueuedAfterAsync = false;
+            RebuildNavMesh();
+        }
     }
 
     void RequestNavMeshRebuild()
