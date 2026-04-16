@@ -1,13 +1,20 @@
+using System;
 using System.Collections.Generic;
+using Unity.AI.Navigation;
 using UnityEngine;
 
 /// <summary>
 /// Procedural heightmap: mostly flat ground, gentle rolling hills, carved rivers and lake basins.
+/// Fires <see cref="TerrainGenerationComplete"/> after heights, NavMesh bake, and player placement.
 /// </summary>
 [RequireComponent(typeof(Terrain))]
 [DisallowMultipleComponent]
+[DefaultExecutionOrder(-200)]
 public class TerrainGenerator : MonoBehaviour
 {
+    /// <summary>Invoked once per play session after this terrain's heightmap and NavMesh are ready.</summary>
+    public static event Action TerrainGenerationComplete;
+
     [SerializeField] int _seed = 42;
 
     [Header("Plateau & hills")]
@@ -28,6 +35,9 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField] float _lakeRadiusMin = 0.035f;
     [SerializeField] float _lakeRadiusMax = 0.085f;
 
+    [Header("After generation")]
+    [SerializeField] float _playerHeightOffset = 0.05f;
+
     void Start()
     {
         var terrain = GetComponent<Terrain>();
@@ -35,7 +45,7 @@ public class TerrainGenerator : MonoBehaviour
         int res = data.heightmapResolution;
         float[,] heights = data.GetHeights(0, 0, res, res);
 
-        Random.InitState(_seed);
+        UnityEngine.Random.InitState(_seed);
         var rng = new System.Random(_seed);
 
         for (int z = 0; z < res; z++)
@@ -100,6 +110,38 @@ public class TerrainGenerator : MonoBehaviour
         }
 
         data.SetHeights(0, 0, heights);
+
+        var navSurface = GetComponent<NavMeshSurface>();
+        if (navSurface != null)
+            navSurface.BuildNavMesh();
+
+        PlacePlayerOnTerrain(terrain);
+
+        TerrainGenerationComplete?.Invoke();
+    }
+
+    void PlacePlayerOnTerrain(Terrain terrain)
+    {
+        var player = FindFirstObjectByType<PlayerController>();
+        if (player == null)
+            return;
+
+        TerrainData td = terrain.terrainData;
+        Vector3 origin = terrain.transform.position;
+        Vector3 worldXZ = origin + new Vector3(td.size.x * 0.5f, 0f, td.size.z * 0.5f);
+        worldXZ.y = terrain.SampleHeight(worldXZ) + _playerHeightOffset;
+
+        var rb = player.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.MovePosition(worldXZ);
+        }
+        else
+        {
+            player.transform.position = worldXZ;
+        }
     }
 
     float FbmHills(float x, float y)

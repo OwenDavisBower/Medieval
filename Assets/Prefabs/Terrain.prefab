@@ -120,6 +120,7 @@ MonoBehaviour:
   _lakeDepth: 0.038
   _lakeRadiusMin: 0.035
   _lakeRadiusMax: 0.085
+  _playerHeightOffset: 0.05
 --- !u!114 &1830824835944077313
 MonoBehaviour:
   m_ObjectHideFlags: 0
