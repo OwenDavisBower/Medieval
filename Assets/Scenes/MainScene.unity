@@ -119,6 +119,70 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &129346530
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 129346532}
+  - component: {fileID: 129346531}
+  m_Layer: 0
+  m_Name: Navigation
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &129346531
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 129346530}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a5ac11cc976e418e8d13136b07e1f52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshSurface
+  m_SerializedVersion: 0
+  m_AgentTypeID: 0
+  m_CollectObjects: 0
+  m_Size: {x: 10, y: 10, z: 10}
+  m_Center: {x: 0, y: 2, z: 0}
+  m_LayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_UseGeometry: 1
+  m_DefaultArea: 0
+  m_GenerateLinks: 0
+  m_IgnoreNavMeshAgent: 1
+  m_IgnoreNavMeshObstacle: 1
+  m_OverrideTileSize: 0
+  m_TileSize: 256
+  m_OverrideVoxelSize: 0
+  m_VoxelSize: 0.16666667
+  m_MinRegionArea: 2
+  m_NavMeshData: {fileID: 23800000, guid: 099a99407d36240728c5b2953c473390, type: 2}
+  m_BuildHeightMesh: 0
+--- !u!4 &129346532
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 129346530}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -552,6 +616,7 @@ GameObject:
   - component: {fileID: 1459529416}
   - component: {fileID: 1459529417}
   - component: {fileID: 1459529418}
+  - component: {fileID: 1459529419}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -652,32 +717,74 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FollowerSpawner
   followerPrefab: {fileID: 481191335029085937, guid: cbcfb7df56f446fbbf399e7f4bd5c2e3, type: 3}
   followerCount: 5
-  spawnRingRadius: 3
---- !u!1 &1520355790 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 9085109988866658179, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
-  m_PrefabInstance: {fileID: 3250532696293035384}
+  spawnRadiusMin: 1.5
+  spawnRadiusMax: 4
+--- !u!208 &1459529419
+NavMeshObstacle:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1520355794
+  m_GameObject: {fileID: 1459529413}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Shape: 1
+  m_Extents: {x: 0.5, y: 0.5, z: 0.5}
+  m_MoveThreshold: 0.1
+  m_Carve: 0
+  m_CarveOnlyStationary: 1
+  m_Center: {x: 0, y: 0, z: 0}
+  m_TimeToStationary: 0.5
+--- !u!1 &1876543200
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1876543201}
+  - component: {fileID: 1876543202}
+  m_Layer: 0
+  m_Name: TreeSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1876543201
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1876543200}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1876543202
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1520355790}
+  m_GameObject: {fileID: 1876543200}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c23ea2bf8c954d958f1fdd3f88dae8e, type: 3}
+  m_Script: {fileID: 11500000, guid: a7b8c9d0e1f2436586970a1b2c3d4e5f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TerrainGenerator
-  scale: 32
-  octaves: 5
-  persistence: 0.45
-  lacunarity: 2.1
-  hillSharpness: 4.17
-  heightThreshold: 0.684
-  seed: 42
-  noiseOffset: {x: 0, y: 0}
+  m_EditorClassIdentifier: Assembly-CSharp::TreeSpawner
+  treePrefab: {fileID: 343138504714799944, guid: 92daf5674a7784361899e62590c7b70d, type: 3}
+  treeCount: 200
+  regionRadius: 100
+  minSeparation: 6
+  maxAttemptsPerTree: 80
+  raycastHeight: 300
 --- !u!1 &1893884713
 GameObject:
   m_ObjectHideFlags: 0
@@ -762,13 +869,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Terrain
       objectReference: {fileID: 0}
+    - target: {fileID: 9085109988866658179, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 9085109988866658179, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1520355794}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
@@ -779,3 +887,5 @@ SceneRoots:
   - {fileID: 832575519}
   - {fileID: 3250532696293035384}
   - {fileID: 1459529414}
+  - {fileID: 129346532}
+  - {fileID: 1876543201}
