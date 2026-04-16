@@ -1,0 +1,438 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.AI;
+
+public enum TargetSteeringMovementMode
+{
+    /// <summary>Loiter on an annulus around <see cref="TargetSteeringMotor.anchorTarget"/> with organic noise.</summary>
+    Orbit,
+    /// <summary>Seek <see cref="TargetSteeringMotor.seekOverride"/> if set, otherwise <see cref="TargetSteeringMotor.anchorTarget"/>.</summary>
+    MoveTowards,
+    /// <summary>Random walk within a disk around <see cref="TargetSteeringMotor.anchorTarget"/> (re-picks periodically).</summary>
+    WanderAroundTarget
+}
+
+public enum TargetSteeringSeparationGroup
+{
+    None,
+    Followers,
+    Bandits
+}
+
+/// <summary>
+/// Ground-plane steering toward a computed goal: orbit, seek, or wander around an anchor transform.
+/// </summary>
+[DefaultExecutionOrder(100)]
+[RequireComponent(typeof(Rigidbody))]
+public class TargetSteeringMotor : MonoBehaviour
+{
+    [Header("Mode")]
+    [SerializeField] TargetSteeringMovementMode mode = TargetSteeringMovementMode.Orbit;
+    [Tooltip("Center for orbit and wander; MoveTowards seeks this when seek override is unset.")]
+    [SerializeField] Transform anchorTarget;
+    [Tooltip("When set, steering seeks this transform (e.g. chase target) regardless of mode.")]
+    [SerializeField] Transform seekOverride;
+
+    [Header("Motion")]
+    [SerializeField] float moveSpeed = 5f;
+    [SerializeField] float arriveThreshold = 0.15f;
+    [SerializeField] float acceleration = 14f;
+
+    [Header("Orbit (annulus around anchor)")]
+    [SerializeField] float minLoiterRadius = 2.5f;
+    [SerializeField] float maxLoiterRadius = 5.5f;
+
+    [Header("Orbit — trail behind moving anchor")]
+    [SerializeField] float trailBehindStrength = 0.35f;
+    [SerializeField] float maxTrailOffset = 2f;
+
+    [Header("Wander (disk around anchor)")]
+    [SerializeField] float wanderRadius = 20f;
+    [SerializeField] float repickWanderInterval = 4f;
+
+    [Header("Organic motion (orbit & wander)")]
+    [SerializeField] float targetSmoothTime = 0.35f;
+    [SerializeField] float noiseFrequency = 0.2f;
+    [SerializeField] float angleWobbleDegrees = 38f;
+    [SerializeField] float radiusWobble = 2f;
+
+    [Header("Pathfinding & avoidance")]
+    [SerializeField] bool useNavMeshWhenAvailable = true;
+    [SerializeField] float navMeshSampleMaxDistance = 2f;
+    [SerializeField] float minCornerAdvanceDistance = 0.35f;
+    [SerializeField] TargetSteeringSeparationGroup separationGroup = TargetSteeringSeparationGroup.None;
+    [SerializeField] float separationRadius = 1.1f;
+    [SerializeField] float separationStrength = 4f;
+    [SerializeField] float obstacleProbeRadius = 0.35f;
+    [SerializeField] float obstacleProbeDistance = 1.25f;
+    [SerializeField] LayerMask obstacleLayers = ~0;
+    [Tooltip("Bandits ignore follower colliders for obstacle probes (LOS/aggro stay on BanditController).")]
+    [SerializeField] bool ignoreFollowerCollidersForObstacles;
+
+    static readonly List<TargetSteeringMotor> FollowerMotors = new List<TargetSteeringMotor>();
+    static readonly List<TargetSteeringMotor> BanditMotors = new List<TargetSteeringMotor>();
+
+    NavMeshPath _navPath;
+    float _baseAngle;
+    float _baseRadius;
+    float _noiseA;
+    float _noiseB;
+    Rigidbody _rb;
+    Rigidbody _anchorRb;
+    Vector3 _smoothTarget;
+    Vector3 _smoothTargetVel;
+    bool _hasSmoothTarget;
+    bool _orbitInitialized;
+    bool _wanderInitialized;
+    float _nextWanderPickTime;
+
+    public Transform AnchorTarget
+    {
+        get => anchorTarget;
+        set => anchorTarget = value;
+    }
+
+    /// <summary>When set, goal position follows this transform (cleared when null).</summary>
+    public Transform SeekOverride
+    {
+        get => seekOverride;
+        set => seekOverride = value;
+    }
+
+    public TargetSteeringMovementMode Mode
+    {
+        get => mode;
+        set => mode = value;
+    }
+
+    public TargetSteeringSeparationGroup SeparationGroup => separationGroup;
+
+    public void InitializeOrbitRandom()
+    {
+        _baseAngle = Random.Range(0f, Mathf.PI * 2f);
+        _baseRadius = Random.Range(minLoiterRadius, maxLoiterRadius);
+        _noiseA = Random.Range(0f, 100f);
+        _noiseB = Random.Range(0f, 100f);
+        _orbitInitialized = true;
+    }
+
+    public void InitializeWanderAroundAnchor(Transform campAnchor, bool randomizeTimer = true)
+    {
+        anchorTarget = campAnchor;
+        _baseAngle = Random.Range(0f, Mathf.PI * 2f);
+        _baseRadius = Random.Range(0f, wanderRadius);
+        _noiseA = Random.Range(0f, 100f);
+        _noiseB = Random.Range(0f, 100f);
+        _nextWanderPickTime = Time.time + (randomizeTimer ? Random.Range(0f, 1f) : 0f);
+        _wanderInitialized = true;
+    }
+
+    void Awake()
+    {
+        _rb = GetComponent<Rigidbody>();
+        _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
+        _navPath = new NavMeshPath();
+    }
+
+    void OnEnable()
+    {
+        switch (separationGroup)
+        {
+            case TargetSteeringSeparationGroup.Followers:
+                FollowerMotors.Add(this);
+                break;
+            case TargetSteeringSeparationGroup.Bandits:
+                BanditMotors.Add(this);
+                break;
+        }
+    }
+
+    void OnDisable()
+    {
+        switch (separationGroup)
+        {
+            case TargetSteeringSeparationGroup.Followers:
+                FollowerMotors.Remove(this);
+                break;
+            case TargetSteeringSeparationGroup.Bandits:
+                BanditMotors.Remove(this);
+                break;
+        }
+    }
+
+    void Start()
+    {
+        if (mode == TargetSteeringMovementMode.Orbit && !_orbitInitialized)
+            InitializeOrbitRandom();
+        if (mode == TargetSteeringMovementMode.WanderAroundTarget && !_wanderInitialized && anchorTarget != null)
+            InitializeWanderAroundAnchor(anchorTarget, randomizeTimer: true);
+    }
+
+    void FixedUpdate()
+    {
+        if (seekOverride != null)
+        {
+            ApplySteering(seekOverride.position);
+            return;
+        }
+
+        if (anchorTarget == null)
+            return;
+
+        CacheAnchorRigidbody();
+
+        Vector3 rawTarget;
+        switch (mode)
+        {
+            case TargetSteeringMovementMode.Orbit:
+                rawTarget = ComputeOrbitTarget();
+                break;
+            case TargetSteeringMovementMode.MoveTowards:
+                rawTarget = anchorTarget.position;
+                break;
+            case TargetSteeringMovementMode.WanderAroundTarget:
+                rawTarget = ComputeWanderTarget();
+                break;
+            default:
+                rawTarget = anchorTarget.position;
+                break;
+        }
+
+        ApplySteering(rawTarget);
+    }
+
+    void CacheAnchorRigidbody()
+    {
+        if (_anchorRb == null && anchorTarget != null)
+            _anchorRb = anchorTarget.GetComponent<Rigidbody>();
+    }
+
+    Vector3 ComputeOrbitTarget()
+    {
+        float t = Time.time * noiseFrequency;
+        float angleJitter = (Mathf.PerlinNoise(_noiseA, t) - 0.5f) * 2f * (angleWobbleDegrees * Mathf.Deg2Rad);
+        float r = _baseRadius + (Mathf.PerlinNoise(t, _noiseB) - 0.5f) * 2f * radiusWobble;
+        float angle = _baseAngle + angleJitter;
+        Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * r;
+
+        Vector3 trail = Vector3.zero;
+        if (_anchorRb != null && trailBehindStrength > 0f)
+        {
+            Vector3 pv = _anchorRb.linearVelocity;
+            pv.y = 0f;
+            float mag = pv.magnitude;
+            if (mag > 0.05f)
+                trail = -pv.normalized * Mathf.Min(mag * trailBehindStrength, maxTrailOffset);
+        }
+
+        return anchorTarget.position + trail + offset;
+    }
+
+    Vector3 ComputeWanderTarget()
+    {
+        if (Time.time >= _nextWanderPickTime)
+        {
+            _nextWanderPickTime = Time.time + repickWanderInterval * Random.Range(0.7f, 1.3f);
+            float ang = Random.Range(0f, Mathf.PI * 2f);
+            float pickedRadius = wanderRadius * Mathf.Sqrt(Random.value);
+            _baseAngle = ang;
+            _baseRadius = pickedRadius;
+        }
+
+        float t = Time.time * noiseFrequency;
+        float angleJitter = (Mathf.PerlinNoise(_noiseA, t) - 0.5f) * 2f * (angleWobbleDegrees * Mathf.Deg2Rad);
+        float rWobble = (Mathf.PerlinNoise(t, _noiseB) - 0.5f) * 2f * radiusWobble;
+        float angle = _baseAngle + angleJitter;
+        float r = Mathf.Clamp(_baseRadius + rWobble, 0f, wanderRadius);
+        Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * r;
+        return anchorTarget.position + offset;
+    }
+
+    void ApplySteering(Vector3 rawTarget)
+    {
+        if (!_hasSmoothTarget)
+        {
+            _smoothTarget = rawTarget;
+            _hasSmoothTarget = true;
+        }
+        else
+        {
+            _smoothTarget = Vector3.SmoothDamp(_smoothTarget, rawTarget, ref _smoothTargetVel, targetSmoothTime);
+        }
+
+        Vector3 seekPoint = GetSeekPoint(_smoothTarget);
+
+        Vector3 flat = seekPoint - transform.position;
+        flat.y = 0f;
+
+        Vector3 velocity = _rb.linearVelocity;
+        Vector3 horizontal = new Vector3(velocity.x, 0f, velocity.z);
+
+        if (flat.sqrMagnitude > arriveThreshold * arriveThreshold)
+        {
+            Vector3 desiredDir = flat.normalized;
+            desiredDir = AdjustForObstacles(desiredDir);
+            Vector3 desired = desiredDir * moveSpeed;
+            desired += ComputeSeparation();
+            float maxHorizSpeed = moveSpeed;
+            if (desired.sqrMagnitude > maxHorizSpeed * maxHorizSpeed)
+                desired = desired.normalized * maxHorizSpeed;
+
+            float maxDelta = acceleration * Time.fixedDeltaTime;
+            Vector3 newHorizontal = Vector3.MoveTowards(horizontal, desired, maxDelta);
+            velocity.x = newHorizontal.x;
+            velocity.z = newHorizontal.z;
+        }
+        else
+        {
+            Vector3 newHorizontal = Vector3.MoveTowards(horizontal, Vector3.zero, acceleration * Time.fixedDeltaTime);
+            velocity.x = newHorizontal.x;
+            velocity.z = newHorizontal.z;
+        }
+
+        _rb.linearVelocity = velocity;
+    }
+
+    Vector3 GetSeekPoint(Vector3 goal)
+    {
+        if (!useNavMeshWhenAvailable)
+            return goal;
+
+        Vector3 origin = transform.position;
+        if (!NavMesh.SamplePosition(origin, out NavMeshHit startHit, navMeshSampleMaxDistance, NavMesh.AllAreas))
+            return goal;
+        if (!NavMesh.SamplePosition(goal, out NavMeshHit goalHit, navMeshSampleMaxDistance, NavMesh.AllAreas))
+            return goal;
+
+        if (!NavMesh.CalculatePath(startHit.position, goalHit.position, NavMesh.AllAreas, _navPath))
+            return goal;
+
+        if (_navPath.status == NavMeshPathStatus.PathInvalid)
+            return goal;
+
+        if (_navPath.corners == null || _navPath.corners.Length < 2)
+            return goal;
+
+        for (int i = 1; i < _navPath.corners.Length; i++)
+        {
+            Vector3 c = _navPath.corners[i];
+            c.y = origin.y;
+            if ((c - origin).sqrMagnitude > minCornerAdvanceDistance * minCornerAdvanceDistance)
+                return c;
+        }
+
+        return _navPath.corners[_navPath.corners.Length - 1];
+    }
+
+    Vector3 AdjustForObstacles(Vector3 desiredDir)
+    {
+        if (desiredDir.sqrMagnitude < 1e-6f)
+            return desiredDir;
+
+        Vector3 origin = transform.position + Vector3.up * 0.1f;
+        if (Physics.SphereCast(origin, obstacleProbeRadius, desiredDir, out RaycastHit hit, obstacleProbeDistance,
+                obstacleLayers, QueryTriggerInteraction.Ignore) && !IsAgentCollider(hit.collider))
+        {
+            Vector3 n = hit.normal;
+            n.y = 0f;
+            if (n.sqrMagnitude < 1e-6f)
+                return desiredDir;
+            n.Normalize();
+
+            Vector3 tangent = Vector3.Cross(Vector3.up, n);
+            if (tangent.sqrMagnitude < 1e-6f)
+                return desiredDir;
+            tangent.Normalize();
+            if (Vector3.Dot(tangent, desiredDir) < 0f)
+                tangent = -tangent;
+
+            return (desiredDir * 0.35f + tangent * 0.65f).normalized;
+        }
+
+        return desiredDir;
+    }
+
+    bool IsAgentCollider(Collider col)
+    {
+        if (col == null)
+            return false;
+
+        var otherMotor = col.GetComponentInParent<TargetSteeringMotor>();
+        if (otherMotor != null && otherMotor != this)
+        {
+            if (separationGroup == TargetSteeringSeparationGroup.Followers &&
+                otherMotor.SeparationGroup == TargetSteeringSeparationGroup.Followers)
+                return true;
+            if (separationGroup == TargetSteeringSeparationGroup.Bandits &&
+                otherMotor.SeparationGroup == TargetSteeringSeparationGroup.Bandits)
+                return true;
+        }
+
+        if (ignoreFollowerCollidersForObstacles && col.GetComponentInParent<FollowerController>() != null)
+            return true;
+
+        if (anchorTarget != null && (col.transform == anchorTarget || col.transform.IsChildOf(anchorTarget)))
+            return true;
+
+        return false;
+    }
+
+    Vector3 ComputeSeparation()
+    {
+        float r = separationRadius;
+        float rSq = r * r;
+        Vector3 sum = Vector3.zero;
+        Vector3 p = transform.position;
+
+        if (separationGroup == TargetSteeringSeparationGroup.Followers && anchorTarget != null)
+        {
+            Vector3 d = p - anchorTarget.position;
+            d.y = 0f;
+            float sq = d.sqrMagnitude;
+            if (sq > 1e-6f && sq < rSq)
+            {
+                float dist = Mathf.Sqrt(sq);
+                sum += d.normalized * (separationStrength * (1f - dist / r));
+            }
+
+            for (int i = 0; i < FollowerMotors.Count; i++)
+            {
+                TargetSteeringMotor other = FollowerMotors[i];
+                if (other == null || other == this)
+                    continue;
+
+                Vector3 od = p - other.transform.position;
+                od.y = 0f;
+                float osq = od.sqrMagnitude;
+                if (osq > 1e-6f && osq < rSq)
+                {
+                    float dist = Mathf.Sqrt(osq);
+                    sum += od.normalized * (separationStrength * (1f - dist / r));
+                }
+            }
+
+            return sum;
+        }
+
+        if (separationGroup == TargetSteeringSeparationGroup.Bandits)
+        {
+            for (int i = 0; i < BanditMotors.Count; i++)
+            {
+                TargetSteeringMotor other = BanditMotors[i];
+                if (other == null || other == this)
+                    continue;
+
+                Vector3 d = p - other.transform.position;
+                d.y = 0f;
+                float sq = d.sqrMagnitude;
+                if (sq > 1e-6f && sq < rSq)
+                {
+                    float dist = Mathf.Sqrt(sq);
+                    sum += d.normalized * (separationStrength * (1f - dist / r));
+                }
+            }
+        }
+
+        return sum;
+    }
+}

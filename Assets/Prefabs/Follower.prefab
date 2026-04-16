@@ -134,6 +134,7 @@ GameObject:
   - component: {fileID: 5237953102771125215}
   - component: {fileID: 7018862032686843754}
   - component: {fileID: 481191335029085937}
+  - component: {fileID: 8820116209973403167}
   m_Layer: 0
   m_Name: Follower
   m_TagString: Untagged
@@ -219,6 +220,43 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 75da5c82b9ef45cba62e06789e543149, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FollowerController
+--- !u!114 &8820116209973403167
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7e8d9c0b1a2436586978091a2b3c4d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetSteeringMotor
+  mode: 0
+  anchorTarget: {fileID: 0}
+  seekOverride: {fileID: 0}
   moveSpeed: 5
-  ringRadius: 4
   arriveThreshold: 0.15
+  acceleration: 14
+  minLoiterRadius: 2.5
+  maxLoiterRadius: 5.5
+  trailBehindStrength: 0.35
+  maxTrailOffset: 2
+  wanderRadius: 20
+  repickWanderInterval: 4
+  targetSmoothTime: 0.35
+  noiseFrequency: 0.22
+  angleWobbleDegrees: 40
+  radiusWobble: 1.4
+  useNavMeshWhenAvailable: 1
+  navMeshSampleMaxDistance: 2
+  minCornerAdvanceDistance: 0.35
+  separationGroup: 1
+  separationRadius: 1.1
+  separationStrength: 4
+  obstacleProbeRadius: 0.35
+  obstacleProbeDistance: 1.25
+  obstacleLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  ignoreFollowerCollidersForObstacles: 0
