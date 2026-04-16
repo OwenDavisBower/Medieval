@@ -12,7 +12,7 @@ public class PlayerController : MonoBehaviour
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
-        _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+        _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
         if (Camera.main != null)
             _cam = Camera.main.transform;
     }
