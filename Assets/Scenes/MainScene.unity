@@ -617,6 +617,7 @@ GameObject:
   - component: {fileID: 1459529417}
   - component: {fileID: 1459529418}
   - component: {fileID: 1459529419}
+  - component: {fileID: 1459529420}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -719,6 +720,21 @@ MonoBehaviour:
   followerCount: 5
   spawnRadiusMin: 1.5
   spawnRadiusMax: 4
+--- !u!114 &1459529420
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1459529413}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9d8e7f6a5b4039281706152435a6b7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character
+  maxHealth: 100
+  healthBarHeightOffset: 2.15
+  healthBarScale: 0.008
 --- !u!208 &1459529419
 NavMeshObstacle:
   m_ObjectHideFlags: 0

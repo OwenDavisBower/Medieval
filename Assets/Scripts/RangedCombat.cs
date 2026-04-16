@@ -35,6 +35,10 @@ public class RangedCombat : MonoBehaviour
         Rigidbody arrow = Instantiate(arrowPrefab, origin, Quaternion.identity);
         arrow.linearVelocity = velocity;
 
+        var projectile = arrow.GetComponent<ArrowProjectile>();
+        if (projectile != null)
+            projectile.SetShooterRoot(transform.root);
+
         if (velocity.sqrMagnitude > 0.01f)
         {
             Vector3 forward = velocity.normalized;

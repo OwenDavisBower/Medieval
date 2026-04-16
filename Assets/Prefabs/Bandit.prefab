@@ -136,6 +136,7 @@ GameObject:
   - component: {fileID: 481191335029085937}
   - component: {fileID: 8820116209973403167}
   - component: {fileID: 7720116209973403168}
+  - component: {fileID: 991191335029085902}
   m_Layer: 0
   m_Name: Bandit
   m_TagString: Untagged
@@ -287,3 +288,18 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   ignoreFollowerCollidersForObstacles: 1
+--- !u!114 &991191335029085902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9d8e7f6a5b4039281706152435a6b7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character
+  maxHealth: 100
+  healthBarHeightOffset: 2.15
+  healthBarScale: 0.008
