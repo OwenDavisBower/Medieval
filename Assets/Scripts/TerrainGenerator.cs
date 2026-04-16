@@ -39,8 +39,20 @@ public class TerrainGenerator : MonoBehaviour
 
     [Header("After generation")]
     [SerializeField] float _playerHeightOffset = 0.05f;
+    [Tooltip("When off, play mode uses the TerrainData heightmap already in the scene (no procedural pass). Use Regenerate Terrain in the inspector or via the Medieval menu.")]
+    [SerializeField] bool _regenerateOnPlay = false;
 
     void Start()
+    {
+        if (_regenerateOnPlay)
+            RegenerateTerrain();
+        else
+            CompleteTerrainSetup();
+    }
+
+    /// <summary>Rebuilds the heightmap from noise parameters, then NavMesh. Optionally places the player and fires <see cref="TerrainGenerationComplete"/> (play mode).</summary>
+    /// <param name="placePlayerAndFireEvent">Set false when regenerating from the editor to avoid moving objects and firing gameplay events.</param>
+    public void RegenerateTerrain(bool placePlayerAndFireEvent = true)
     {
         var terrain = GetComponent<Terrain>();
         TerrainData data = terrain.terrainData;
@@ -115,9 +127,18 @@ public class TerrainGenerator : MonoBehaviour
 
         data.SetHeights(0, 0, heights);
 
+        CompleteTerrainSetup(placePlayerAndFireEvent);
+    }
+
+    void CompleteTerrainSetup(bool placePlayerAndFireEvent = true)
+    {
+        var terrain = GetComponent<Terrain>();
         var navSurface = GetComponent<NavMeshSurface>();
         if (navSurface != null)
             navSurface.BuildNavMesh();
+
+        if (!placePlayerAndFireEvent)
+            return;
 
         PlacePlayerOnTerrain(terrain);
 
