@@ -16,6 +16,8 @@ public class BanditController : MonoBehaviour
 
     TargetSteeringMotor _motor;
     RangedCombat _ranged;
+    MeleeCombat _melee;
+    bool _isRanged = true;
     Transform _player;
     FollowerController[] _followersCache;
     float _followersCacheTime;
@@ -34,6 +36,18 @@ public class BanditController : MonoBehaviour
     {
         _motor = GetComponent<TargetSteeringMotor>();
         _ranged = GetComponent<RangedCombat>();
+        _melee = GetComponent<MeleeCombat>();
+    }
+
+    /// <summary>Call once after spawn: ranged (bow) or melee, never both.</summary>
+    public void ApplyCombatRole(bool ranged)
+    {
+        _isRanged = ranged;
+        if (_ranged != null)
+            _ranged.enabled = ranged;
+        if (_melee != null)
+            _melee.enabled = !ranged;
+        CombatVisuals.SetRangedHatVisible(transform, ranged);
     }
 
     void Start()
@@ -45,7 +59,7 @@ public class BanditController : MonoBehaviour
         if (p != null)
             _player = p.transform;
 
-        _motor.SeekHoldDistance = combatRange;
+        _motor.SeekHoldDistance = _isRanged ? combatRange : 0f;
     }
 
     void FixedUpdate()
@@ -57,13 +71,15 @@ public class BanditController : MonoBehaviour
         Transform chase = FindChaseTarget();
         _motor.SeekOverride = chase;
 
-        if (chase != null && _ranged != null)
-        {
-            Vector3 d = chase.position - transform.position;
-            d.y = 0f;
-            if (d.sqrMagnitude <= combatRange * combatRange)
-                _ranged.TryFireAt(chase);
-        }
+        if (chase == null)
+            return;
+
+        Vector3 d = chase.position - transform.position;
+        d.y = 0f;
+        if (_isRanged && _ranged != null && _ranged.enabled && d.sqrMagnitude <= combatRange * combatRange)
+            _ranged.TryFireAt(chase);
+        else if (!_isRanged && _melee != null && _melee.enabled)
+            _melee.TryAttack(chase);
     }
 
     Transform FindChaseTarget()

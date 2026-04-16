@@ -20,6 +20,7 @@ public class BanditCamp : MonoBehaviour
             Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(transform.position + offset);
 
             BanditController bandit = Instantiate(banditPrefab, pos, Quaternion.identity);
+            bandit.ApplyCombatRole(Random.value < 0.5f);
             bandit.Initialize(transform);
         }
     }

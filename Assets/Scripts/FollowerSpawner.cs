@@ -43,6 +43,7 @@ public class FollowerSpawner : MonoBehaviour
             Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(transform.position + offset);
 
             FollowerController follower = Instantiate(followerPrefab, pos, Quaternion.identity);
+            follower.ApplyCombatRole(Random.value < 0.5f);
             follower.Initialize();
         }
     }

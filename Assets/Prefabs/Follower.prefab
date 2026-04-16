@@ -136,6 +136,7 @@ GameObject:
   - component: {fileID: 481191335029085937}
   - component: {fileID: 8820116209973403167}
   - component: {fileID: 7720116209973403168}
+  - component: {fileID: 881191335029085900}
   - component: {fileID: 991191335029085903}
   m_Layer: 0
   m_Name: Follower
@@ -292,6 +293,23 @@ MonoBehaviour:
   targetAimHeight: 1
   horizontalAimError: 1.8
   verticalAimError: 0.35
+--- !u!114 &881191335029085900
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7f3e2d1c0b9a8f7e6d5c4b3a291807f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MeleeCombat
+  attackInterval: 0.42
+  meleeRange: 1.12
+  hitChance: 0.88
+  damage: 14
+  knockbackImpulse: 4.2
 --- !u!114 &991191335029085903
 MonoBehaviour:
   m_ObjectHideFlags: 0

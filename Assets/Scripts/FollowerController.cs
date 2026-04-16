@@ -13,6 +13,8 @@ public class FollowerController : MonoBehaviour
 
     TargetSteeringMotor _motor;
     RangedCombat _ranged;
+    MeleeCombat _melee;
+    bool _isRanged = true;
     BanditController[] _banditsCache;
     float _banditsCacheTime;
 
@@ -20,6 +22,18 @@ public class FollowerController : MonoBehaviour
     {
         _motor = GetComponent<TargetSteeringMotor>();
         _ranged = GetComponent<RangedCombat>();
+        _melee = GetComponent<MeleeCombat>();
+    }
+
+    /// <summary>Call once after spawn: ranged (bow) or melee, never both.</summary>
+    public void ApplyCombatRole(bool ranged)
+    {
+        _isRanged = ranged;
+        if (_ranged != null)
+            _ranged.enabled = ranged;
+        if (_melee != null)
+            _melee.enabled = !ranged;
+        CombatVisuals.SetRangedHatVisible(transform, ranged);
     }
 
     /// <summary>Assigns a random orbit around the player; call once after spawn.</summary>
@@ -34,7 +48,7 @@ public class FollowerController : MonoBehaviour
     void Start()
     {
         TryAssignPlayerAnchor();
-        _motor.SeekHoldDistance = combatRange;
+        _motor.SeekHoldDistance = _isRanged ? combatRange : 0f;
     }
 
     void TryAssignPlayerAnchor()
@@ -53,13 +67,15 @@ public class FollowerController : MonoBehaviour
         Transform bandit = FindBanditTarget();
         _motor.SeekOverride = bandit;
 
-        if (bandit != null && _ranged != null)
-        {
-            Vector3 d = bandit.position - transform.position;
-            d.y = 0f;
-            if (d.sqrMagnitude <= combatRange * combatRange)
-                _ranged.TryFireAt(bandit);
-        }
+        if (bandit == null)
+            return;
+
+        Vector3 d = bandit.position - transform.position;
+        d.y = 0f;
+        if (_isRanged && _ranged != null && _ranged.enabled && d.sqrMagnitude <= combatRange * combatRange)
+            _ranged.TryFireAt(bandit);
+        else if (!_isRanged && _melee != null && _melee.enabled)
+            _melee.TryAttack(bandit);
     }
 
     Transform FindBanditTarget()
