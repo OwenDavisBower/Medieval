@@ -9,13 +9,20 @@ public static class TerrainSpawnUtility
     public static Vector3 GetWorldPositionOnTerrain(Vector3 worldPosition, float heightOffset = 0.05f)
     {
         Terrain terrain = Terrain.activeTerrain != null ? Terrain.activeTerrain : Object.FindFirstObjectByType<Terrain>();
-        if (terrain == null)
+        if (terrain != null)
         {
-            worldPosition.y += heightOffset;
+            worldPosition.y = terrain.SampleHeight(worldPosition) + heightOffset;
             return worldPosition;
         }
 
-        worldPosition.y = terrain.SampleHeight(worldPosition) + heightOffset;
+        var proc = Object.FindFirstObjectByType<TerrainGenerator>();
+        if (proc != null && proc.IsTerrainReady)
+        {
+            worldPosition.y = proc.SampleHeightWorldXZ(worldPosition.x, worldPosition.z) + heightOffset;
+            return worldPosition;
+        }
+
+        worldPosition.y += heightOffset;
         return worldPosition;
     }
 }

@@ -10,15 +10,41 @@ public class TreeSpawner : MonoBehaviour
     [SerializeField] int maxAttemptsPerTree = 80;
     [SerializeField] float raycastHeight = 300f;
 
+    bool _spawned;
+
+    void OnEnable()
+    {
+        TerrainGenerator.TerrainGenerated += OnTerrainGenerated;
+    }
+
+    void OnDisable()
+    {
+        TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
+    }
+
     void Start()
     {
-        if (treePrefab == null)
+        TrySpawnTrees();
+    }
+
+    void OnTerrainGenerated(TerrainGenerator _) => TrySpawnTrees();
+
+    void TrySpawnTrees()
+    {
+        if (_spawned || treePrefab == null)
             return;
+
+        var gen = Object.FindFirstObjectByType<TerrainGenerator>();
+        if (gen == null || !gen.IsTerrainReady)
+            return;
+
+        _spawned = true;
 
         float minSepSq = minSeparation * minSeparation;
         var accepted = new List<Vector3>(treeCount);
         int totalAttempts = 0;
         int cap = treeCount * maxAttemptsPerTree;
+        Vector3 basePos = transform.position;
 
         while (accepted.Count < treeCount && totalAttempts < cap)
         {
@@ -29,7 +55,7 @@ public class TreeSpawner : MonoBehaviour
             float x = Mathf.Cos(angle) * r;
             float z = Mathf.Sin(angle) * r;
 
-            Vector3 origin = new Vector3(x, raycastHeight, z);
+            Vector3 origin = basePos + new Vector3(x, raycastHeight, z);
             if (!Physics.Raycast(origin, Vector3.down, out RaycastHit hit, raycastHeight * 2f,
                     Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
                 continue;

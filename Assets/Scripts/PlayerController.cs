@@ -5,9 +5,11 @@ using UnityEngine.InputSystem;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] float moveSpeed = 6f;
+    [SerializeField] float terrainSnapHeightOffset = 0.05f;
 
     Rigidbody _rb;
     Transform _cam;
+    bool _snappedToTerrain;
 
     void Awake()
     {
@@ -15,6 +17,40 @@ public class PlayerController : MonoBehaviour
         _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
         if (Camera.main != null)
             _cam = Camera.main.transform;
+    }
+
+    void OnEnable()
+    {
+        TerrainGenerator.TerrainGenerated += OnTerrainGenerated;
+    }
+
+    void OnDisable()
+    {
+        TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
+    }
+
+    void Start()
+    {
+        TrySnapToTerrain();
+    }
+
+    void OnTerrainGenerated(TerrainGenerator _) => TrySnapToTerrain();
+
+    void TrySnapToTerrain()
+    {
+        if (_snappedToTerrain)
+            return;
+
+        var gen = Object.FindFirstObjectByType<TerrainGenerator>();
+        if (gen == null || !gen.IsTerrainReady)
+            return;
+
+        _snappedToTerrain = true;
+        Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(transform.position, terrainSnapHeightOffset);
+        transform.position = p;
+        Vector3 v = _rb.linearVelocity;
+        v.y = 0f;
+        _rb.linearVelocity = v;
     }
 
     void FixedUpdate()

@@ -133,6 +133,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 6
+  terrainSnapHeightOffset: 0.05
 --- !u!114 &6048110813309676061
 MonoBehaviour:
   m_ObjectHideFlags: 0

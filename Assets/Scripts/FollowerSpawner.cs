@@ -7,15 +7,35 @@ public class FollowerSpawner : MonoBehaviour
     [SerializeField] float spawnRadiusMin = 1.5f;
     [SerializeField] float spawnRadiusMax = 4f;
 
+    bool _spawned;
+
+    void OnEnable()
+    {
+        TerrainGenerator.TerrainGenerated += OnTerrainGenerated;
+    }
+
+    void OnDisable()
+    {
+        TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
+    }
+
     void Start()
     {
         SpawnFollowers();
     }
 
+    void OnTerrainGenerated(TerrainGenerator _) => SpawnFollowers();
+
     void SpawnFollowers()
     {
-        if (followerPrefab == null)
+        if (_spawned || followerPrefab == null)
             return;
+
+        var gen = Object.FindFirstObjectByType<TerrainGenerator>();
+        if (gen == null || !gen.IsTerrainReady)
+            return;
+
+        _spawned = true;
 
         for (int i = 0; i < followerCount; i++)
         {

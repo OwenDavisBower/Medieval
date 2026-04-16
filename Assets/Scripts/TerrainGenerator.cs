@@ -136,6 +136,35 @@ public sealed class TerrainGenerator : MonoBehaviour
     readonly List<Vector2> _gizmoPathPoints = new();
     readonly List<Vector2> _gizmoRiverPoints = new();
 
+    /// <summary>Fired in play mode after chunk meshes and colliders are built (end of <see cref="RunPipeline"/>).</summary>
+    public static event Action<TerrainGenerator>? TerrainGenerated;
+
+    /// <summary>True after a successful <see cref="RunPipeline"/> run with a valid heightmap.</summary>
+    public bool IsTerrainReady => _chunksBuilt && _heightmap.IsCreated;
+
+    /// <summary>Bilinear sample of procedural height at world XZ (same space as chunk meshes).</summary>
+    public float SampleHeightWorldXZ(float worldX, float worldZ)
+    {
+        if (!_heightmap.IsCreated)
+            return baseHeight;
+
+        var hr = worldResolution;
+        var ox = transform.position.x;
+        var oz = transform.position.z;
+        var fx = (worldX - ox + worldSize * 0.5f) / worldSize * (hr - 1);
+        var fz = (worldZ - oz + worldSize * 0.5f) / worldSize * (hr - 1);
+        var ix = Mathf.Clamp((int)Mathf.Floor(fx), 0, hr - 2);
+        var iz = Mathf.Clamp((int)Mathf.Floor(fz), 0, hr - 2);
+        var tx = fx - ix;
+        var tz = fz - iz;
+
+        var h00 = _heightmap[iz * hr + ix];
+        var h10 = _heightmap[iz * hr + (ix + 1)];
+        var h01 = _heightmap[(iz + 1) * hr + ix];
+        var h11 = _heightmap[(iz + 1) * hr + (ix + 1)];
+        return Mathf.Lerp(Mathf.Lerp(h00, h10, tx), Mathf.Lerp(h01, h11, tx), tz);
+    }
+
     void OnEnable()
     {
         RenderPipelineManager.beginContextRendering += OnBeginContextRendering;
@@ -497,6 +526,9 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         _navMeshRebuildPending = false;
         RebuildNavMesh();
+
+        if (Application.isPlaying)
+            TerrainGenerated?.Invoke(this);
     }
 
     void RebuildGizmoPoints()
