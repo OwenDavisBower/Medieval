@@ -868,7 +868,7 @@ PrefabInstance:
     - target: {fileID: 1791036906628755996, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
       propertyPath: m_MaterialTemplate
       value: 
-      objectReference: {fileID: -876546973899608171, guid: c79dfe786ca3706419be553eb5d85d22, type: 3}
+      objectReference: {fileID: -876546973899608171, guid: 1cb2241322e1a2949ac32ffe097c5c55, type: 3}
     - target: {fileID: 5827364519283746510, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
       propertyPath: _seed
       value: 44
