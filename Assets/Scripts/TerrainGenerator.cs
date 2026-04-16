@@ -25,9 +25,11 @@ public class TerrainGenerator : MonoBehaviour
 
     [Header("Rivers")]
     [SerializeField] int _riverCount = 2;
-    [SerializeField] float _riverDepth = 0.052f;
-    [SerializeField] float _riverHalfWidth = 0.028f;
-    [SerializeField] int _riverSegments = 16;
+    /// <summary>Normalized height carve at river center. Keep small vs ~2-unit-tall player (terrain Y scale applies on top).</summary>
+    [SerializeField] float _riverDepth = 0.014f;
+    [SerializeField] float _riverHalfWidth = 0.009f;
+    [SerializeField] int _riverSegments = 24;
+    [SerializeField] float _riverEdgeMargin = 0.04f;
 
     [Header("Lakes")]
     [SerializeField] int _lakeCount = 5;
@@ -71,10 +73,12 @@ public class TerrainGenerator : MonoBehaviour
                 float carve = 0f;
                 for (int r = 0; r < rivers.Count; r++)
                 {
-                    float d = DistanceToPolyline(p, rivers[r]);
-                    float t = 1f - Mathf.Clamp01(d / _riverHalfWidth);
+                    RiverSpec river = rivers[r];
+                    float halfW = _riverHalfWidth * river.WidthMul;
+                    float d = DistanceToPolyline(p, river.Points);
+                    float t = 1f - Mathf.Clamp01(d / halfW);
                     t = t * t * (3f - 2f * t);
-                    carve = Mathf.Max(carve, t);
+                    carve = Mathf.Max(carve, t * river.DepthMul);
                 }
 
                 heights[z, x] -= _riverDepth * carve;
@@ -159,32 +163,81 @@ public class TerrainGenerator : MonoBehaviour
         return Mathf.Clamp(sum * 0.55f, -1f, 1f);
     }
 
-    List<List<Vector2>> BuildRivers(int count, int segments, System.Random rng)
+    struct RiverSpec
     {
-        var rivers = new List<List<Vector2>>(count);
+        public List<Vector2> Points;
+        public float DepthMul;
+        public float WidthMul;
+    }
+
+    /// <summary>Rivers cross the heightmap in varied directions (edge-to-edge or diagonal), not locked to +Z.</summary>
+    List<RiverSpec> BuildRivers(int count, int segments, System.Random rng)
+    {
+        float m = _riverEdgeMargin;
+        var rivers = new List<RiverSpec>(count);
+
         for (int r = 0; r < count; r++)
         {
-            float startSide = (float)rng.NextDouble();
-            float angle = (float)(rng.NextDouble() * Mathf.PI * 2f);
-            var pts = new List<Vector2>(segments + 1);
+            Vector2 start = RandomBoundaryPoint(rng, m);
+            Vector2 end = RandomBoundaryPoint(rng, m);
+            for (int attempt = 0; attempt < 10 && Vector2.Distance(start, end) < 0.28f; attempt++)
+                end = RandomBoundaryPoint(rng, m);
 
+            float depthMul = Mathf.Lerp(0.55f, 1f, (float)rng.NextDouble());
+            float widthMul = Mathf.Lerp(0.45f, 1.15f, (float)rng.NextDouble());
+            float meander = Mathf.Lerp(0.04f, 0.14f, (float)rng.NextDouble());
+            float alongFreq = Mathf.Lerp(2.1f, 5.5f, (float)rng.NextDouble());
+            float noiseScale = 1.7f + (float)rng.NextDouble() * 2.4f;
+            float phase = (float)(rng.NextDouble() * Mathf.PI * 2f);
+
+            Vector2 delta = end - start;
+            if (delta.sqrMagnitude < 1e-6f)
+                delta = new Vector2(1f, 0.1f);
+            Vector2 tangent = delta.normalized;
+            Vector2 perp = new Vector2(-tangent.y, tangent.x);
+
+            var pts = new List<Vector2>(segments + 1);
             for (int i = 0; i <= segments; i++)
             {
                 float t = i / (float)segments;
-                float nx = Mathf.Lerp(-0.15f, 1.15f, t);
-                float nz = Mathf.Lerp(0.1f, 0.95f, t)
-                    + Mathf.PerlinNoise(r * 7.17f + t * 4f, _seed * 0.01f + t * 3f) * 0.38f
-                    + Mathf.PerlinNoise(_seed * 0.02f + t * 8f, r * 11f) * 0.15f;
-                nz += 0.12f * Mathf.Sin(t * Mathf.PI * 2f + angle + r);
-                nx += 0.08f * Mathf.Sin(t * Mathf.PI * 3f + startSide * 6f);
-                pts.Add(new Vector2(nx, nz));
+                Vector2 basePos = Vector2.Lerp(start, end, t);
+
+                float n1 = Mathf.PerlinNoise(r * 9.3f + t * noiseScale, _seed * 0.017f + t * noiseScale * 0.73f);
+                float n2 = Mathf.PerlinNoise(_seed * 0.031f + t * noiseScale * 1.1f, r * 6.1f + t * 4f);
+                float wobble = (n1 - 0.5f) * 2f * meander + (n2 - 0.5f) * meander * 0.45f;
+                wobble += meander * 0.35f * Mathf.Sin(t * Mathf.PI * alongFreq + phase + r);
+
+                float fray = 0.02f * Mathf.Sin(t * Mathf.PI * (3f + r) + phase);
+                basePos += perp * (wobble + fray) + tangent * (fray * 0.5f);
+                pts.Add(basePos);
             }
 
-            rivers.Add(pts);
+            rivers.Add(new RiverSpec
+            {
+                Points = pts,
+                DepthMul = depthMul,
+                WidthMul = widthMul
+            });
         }
 
         return rivers;
     }
+
+    static Vector2 RandomBoundaryPoint(System.Random rng, float margin)
+    {
+        float u = (float)rng.NextDouble();
+        int edge = rng.Next(4);
+        float lo = margin;
+        float hi = 1f - margin;
+        return edge switch
+        {
+            0 => new Vector2(Mathf.Lerp(lo, hi, u), lo),
+            1 => new Vector2(Mathf.Lerp(lo, hi, u), hi),
+            2 => new Vector2(lo, Mathf.Lerp(lo, hi, u)),
+            _ => new Vector2(hi, Mathf.Lerp(lo, hi, u)),
+        };
+    }
+
 
     static float DistanceToPolyline(Vector2 p, List<Vector2> poly)
     {

@@ -865,6 +865,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5827364519283746510, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
+      propertyPath: _riverDepth
+      value: 0.014
+      objectReference: {fileID: 0}
+    - target: {fileID: 5827364519283746510, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
+      propertyPath: _riverSegments
+      value: 24
+      objectReference: {fileID: 0}
+    - target: {fileID: 5827364519283746510, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
+      propertyPath: _riverHalfWidth
+      value: 0.009
+      objectReference: {fileID: 0}
     - target: {fileID: 9085109988866658179, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
       propertyPath: m_Name
       value: Terrain
