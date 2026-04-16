@@ -105,12 +105,7 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     const int SplatmapResolution = 512;
 
-    static readonly int SplatmapId = Shader.PropertyToID("_Splatmap");
     static readonly int GrassTilingId = Shader.PropertyToID("_GrassTiling");
-    static readonly int RockTilingId = Shader.PropertyToID("_RockTiling");
-    static readonly int SandTilingId = Shader.PropertyToID("_SandTiling");
-    static readonly int DirtTilingId = Shader.PropertyToID("_DirtTiling");
-    static readonly int WorldSizeId = Shader.PropertyToID("_WorldSize");
 
     SplineSystem _splineSystem = new();
     DistanceFieldBaker _distanceFieldBaker = new();
@@ -454,19 +449,11 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     void PushMaterialProperties()
     {
-        if (terrainMaterial == null || _splatmapTexture == null)
+        if (terrainMaterial == null)
             return;
 
-        terrainMaterial.SetTexture(SplatmapId, _splatmapTexture);
-        terrainMaterial.SetFloat(WorldSizeId, worldSize);
         if (terrainMaterial.HasProperty(GrassTilingId))
             terrainMaterial.SetFloat(GrassTilingId, 4f);
-        if (terrainMaterial.HasProperty(RockTilingId))
-            terrainMaterial.SetFloat(RockTilingId, 4f);
-        if (terrainMaterial.HasProperty(SandTilingId))
-            terrainMaterial.SetFloat(SandTilingId, 4f);
-        if (terrainMaterial.HasProperty(DirtTilingId))
-            terrainMaterial.SetFloat(DirtTilingId, 4f);
     }
 
     void RebuildGizmoPoints()
