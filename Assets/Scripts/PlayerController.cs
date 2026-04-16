@@ -5,7 +5,6 @@ using UnityEngine.InputSystem;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] float moveSpeed = 6f;
-    [SerializeField] float rotationSpeed = 540f;
 
     Rigidbody _rb;
     Transform _cam;
@@ -46,12 +45,6 @@ public class PlayerController : MonoBehaviour
         velocity.x = targetHorizontal.x;
         velocity.z = targetHorizontal.z;
         _rb.linearVelocity = velocity;
-
-        if (move.sqrMagnitude > 0.01f)
-        {
-            Quaternion targetRot = Quaternion.LookRotation(move, Vector3.up);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
-        }
     }
 
     static void ReadMoveAxes(out float h, out float v)
