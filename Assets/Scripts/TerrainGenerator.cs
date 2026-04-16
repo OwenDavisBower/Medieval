@@ -105,8 +105,6 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     const int SplatmapResolution = 512;
 
-    static readonly int GrassTilingId = Shader.PropertyToID("_GrassTiling");
-
     SplineSystem _splineSystem = new();
     DistanceFieldBaker _distanceFieldBaker = new();
     HeightmapGenerator _heightmapGenerator = new();
@@ -421,8 +419,6 @@ public sealed class TerrainGenerator : MonoBehaviour
         _splatmapTexture.SetPixelData(_splatmapRgba, 0);
         _splatmapTexture.Apply(false, false);
 
-        PushMaterialProperties();
-
         _chunkManager.InitializePool(transform, chunkCount, worldSize, "TerrainChunk");
         _chunksBuilt = true;
 
@@ -445,15 +441,6 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         _navMeshRebuildPending = false;
         RebuildNavMesh();
-    }
-
-    void PushMaterialProperties()
-    {
-        if (terrainMaterial == null)
-            return;
-
-        if (terrainMaterial.HasProperty(GrassTilingId))
-            terrainMaterial.SetFloat(GrassTilingId, 4f);
     }
 
     void RebuildGizmoPoints()

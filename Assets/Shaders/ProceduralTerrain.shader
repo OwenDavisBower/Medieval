@@ -4,7 +4,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
     Properties
     {
         [NoScaleOffset] _GrassTex("Grass", 2D) = "white" {}
-        _GrassTiling("Grass Tiling", Float) = 4
+        _GrassTiling("Grass Tiling", Float) = 1
         _HexSize("Hex Cell Size (UV)", Float) = 1
         _HexBlend("Hex Blend Sharpness", Float) = 10
     }
