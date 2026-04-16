@@ -7,26 +7,8 @@ public class BanditCampSpawner : MonoBehaviour
     [SerializeField] float spawnRadius = 100f;
     [SerializeField] Vector3 spawnOrigin = default;
 
-    void Awake()
-    {
-        if (FindFirstObjectByType<TerrainGenerator>() != null)
-            TerrainGenerator.TerrainGenerationComplete += SpawnCampsOnce;
-    }
-
     void Start()
     {
-        if (FindFirstObjectByType<TerrainGenerator>() == null)
-            SpawnCamps();
-    }
-
-    void OnDestroy()
-    {
-        TerrainGenerator.TerrainGenerationComplete -= SpawnCampsOnce;
-    }
-
-    void SpawnCampsOnce()
-    {
-        TerrainGenerator.TerrainGenerationComplete -= SpawnCampsOnce;
         SpawnCamps();
     }
 
