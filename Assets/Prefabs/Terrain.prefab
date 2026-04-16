@@ -62,7 +62,7 @@ Terrain:
   m_StaticShadowCaster: 0
   m_IgnoreQualitySettings: 0
   m_ReflectionProbeUsage: 1
-  m_MaterialTemplate: {fileID: 2100000, guid: 594ea882c5a793440b60ff72d896021e, type: 2}
+  m_MaterialTemplate: {fileID: -876546973899608171, guid: 1cb2241322e1a2949ac32ffe097c5c55, type: 3}
   m_BakeLightProbesForTrees: 1
   m_PreserveTreePrototypeLayers: 0
   m_DeringLightProbesForTrees: 1
@@ -107,20 +107,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a3c2d1e4f5b6a7987654321fedcba09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _seed: 42
+  _seed: 44
   _baseHeight: 0.44
   _hillStrength: 0.072
   _hillFrequency: 2.4
   _hillOctaves: 4
   _riverCount: 2
-  _riverDepth: 0.052
-  _riverHalfWidth: 0.028
-  _riverSegments: 16
+  _riverDepth: 0.014
+  _riverHalfWidth: 0.009
+  _riverSegments: 24
+  _riverEdgeMargin: 0.04
   _lakeCount: 5
   _lakeDepth: 0.038
   _lakeRadiusMin: 0.035
   _lakeRadiusMax: 0.085
   _playerHeightOffset: 0.05
+  _regenerateOnPlay: 0
 --- !u!114 &1830824835944077313
 MonoBehaviour:
   m_ObjectHideFlags: 0
