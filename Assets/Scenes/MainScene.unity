@@ -653,7 +653,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FollowerSpawner
   followerPrefab: {fileID: 481191335029085937, guid: cbcfb7df56f446fbbf399e7f4bd5c2e3, type: 3}
-  followerCount: 5
+  followerCount: 20
   spawnRadiusMin: 1.5
   spawnRadiusMax: 4
 --- !u!208 &1459529419
