@@ -507,7 +507,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 5a81773840d745c3838bb3561530d397, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -551,6 +551,7 @@ GameObject:
   - component: {fileID: 1459529415}
   - component: {fileID: 1459529416}
   - component: {fileID: 1459529417}
+  - component: {fileID: 1459529418}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -637,6 +638,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 6
+--- !u!114 &1459529418
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1459529413}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff51c85a94d848f8b0ef73d11a10ffc4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FollowerSpawner
+  followerPrefab: {fileID: 481191335029085937, guid: cbcfb7df56f446fbbf399e7f4bd5c2e3, type: 3}
+  followerCount: 5
+  spawnRingRadius: 3
 --- !u!1 &1520355790 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 9085109988866658179, guid: c9455df9549e04398ae2f5295f240bee, type: 3}
