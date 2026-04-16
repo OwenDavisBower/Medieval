@@ -5,6 +5,8 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
     {
         [NoScaleOffset] _GrassTex("Grass", 2D) = "white" {}
         _GrassTiling("Grass Tiling", Float) = 4
+        _HexSize("Hex Cell Size (UV)", Float) = 1
+        _HexBlend("Hex Blend Sharpness", Float) = 10
     }
 
     SubShader
@@ -40,13 +42,127 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
 
             CBUFFER_START(UnityPerMaterial)
                 half _GrassTiling;
+                half _HexSize;
+                half _HexBlend;
             CBUFFER_END
+
+            // Stable hash for per-hex rotation / phase (no texture dependency).
+            float2 HexHash22(float2 p)
+            {
+                float3 p3 = frac(float3(p.xyx) * float3(.1031, .1030, .0973));
+                p3 += dot(p3, p3.yzx + 33.33);
+                return frac((p3.xx + p3.yz) * p3.zy);
+            }
+
+            float HexHashAngle(float2 cell)
+            {
+                return HexHash22(cell).x * 6.28318530718;
+            }
+
+            float3 HexAxialToCube(float2 axial)
+            {
+                float q = axial.x;
+                float r = axial.y;
+                return float3(q, -q - r, r);
+            }
+
+            float2 HexCubeToAxial(float3 c)
+            {
+                return float2(c.x, c.z);
+            }
+
+            float3 HexCubeRound(float3 c)
+            {
+                float rx = round(c.x);
+                float ry = round(c.y);
+                float rz = round(c.z);
+
+                float xDiff = abs(rx - c.x);
+                float yDiff = abs(ry - c.y);
+                float zDiff = abs(rz - c.z);
+
+                if (xDiff > yDiff && xDiff > zDiff)
+                    rx = -ry - rz;
+                else if (yDiff > zDiff)
+                    ry = -rx - rz;
+                else
+                    rz = -rx - ry;
+
+                return float3(rx, ry, rz);
+            }
+
+            // Flat-top hex grid: inverse of axial_to_pixel (size = center-to-corner radius in UV space).
+            float2 HexPixelToAxial(float2 p, float hexSize)
+            {
+                float inv = rcp(hexSize);
+                float q = (2.0 / 3.0 * p.x) * inv;
+                float r = (-1.0 / 3.0 * p.x + 0.5773502691896258 * p.y) * inv;
+                return float2(q, r);
+            }
+
+            float2 HexAxialToPixel(float2 axial, float hexSize)
+            {
+                float x = hexSize * (1.5 * axial.x);
+                float y = hexSize * (1.7320508075688772 * (axial.y + axial.x * 0.5));
+                return float2(x, y);
+            }
+
+            // Soft Voronoi over 7 hex cells (center + 6 neighbors) with per-cell rotation to hide square tiling.
+            half3 SampleGrassHex(float2 p)
+            {
+                float hexSize = max(0.0001, (float)_HexSize);
+                float sharp = max(0.001, (float)_HexBlend);
+
+                float2 a = HexPixelToAxial(p, hexSize);
+                float3 cr = HexCubeRound(HexAxialToCube(a));
+                float2 baseAxial = HexCubeToAxial(cr);
+
+                half3 sum = half3(0, 0, 0);
+                half wsum = 0;
+
+                // Axial offsets: center + 6 neighbors on a flat-top hex grid.
+                const int kCount = 7;
+                const float2 kOffsets[7] =
+                {
+                    float2(0, 0),
+                    float2(1, 0),
+                    float2(1, -1),
+                    float2(0, -1),
+                    float2(-1, 0),
+                    float2(-1, 1),
+                    float2(0, 1)
+                };
+
+                UNITY_UNROLL
+                for (int i = 0; i < kCount; i++)
+                {
+                    float2 cell = baseAxial + kOffsets[i];
+                    float2 center = HexAxialToPixel(cell, hexSize);
+                    float2 delta = p - center;
+                    float dist2 = dot(delta, delta);
+
+                    float ang = HexHashAngle(cell);
+                    float c = cos(-ang);
+                    float s = sin(-ang);
+                    float2 rot = float2(c * delta.x - s * delta.y, s * delta.x + c * delta.y);
+
+                    float2 phase = HexHash22(cell + float2(19.19, 47.7));
+                    float2 texUV = frac(rot + phase);
+
+                    half3 col = SAMPLE_TEXTURE2D(_GrassTex, sampler_GrassTex, texUV).rgb;
+                    half w = (half)exp(-sharp * dist2 / (hexSize * hexSize * 3.0));
+
+                    sum += col * w;
+                    wsum += w;
+                }
+
+                return sum / max(wsum, 1e-4);
+            }
 
             struct Attributes
             {
                 float4 positionOS : POSITION;
                 float3 normalOS : NORMAL;
-                float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -55,7 +171,6 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : TEXCOORD0;
                 half3 normalWS : TEXCOORD1;
-                half2 uv : TEXCOORD2;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -73,7 +188,6 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 output.positionCS = vertexInput.positionCS;
                 output.positionWS = vertexInput.positionWS;
                 output.normalWS = half3(normalInput.normalWS);
-                output.uv = half2(input.uv * _GrassTiling);
                 return output;
             }
 
@@ -82,7 +196,8 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
-                const half3 albedo = SAMPLE_TEXTURE2D(_GrassTex, sampler_GrassTex, input.uv).rgb;
+                float2 grassUV = float2(input.positionWS.x, input.positionWS.z) * (float)_GrassTiling;
+                const half3 albedo = SampleGrassHex(grassUV);
                 const half3 n = normalize(input.normalWS);
 
                 const float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
