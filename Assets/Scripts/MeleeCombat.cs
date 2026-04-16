@@ -8,21 +8,26 @@ public class MeleeCombat : MonoBehaviour
     [SerializeField] [Range(0f, 1f)] float hitChance = 0.88f;
     [SerializeField] float damage = 14f;
     [SerializeField] float knockbackImpulse = 4.2f;
+    [SerializeField] float hitMeleeStunDuration = 0.28f;
 
     Rigidbody _selfRb;
     Transform _selfRoot;
+    Character _selfCharacter;
     float _nextAttackTime;
 
     void Awake()
     {
         _selfRb = GetComponent<Rigidbody>();
         _selfRoot = transform.root;
+        _selfCharacter = GetComponentInParent<Character>();
     }
 
     /// <returns>True if an attack swing was attempted this frame (hit or miss).</returns>
     public bool TryAttack(Transform target)
     {
         if (target == null || !enabled)
+            return false;
+        if (_selfCharacter != null && !_selfCharacter.CanAttack)
             return false;
         if (Time.time < _nextAttackTime)
             return false;
@@ -39,7 +44,10 @@ public class MeleeCombat : MonoBehaviour
 
         var character = target.GetComponentInParent<Character>();
         if (character != null && character.transform.root != _selfRoot)
+        {
             character.TakeDamage(damage);
+            character.ApplyAttackStun(hitMeleeStunDuration);
+        }
 
         var victimRb = target.GetComponentInParent<Rigidbody>();
         if (victimRb != null && victimRb != _selfRb)

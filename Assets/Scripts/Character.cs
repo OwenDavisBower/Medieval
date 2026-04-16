@@ -9,6 +9,7 @@ public class Character : MonoBehaviour
     [SerializeField] float healthBarScale = 0.011f;
 
     float _current;
+    float _attackStunUntil;
     Canvas _canvas;
     RectTransform _fillRect;
     Image _fillImage;
@@ -18,6 +19,18 @@ public class Character : MonoBehaviour
     public float CurrentHealth => _current;
     public float MaxHealth => maxHealth;
     public bool IsDead => _current <= 0f;
+
+    /// <summary>False while stunned from a recent melee hit; blocks melee and ranged attacks.</summary>
+    public bool CanAttack => Time.time >= _attackStunUntil;
+
+    public void ApplyAttackStun(float duration)
+    {
+        if (duration <= 0f || IsDead)
+            return;
+        float end = Time.time + duration;
+        if (end > _attackStunUntil)
+            _attackStunUntil = end;
+    }
 
     void Awake()
     {

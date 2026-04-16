@@ -11,17 +11,21 @@ public class RangedCombat : MonoBehaviour
     [SerializeField] float verticalAimError = 0.35f;
 
     Collider _ownerCollider;
+    Character _selfCharacter;
     float _nextFireTime;
 
     void Awake()
     {
         _ownerCollider = GetComponentInChildren<Collider>();
+        _selfCharacter = GetComponentInParent<Character>();
     }
 
     /// <returns>True if a shot was fired this call.</returns>
     public bool TryFireAt(Transform target)
     {
         if (arrowPrefab == null || target == null)
+            return false;
+        if (_selfCharacter != null && !_selfCharacter.CanAttack)
             return false;
         if (Time.time < _nextFireTime)
             return false;
