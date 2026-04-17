@@ -22,7 +22,7 @@ public static class CombatUnitRegistry
         if (Time.time >= _followersNextRefresh)
         {
             _followersNextRefresh = Time.time + RefreshInterval;
-            _followers = Object.FindObjectsByType<FollowerController>(FindObjectsInactive.Exclude,
+            _followers = UnityEngine.Object.FindObjectsByType<FollowerController>(FindObjectsInactive.Exclude,
                 FindObjectsSortMode.None);
         }
 
@@ -34,7 +34,7 @@ public static class CombatUnitRegistry
         if (Time.time >= _villagersNextRefresh)
         {
             _villagersNextRefresh = Time.time + RefreshInterval;
-            _villagers = Object.FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude,
+            _villagers = UnityEngine.Object.FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude,
                 FindObjectsSortMode.None);
         }
 
@@ -46,7 +46,7 @@ public static class CombatUnitRegistry
         if (Time.time >= _banditsNextRefresh)
         {
             _banditsNextRefresh = Time.time + RefreshInterval;
-            _bandits = Object.FindObjectsByType<BanditController>(FindObjectsInactive.Exclude,
+            _bandits = UnityEngine.Object.FindObjectsByType<BanditController>(FindObjectsInactive.Exclude,
                 FindObjectsSortMode.None);
         }
 
