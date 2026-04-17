@@ -38,6 +38,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _EdgeNoiseScale: 1.01
     - _GrassTiling: 1
     - _HexBlend: 10
     - _HexSize: 0.2
