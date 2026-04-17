@@ -123,6 +123,10 @@ public sealed class TerrainGenerator : MonoBehaviour
     [SerializeField] float lodCameraMoveEpsilonSqr = 0.25f;
 
     [Header("Splat / rock")]
+    [Tooltip("World Y above this: no rock from depth. Blend starts as height goes below.")]
+    [SerializeField] float rockDepthBlendTop = 0f;
+    [Tooltip("World Y at or below the lower of the two: full rock from depth (default -0.5). Order vs Top is ignored; min/max are used.")]
+    [SerializeField] float rockDepthBlendBottom = -0.5f;
     [Tooltip("Slope magnitude (dh over 1 m horizontally) where rock splat begins to blend in.")]
     [SerializeField] float rockSlopeBlendStart = 0.35f;
     [Tooltip("Slope magnitude where rock splat is fully blended in.")]
@@ -567,6 +571,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             worldSize,
             SplatmapResolution,
             transform.position,
+            rockDepthBlendTop,
+            rockDepthBlendBottom,
             rockSlopeBlendStart,
             rockSlopeBlendEnd,
             _splatmapRgba);
@@ -1200,6 +1206,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             float worldSize,
             int splatResolution,
             Vector3 worldOrigin,
+            float rockDepthBlendTop,
+            float rockDepthBlendBottom,
             float rockSlopeBlendStart,
             float rockSlopeBlendEnd,
             NativeArray<float> rgbaOut)
@@ -1212,6 +1220,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 WorldSize = worldSize,
                 SplatResolution = splatResolution,
                 WorldOrigin = new float3(worldOrigin.x, worldOrigin.y, worldOrigin.z),
+                RockDepthBlendTop = rockDepthBlendTop,
+                RockDepthBlendBottom = rockDepthBlendBottom,
                 RockSlopeBlendStart = rockSlopeBlendStart,
                 RockSlopeBlendEnd = rockSlopeBlendEnd,
                 RgbaOut = rgbaOut
@@ -1227,6 +1237,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             public float WorldSize;
             public int SplatResolution;
             public float3 WorldOrigin;
+            public float RockDepthBlendTop;
+            public float RockDepthBlendBottom;
             public float RockSlopeBlendStart;
             public float RockSlopeBlendEnd;
             [NativeDisableParallelForRestriction] public NativeArray<float> RgbaOut;
@@ -1248,7 +1260,9 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var dhdz = SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx, wz + 0.5f)
                     - SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx, wz - 0.5f);
                 var slope = math.length(new float2(dhdx, dhdz));
-                var rockFromDepth = math.smoothstep(0.5f, -0.5f, h);
+                var dHi = math.max(RockDepthBlendTop, RockDepthBlendBottom);
+                var dLo = math.min(RockDepthBlendTop, RockDepthBlendBottom);
+                var rockFromDepth = math.smoothstep(dHi, dLo, h);
                 var s0 = math.max(1e-4f, RockSlopeBlendStart);
                 var s1 = math.max(s0 + 1e-4f, RockSlopeBlendEnd);
                 var rockFromSlope = math.smoothstep(s0, s1, slope);
