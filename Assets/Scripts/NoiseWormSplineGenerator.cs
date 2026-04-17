@@ -20,14 +20,10 @@ public static class NoiseWormSplineGenerator
         public float StepLength;
         public float NoiseScale;
         public float MaxTurnRadians;
-        /// <summary>Local Y at river start (flow high).</summary>
-        public float RiverLocalYHigh;
-        /// <summary>Local Y at river end (flow low).</summary>
-        public float RiverLocalYLow;
     }
 
-    /// <summary>Append path worms; each polyline has at least two points when SegmentCount >= 2.</summary>
-    public static void GeneratePaths(Transform terrainRoot, Settings settings, List<List<Vector3>> outSplines)
+    /// <summary>Append path worms; each polyline has at least two points when SegmentCount >= 2. Points are local XZ only.</summary>
+    public static void GeneratePaths(Transform terrainRoot, Settings settings, List<List<Vector2>> outSplines)
     {
         if (settings.PathWormCount <= 0 || settings.SegmentCount < 2 || settings.StepLength <= 0f)
             return;
@@ -39,7 +35,7 @@ public static class NoiseWormSplineGenerator
 
         for (var w = 0; w < settings.PathWormCount; w++)
         {
-            var poly = new List<Vector3>(settings.SegmentCount);
+            var poly = new List<Vector2>(settings.SegmentCount);
             var wx = RandomRange(rng, origin.x - extent, origin.x + extent);
             var wz = RandomRange(rng, origin.z - extent, origin.z + extent);
             var theta = (float)(rng.NextDouble() * (Math.PI * 2.0));
@@ -48,7 +44,8 @@ public static class NoiseWormSplineGenerator
             {
                 var worldY = origin.y;
                 var worldPos = new Vector3(wx, worldY, wz);
-                poly.Add(terrainRoot.InverseTransformPoint(worldPos));
+                var local = terrainRoot.InverseTransformPoint(worldPos);
+                poly.Add(new Vector2(local.x, local.z));
 
                 if (s == settings.SegmentCount - 1)
                     break;
@@ -70,8 +67,8 @@ public static class NoiseWormSplineGenerator
         }
     }
 
-    /// <summary>Append river worms with monotonic local Y from high (start) to low (end).</summary>
-    public static void GenerateRivers(Transform terrainRoot, Settings settings, List<List<Vector3>> outSplines)
+    /// <summary>Append river worms (XZ only); flow height is applied when sampling via River Local Y High/Low on TerrainGenerator.</summary>
+    public static void GenerateRivers(Transform terrainRoot, Settings settings, List<List<Vector2>> outSplines)
     {
         if (settings.RiverWormCount <= 0 || settings.SegmentCount < 2 || settings.StepLength <= 0f)
             return;
@@ -80,22 +77,19 @@ public static class NoiseWormSplineGenerator
         var margin = Mathf.Max(0f, settings.BoundaryMargin);
         var extent = Mathf.Max(0.5f, settings.WorldSize * 0.5f - margin);
         var origin = terrainRoot.position;
-        var segMax = Mathf.Max(1, settings.SegmentCount - 1);
 
         for (var w = 0; w < settings.RiverWormCount; w++)
         {
-            var poly = new List<Vector3>(settings.SegmentCount);
+            var poly = new List<Vector2>(settings.SegmentCount);
             var wx = RandomRange(rng, origin.x - extent, origin.x + extent);
             var wz = RandomRange(rng, origin.z - extent, origin.z + extent);
             var theta = (float)(rng.NextDouble() * (Math.PI * 2.0));
 
             for (var s = 0; s < settings.SegmentCount; s++)
             {
-                var u = s / (float)segMax;
                 var worldFlat = new Vector3(wx, origin.y, wz);
                 var local = terrainRoot.InverseTransformPoint(worldFlat);
-                local.y = Mathf.Lerp(settings.RiverLocalYHigh, settings.RiverLocalYLow, u);
-                poly.Add(local);
+                poly.Add(new Vector2(local.x, local.z));
 
                 if (s == settings.SegmentCount - 1)
                     break;

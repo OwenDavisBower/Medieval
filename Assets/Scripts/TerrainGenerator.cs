@@ -72,11 +72,11 @@ public sealed class TerrainGenerator : MonoBehaviour
     [Header("Splines")]
     [SerializeField] int splineSampleCount = 400;
 
-    /// <summary>Path splines as nested control-point lists (XZ authoring, Y optional).</summary>
-    public List<List<Vector3>> pathSplines = new();
+    /// <summary>Path splines as nested control-point lists; each <see cref="Vector2"/> is local XZ (relative to this transform).</summary>
+    public List<List<Vector2>> pathSplines = new();
 
-    /// <summary>River splines; Y values drive monotonic flow height along each river.</summary>
-    public List<List<Vector3>> riverSplines = new();
+    /// <summary>River splines; local XZ only. Flow height along each river uses River Local Y High/Low when sampling.</summary>
+    public List<List<Vector2>> riverSplines = new();
 
     [Tooltip("Optional Unity Splines authoring sources; merged with pathSplines after list-based splines.")]
     [SerializeField] List<SplineContainer>? authoringPathSplines;
@@ -96,7 +96,9 @@ public sealed class TerrainGenerator : MonoBehaviour
     [SerializeField] float wormNoiseScale = 0.015f;
     [SerializeField] float wormMaxTurnRadians = 0.45f;
     [SerializeField] float wormBoundaryMargin = 24f;
+    [Tooltip("Local Y at river start (high) used when sampling list-based and worm river polylines for flow height.")]
     [SerializeField] float riverWormLocalYHigh = 35f;
+    [Tooltip("Local Y at river end (low) used when sampling list-based and worm river polylines for flow height.")]
     [SerializeField] float riverWormLocalYLow = -15f;
 
     [Header("Rendering")]
@@ -151,10 +153,10 @@ public sealed class TerrainGenerator : MonoBehaviour
     readonly List<Vector2> _gizmoPathPoints = new();
     readonly List<Vector2> _gizmoRiverPoints = new();
 
-    readonly List<List<Vector3>> _generatedPathSplines = new();
-    readonly List<List<Vector3>> _generatedRiverSplines = new();
-    readonly List<List<Vector3>> _mergedPathsForBuild = new();
-    readonly List<List<Vector3>> _mergedRiversForBuild = new();
+    readonly List<List<Vector2>> _generatedPathSplines = new();
+    readonly List<List<Vector2>> _generatedRiverSplines = new();
+    readonly List<List<Vector2>> _mergedPathsForBuild = new();
+    readonly List<List<Vector2>> _mergedRiversForBuild = new();
 
     /// <summary>Fired in play mode after chunk meshes and colliders are built (end of <see cref="RunPipeline"/>).</summary>
     public static event Action<TerrainGenerator>? TerrainGenerated;
@@ -478,6 +480,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             authoringPathSplines,
             authoringRiverSplines,
             splineSampleCount,
+            riverWormLocalYHigh,
+            riverWormLocalYLow,
             Allocator.Persistent,
             out _pathSamples,
             out _riverSamples,
@@ -586,16 +590,14 @@ public sealed class TerrainGenerator : MonoBehaviour
             SegmentCount = wormSegmentCount,
             StepLength = wormStepLength,
             NoiseScale = wormNoiseScale,
-            MaxTurnRadians = wormMaxTurnRadians,
-            RiverLocalYHigh = riverWormLocalYHigh,
-            RiverLocalYLow = riverWormLocalYLow
+            MaxTurnRadians = wormMaxTurnRadians
         };
     }
 
     static void MergeListBasedSplines(
-        List<List<Vector3>> authored,
-        List<List<Vector3>> generated,
-        List<List<Vector3>> destination)
+        List<List<Vector2>> authored,
+        List<List<Vector2>> generated,
+        List<List<Vector2>> destination)
     {
         destination.Clear();
         foreach (var s in authored)
@@ -640,8 +642,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 continue;
             for (var i = 0; i < spline.Count - 1; i++)
             {
-                var a = transform.TransformPoint(spline[i]);
-                var b = transform.TransformPoint(spline[i + 1]);
+                var a = transform.TransformPoint(spline[i].x, 0f, spline[i].y);
+                var b = transform.TransformPoint(spline[i + 1].x, 0f, spline[i + 1].y);
                 Gizmos.DrawLine(a, b);
             }
         }
@@ -653,8 +655,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 continue;
             for (var i = 0; i < spline.Count - 1; i++)
             {
-                var a = transform.TransformPoint(spline[i]);
-                var b = transform.TransformPoint(spline[i + 1]);
+                var a = transform.TransformPoint(spline[i].x, 0f, spline[i].y);
+                var b = transform.TransformPoint(spline[i + 1].x, 0f, spline[i + 1].y);
                 Gizmos.DrawLine(a, b);
             }
         }
@@ -666,8 +668,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 continue;
             for (var i = 0; i < spline.Count - 1; i++)
             {
-                var a = transform.TransformPoint(spline[i]);
-                var b = transform.TransformPoint(spline[i + 1]);
+                var a = transform.TransformPoint(spline[i].x, 0f, spline[i].y);
+                var b = transform.TransformPoint(spline[i + 1].x, 0f, spline[i + 1].y);
                 Gizmos.DrawLine(a, b);
             }
         }
@@ -679,8 +681,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 continue;
             for (var i = 0; i < spline.Count - 1; i++)
             {
-                var a = transform.TransformPoint(spline[i]);
-                var b = transform.TransformPoint(spline[i + 1]);
+                var a = transform.TransformPoint(spline[i].x, 0f, spline[i].y);
+                var b = transform.TransformPoint(spline[i + 1].x, 0f, spline[i + 1].y);
                 Gizmos.DrawLine(a, b);
             }
         }
@@ -714,11 +716,13 @@ public sealed class TerrainGenerator : MonoBehaviour
         /// </summary>
         public void BuildSamples(
             Transform terrainRoot,
-            List<List<Vector3>> pathSplines,
-            List<List<Vector3>> riverSplines,
+            List<List<Vector2>> pathSplines,
+            List<List<Vector2>> riverSplines,
             List<SplineContainer>? authoringPathSplines,
             List<SplineContainer>? authoringRiverSplines,
             int samplesPerSpline,
+            float riverFlowLocalYHigh,
+            float riverFlowLocalYLow,
             Allocator allocator,
             out NativeArray<float2> pathSamples,
             out NativeArray<float2> riverSamples,
@@ -728,10 +732,10 @@ public sealed class TerrainGenerator : MonoBehaviour
             using var riverTmp = new NativeList<float2>(Allocator.Temp);
             using var flowTmp = new NativeList<float>(Allocator.Temp);
 
-            AppendListSplines(terrainRoot, pathSplines, samplesPerSpline, pathTmp, default);
+            AppendListSplines(terrainRoot, pathSplines, samplesPerSpline, pathTmp, default, 0f, 0f);
             AppendContainerSplines(authoringPathSplines, samplesPerSpline, pathTmp, default);
 
-            AppendListSplines(terrainRoot, riverSplines, samplesPerSpline, riverTmp, flowTmp);
+            AppendListSplines(terrainRoot, riverSplines, samplesPerSpline, riverTmp, flowTmp, riverFlowLocalYHigh, riverFlowLocalYLow);
             AppendContainerSplines(authoringRiverSplines, samplesPerSpline, riverTmp, flowTmp);
 
             if (pathTmp.Length == 0)
@@ -750,10 +754,12 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         static void AppendListSplines(
             Transform terrainRoot,
-            List<List<Vector3>> splines,
+            List<List<Vector2>> splines,
             int samplesPerSpline,
             NativeList<float2> xzOut,
-            NativeList<float> flowOut)
+            NativeList<float> flowOut,
+            float riverLocalYHigh,
+            float riverLocalYLow)
         {
             if (splines == null)
                 return;
@@ -763,7 +769,7 @@ public sealed class TerrainGenerator : MonoBehaviour
                 if (ctrl == null || ctrl.Count < 2)
                     continue;
 
-                SampleCatmullRom(terrainRoot, ctrl, samplesPerSpline, xzOut, flowOut);
+                SampleCatmullRom2D(terrainRoot, ctrl, samplesPerSpline, xzOut, flowOut, riverLocalYHigh, riverLocalYLow);
             }
         }
 
@@ -800,20 +806,18 @@ public sealed class TerrainGenerator : MonoBehaviour
             }
         }
 
-        static void SampleCatmullRom(
+        /// <summary>Control points are local XZ; <paramref name="riverLocalYHigh"/>/<paramref name="riverLocalYLow"/> define flow height when <paramref name="flowOut"/> is used.</summary>
+        static void SampleCatmullRom2D(
             Transform terrainRoot,
-            List<Vector3> controls,
+            List<Vector2> controls,
             int totalSamples,
             NativeList<float2> xzOut,
-            NativeList<float> flowOut)
+            NativeList<float> flowOut,
+            float riverLocalYHigh,
+            float riverLocalYLow)
         {
             if (controls.Count < 2 || totalSamples < 2)
                 return;
-
-            var firstY = terrainRoot.TransformPoint(controls[0]).y;
-            var lastY = terrainRoot.TransformPoint(controls[^1]).y;
-            var hi = math.max(firstY, lastY);
-            var lo = math.min(firstY, lastY);
 
             for (var s = 0; s < totalSamples; s++)
             {
@@ -824,24 +828,29 @@ public sealed class TerrainGenerator : MonoBehaviour
                     seg = controls.Count - 2;
 
                 var lt = f - seg;
-                var p0 = controls[math.max(0, seg - 1)];
-                var p1 = controls[seg];
-                var p2 = controls[seg + 1];
-                var p3 = controls[math.min(controls.Count - 1, seg + 2)];
+                var p0 = ToFloat2(controls[math.max(0, seg - 1)]);
+                var p1 = ToFloat2(controls[seg]);
+                var p2 = ToFloat2(controls[seg + 1]);
+                var p3 = ToFloat2(controls[math.min(controls.Count - 1, seg + 2)]);
 
-                var pos = CatmullRom(p0, p1, p2, p3, lt);
-                var world = terrainRoot.TransformPoint(pos);
+                var pos2 = CatmullRom2(p0, p1, p2, p3, lt);
+                float localY;
+                if (flowOut.IsCreated)
+                    localY = math.lerp(riverLocalYHigh, riverLocalYLow, u);
+                else
+                    localY = 0f;
+
+                var world = terrainRoot.TransformPoint(new Vector3(pos2.x, localY, pos2.y));
                 xzOut.Add(new float2(world.x, world.z));
 
                 if (flowOut.IsCreated)
-                {
-                    var flow = math.lerp(hi, lo, u);
-                    flowOut.Add(flow);
-                }
+                    flowOut.Add(world.y);
             }
         }
 
-        static Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+        static float2 ToFloat2(Vector2 v) => new(v.x, v.y);
+
+        static float2 CatmullRom2(float2 p0, float2 p1, float2 p2, float2 p3, float t)
         {
             var t2 = t * t;
             var t3 = t2 * t;
