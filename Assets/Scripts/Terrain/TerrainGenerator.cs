@@ -122,6 +122,12 @@ public sealed class TerrainGenerator : MonoBehaviour
     [SerializeField] float lod2Distance = 360f;
     [SerializeField] float lodCameraMoveEpsilonSqr = 0.25f;
 
+    [Header("Splat / rock")]
+    [Tooltip("Slope magnitude (dh over 1 m horizontally) where rock splat begins to blend in.")]
+    [SerializeField] float rockSlopeBlendStart = 0.35f;
+    [Tooltip("Slope magnitude where rock splat is fully blended in.")]
+    [SerializeField] float rockSlopeBlendEnd = 1.4f;
+
     [Header("Navigation")]
     [Tooltip("Optional; if unset, a NavMeshSurface is added to this GameObject at runtime.")]
     [SerializeField] NavMeshSurface? navMeshSurface;
@@ -183,7 +189,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>True after a successful <see cref="RunPipeline"/> run with a valid heightmap.</summary>
     public bool IsTerrainReady => _chunksBuilt && _heightmap.IsCreated;
 
-    /// <summary>Path mask (R = path weight, GBA unused); null until <see cref="Regenerate"/> completes successfully.</summary>
+    /// <summary>Splat mask (R = path, G = rock, BA unused); null until <see cref="Regenerate"/> completes successfully.</summary>
     public Texture2D? SplatmapTexture => _splatmapTexture;
 
     /// <summary>Bilinear sample of procedural height at world XZ (same space as chunk meshes).</summary>
@@ -556,10 +562,13 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         _splatmapPainter.Paint(
             _pathDistanceField,
+            _heightmap,
             worldResolution,
             worldSize,
             SplatmapResolution,
             transform.position,
+            rockSlopeBlendStart,
+            rockSlopeBlendEnd,
             _splatmapRgba);
 
         EnsureSplatmapTexture(ref _splatmapTexture, _splatmapRgba);
@@ -1177,7 +1186,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     #region SplatmapPainter
 
     /// <summary>
-    /// Paints a path-only splatmap: R = path blend weight, G/B/A = 0; off-path pixels are zero.
+    /// Paints splat weights: R = path from distance field, G = rock when world Y is below zero or slope is high.
     /// </summary>
     public sealed class SplatmapPainter
     {
@@ -1186,19 +1195,25 @@ public sealed class TerrainGenerator : MonoBehaviour
         /// </summary>
         public void Paint(
             NativeArray<float> pathDf,
+            NativeArray<float> heightmap,
             int dfResolution,
             float worldSize,
             int splatResolution,
             Vector3 worldOrigin,
+            float rockSlopeBlendStart,
+            float rockSlopeBlendEnd,
             NativeArray<float> rgbaOut)
         {
             new SplatmapJob
             {
                 PathDf = pathDf,
+                Heightmap = heightmap,
                 DfResolution = dfResolution,
                 WorldSize = worldSize,
                 SplatResolution = splatResolution,
                 WorldOrigin = new float3(worldOrigin.x, worldOrigin.y, worldOrigin.z),
+                RockSlopeBlendStart = rockSlopeBlendStart,
+                RockSlopeBlendEnd = rockSlopeBlendEnd,
                 RgbaOut = rgbaOut
             }.Schedule(splatResolution * splatResolution, 64).Complete();
         }
@@ -1207,10 +1222,13 @@ public sealed class TerrainGenerator : MonoBehaviour
         struct SplatmapJob : IJobParallelFor
         {
             [ReadOnly, NativeDisableParallelForRestriction] public NativeArray<float> PathDf;
+            [ReadOnly, NativeDisableParallelForRestriction] public NativeArray<float> Heightmap;
             public int DfResolution;
             public float WorldSize;
             public int SplatResolution;
             public float3 WorldOrigin;
+            public float RockSlopeBlendStart;
+            public float RockSlopeBlendEnd;
             [NativeDisableParallelForRestriction] public NativeArray<float> RgbaOut;
 
             public void Execute(int index)
@@ -1224,11 +1242,46 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var pathDist = SampleDfWorld(PathDf, DfResolution, WorldSize, WorldOrigin, wx, wz);
                 var pathWeight = math.smoothstep(8f, 0f, pathDist);
 
+                var h = SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx, wz);
+                var dhdx = SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx + 0.5f, wz)
+                    - SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx - 0.5f, wz);
+                var dhdz = SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx, wz + 0.5f)
+                    - SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx, wz - 0.5f);
+                var slope = math.length(new float2(dhdx, dhdz));
+                var rockFromDepth = math.smoothstep(0.5f, -0.5f, h);
+                var s0 = math.max(1e-4f, RockSlopeBlendStart);
+                var s1 = math.max(s0 + 1e-4f, RockSlopeBlendEnd);
+                var rockFromSlope = math.smoothstep(s0, s1, slope);
+                var rockWeight = math.saturate(math.max(rockFromDepth, rockFromSlope));
+
                 var baseIndex = index * 4;
                 RgbaOut[baseIndex + 0] = pathWeight;
-                RgbaOut[baseIndex + 1] = 0f;
+                RgbaOut[baseIndex + 1] = rockWeight;
                 RgbaOut[baseIndex + 2] = 0f;
                 RgbaOut[baseIndex + 3] = 0f;
+            }
+
+            static float SampleHeightWorld(
+                NativeArray<float> heightmap,
+                int resolution,
+                float worldSize,
+                float3 worldOrigin,
+                float wx,
+                float wz)
+            {
+                var hr = resolution;
+                var fx = (wx - worldOrigin.x + worldSize * 0.5f) / worldSize * (hr - 1);
+                var fz = (wz - worldOrigin.z + worldSize * 0.5f) / worldSize * (hr - 1);
+                var ix = math.clamp((int)math.floor(fx), 0, hr - 2);
+                var iz = math.clamp((int)math.floor(fz), 0, hr - 2);
+                var tx = fx - ix;
+                var tz = fz - iz;
+
+                var v00 = heightmap[iz * hr + ix];
+                var v10 = heightmap[iz * hr + ix + 1];
+                var v01 = heightmap[(iz + 1) * hr + ix];
+                var v11 = heightmap[(iz + 1) * hr + ix + 1];
+                return math.lerp(math.lerp(v00, v10, tx), math.lerp(v01, v11, tx), tz);
             }
 
             static float SampleDfWorld(

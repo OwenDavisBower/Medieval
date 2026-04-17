@@ -32,6 +32,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: c2e975e8a074dff45aee75e580a54344, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _RockTex:
+        m_Texture: {fileID: 2800000, guid: a22f74dadcc373b4da1943778db036d4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _SplatmapTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -43,6 +47,7 @@ Material:
     - _HexBlend: 10
     - _HexSize: 0.2
     - _PathTiling: 0.13
+    - _RockTiling: 1.05
     m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1

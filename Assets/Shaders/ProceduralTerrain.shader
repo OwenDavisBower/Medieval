@@ -5,9 +5,11 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
     {
         [NoScaleOffset] _GrassTex("Grass", 2D) = "white" {}
         [NoScaleOffset] _PathTex("Path", 2D) = "white" {}
-        [NoScaleOffset] _SplatmapTex("Path Splat (R = path, linear float)", 2D) = "black" {}
+        [NoScaleOffset] _RockTex("Rock", 2D) = "white" {}
+        [NoScaleOffset] _SplatmapTex("Splat (R = path, G = rock, linear float)", 2D) = "black" {}
         _GrassTiling("Grass Tiling", Float) = 1
         _PathTiling("Path Tiling", Float) = 1
+        _RockTiling("Rock Tiling", Float) = 1
         _HexSize("Hex Cell Size (UV)", Float) = 1
         _HexBlend("Hex Blend Sharpness", Float) = 10
         _EdgeNoiseScale("Path Edge Noise Scale (world)", Float) = 4
@@ -45,12 +47,15 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
             SAMPLER(sampler_GrassTex);
             TEXTURE2D(_PathTex);
             SAMPLER(sampler_PathTex);
+            TEXTURE2D(_RockTex);
+            SAMPLER(sampler_RockTex);
             TEXTURE2D(_SplatmapTex);
             SAMPLER(sampler_SplatmapTex);
 
             CBUFFER_START(UnityPerMaterial)
                 half _GrassTiling;
                 half _PathTiling;
+                half _RockTiling;
                 half _HexSize;
                 half _HexBlend;
                 half _EdgeNoiseScale;
@@ -238,14 +243,22 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
 
                 float2 grassUV = float2(input.positionWS.x, input.positionWS.z) * (float)_GrassTiling;
                 float2 pathUV = float2(input.positionWS.x, input.positionWS.z) * (float)_PathTiling;
-                // Splat is RGBAFloat: R = path blend 0–1 (linear). RGBA32 upload of floats produced garbage / noise.
-                float pathMask = saturate(SAMPLE_TEXTURE2D(_SplatmapTex, sampler_SplatmapTex, input.splatUV).r);
+                float2 rockUV = float2(input.positionWS.x, input.positionWS.z) * (float)_RockTiling;
+                // Splat RGBAFloat: R = path, G = rock (linear weights).
+                float4 splat = SAMPLE_TEXTURE2D(_SplatmapTex, sampler_SplatmapTex, input.splatUV);
+                float pathMask = saturate(splat.r);
+                float rockMask = saturate(splat.g);
                 const half3 grassCol = SampleTextureHex(grassUV, _GrassTex, sampler_GrassTex);
                 const half3 pathCol = SAMPLE_TEXTURE2D(_PathTex, sampler_PathTex, pathUV).rgb;
-                float edgeN = TerrainEdgeNoise(float2(input.positionWS.x, input.positionWS.z), (float)_EdgeNoiseScale);
-                // Stochastic blend: P(path) = pathMask; sharp patches instead of smooth lerp.
+                const half3 rockCol = SampleTextureHex(rockUV, _RockTex, sampler_RockTex);
+                float2 wXZ = float2(input.positionWS.x, input.positionWS.z);
+                float edgeN = TerrainEdgeNoise(wXZ, (float)_EdgeNoiseScale);
+                float rockEdgeN = TerrainEdgeNoise(wXZ + float2(31.7, 12.4), (float)_EdgeNoiseScale);
+                // Stochastic blend: P(layer) = mask; path wins over grass/rock.
+                half rockPick = (half)step(rockEdgeN, rockMask);
                 half pathPick = (half)step(edgeN, pathMask);
-                const half3 albedo = lerp(grassCol, pathCol, pathPick);
+                const half3 baseCol = lerp(grassCol, rockCol, rockPick);
+                const half3 albedo = lerp(baseCol, pathCol, pathPick);
                 const half3 n = normalize(input.normalWS);
 
                 const float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
