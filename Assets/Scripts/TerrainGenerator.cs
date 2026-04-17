@@ -251,7 +251,10 @@ public sealed class TerrainGenerator : MonoBehaviour
             return;
 
         var p = cameraTransform.position;
-        if (math.distancesq(new float3(_lastCameraPos.x, _lastCameraPos.y, _lastCameraPos.z), new float3(p.x, p.y, p.z)) < lodCameraMoveEpsilonSqr)
+        var dx = p.x - _lastCameraPos.x;
+        var dy = p.y - _lastCameraPos.y;
+        var dz = p.z - _lastCameraPos.z;
+        if (dx * dx + dy * dy + dz * dz < lodCameraMoveEpsilonSqr)
             return;
 
         _lastCameraPos = p;
@@ -433,17 +436,8 @@ public sealed class TerrainGenerator : MonoBehaviour
     [ContextMenu("Regenerate")]
     public void Regenerate()
     {
-        DisposeNativeBuffers();
         _chunkManager.DestroyChunkObjects();
         _chunksBuilt = false;
-        if (_splatmapTexture != null)
-        {
-            if (Application.isPlaying)
-                Destroy(_splatmapTexture);
-            else
-                DestroyImmediate(_splatmapTexture);
-            _splatmapTexture = null;
-        }
 
         RunPipeline();
     }
@@ -492,16 +486,17 @@ public sealed class TerrainGenerator : MonoBehaviour
             authoringRiverSplines,
             splineSampleCount,
             Allocator.Persistent,
-            out _pathSamples,
-            out _riverSamples);
+            ref _pathSamples,
+            ref _riverSamples);
 
         RebuildGizmoPoints();
 
         var count = worldResolution * worldResolution;
-        _pathDistanceField = new NativeArray<float>(count, Allocator.Persistent);
-        _riverDistanceField = new NativeArray<float>(count, Allocator.Persistent);
-        _heightmap = new NativeArray<float>(count, Allocator.Persistent);
-        _splatmapRgba = new NativeArray<float>(SplatmapResolution * SplatmapResolution * 4, Allocator.Persistent);
+        var splatFloatCount = SplatmapResolution * SplatmapResolution * 4;
+        EnsurePersistentFloatBuffer(ref _pathDistanceField, count);
+        EnsurePersistentFloatBuffer(ref _riverDistanceField, count);
+        EnsurePersistentFloatBuffer(ref _heightmap, count);
+        EnsurePersistentFloatBuffer(ref _splatmapRgba, splatFloatCount);
 
         _distanceFieldBaker.Bake(
             _pathSamples,
@@ -541,14 +536,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             riverOuter,
             _splatmapRgba);
 
-        _splatmapTexture = new Texture2D(SplatmapResolution, SplatmapResolution, TextureFormat.RGBA32, false, true)
-        {
-            name = "ProceduralSplatmap",
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear
-        };
-        _splatmapTexture.SetPixelData(_splatmapRgba, 0);
-        _splatmapTexture.Apply(false, false);
+        EnsureSplatmapTexture(ref _splatmapTexture, _splatmapRgba);
 
         _chunkManager.InitializePool(transform, chunkCount, worldSize, "TerrainChunk");
         _chunksBuilt = true;
@@ -637,6 +625,44 @@ public sealed class TerrainGenerator : MonoBehaviour
             _pathSamples.Dispose();
         if (_riverSamples.IsCreated)
             _riverSamples.Dispose();
+    }
+
+    static void EnsurePersistentFloatBuffer(ref NativeArray<float> buffer, int length)
+    {
+        if (buffer.IsCreated && buffer.Length == length)
+            return;
+
+        if (buffer.IsCreated)
+            buffer.Dispose();
+        buffer = new NativeArray<float>(length, Allocator.Persistent);
+    }
+
+    static void EnsureSplatmapTexture(ref Texture2D? texture, NativeArray<float> rgbaData)
+    {
+        const int res = SplatmapResolution;
+        if (texture != null && texture.width == res && texture.height == res)
+        {
+            texture.SetPixelData(rgbaData, 0);
+            texture.Apply(false, false);
+            return;
+        }
+
+        if (texture != null)
+        {
+            if (Application.isPlaying)
+                UnityEngine.Object.Destroy(texture);
+            else
+                UnityEngine.Object.DestroyImmediate(texture);
+        }
+
+        texture = new Texture2D(res, res, TextureFormat.RGBA32, false, true)
+        {
+            name = "ProceduralSplatmap",
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear
+        };
+        texture.SetPixelData(rgbaData, 0);
+        texture.Apply(false, false);
     }
 
     void OnDrawGizmos()
@@ -728,8 +754,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             List<SplineContainer>? authoringRiverSplines,
             int samplesPerSpline,
             Allocator allocator,
-            out NativeArray<float2> pathSamples,
-            out NativeArray<float2> riverSamples)
+            ref NativeArray<float2> pathSamples,
+            ref NativeArray<float2> riverSamples)
         {
             using var pathTmp = new NativeList<float2>(Allocator.Temp);
             using var riverTmp = new NativeList<float2>(Allocator.Temp);
@@ -746,8 +772,30 @@ public sealed class TerrainGenerator : MonoBehaviour
             if (riverTmp.Length == 0)
                 riverTmp.Add(float2.zero);
 
-            pathSamples = new NativeArray<float2>(pathTmp.AsArray(), allocator);
-            riverSamples = new NativeArray<float2>(riverTmp.AsArray(), allocator);
+            var pathSrc = pathTmp.AsArray();
+            var riverSrc = riverTmp.AsArray();
+
+            if (!pathSamples.IsCreated || pathSamples.Length != pathSrc.Length)
+            {
+                if (pathSamples.IsCreated)
+                    pathSamples.Dispose();
+                pathSamples = new NativeArray<float2>(pathSrc, allocator);
+            }
+            else
+            {
+                pathSamples.CopyFrom(pathSrc);
+            }
+
+            if (!riverSamples.IsCreated || riverSamples.Length != riverSrc.Length)
+            {
+                if (riverSamples.IsCreated)
+                    riverSamples.Dispose();
+                riverSamples = new NativeArray<float2>(riverSrc, allocator);
+            }
+            else
+            {
+                riverSamples.CopyFrom(riverSrc);
+            }
         }
 
         static void AppendListSplines(
@@ -876,8 +924,7 @@ public sealed class TerrainGenerator : MonoBehaviour
                 DistanceOut = riverDistanceField
             }.Schedule(riverDistanceField.Length, 64);
 
-            pathJob.Complete();
-            riverJob.Complete();
+            JobHandle.CombineDependencies(pathJob, riverJob).Complete();
         }
 
         /// <summary>
@@ -1508,13 +1555,11 @@ public sealed class TerrainGenerator : MonoBehaviour
 
                 var vDst = meshData.GetVertexData<TerrainMeshVertex>(0);
                 var vSrc = _vertexScratch.GetSubArray(vStart, vertCount);
-                for (var k = 0; k < vertCount; k++)
-                    vDst[k] = vSrc[k];
+                vDst.CopyFrom(vSrc);
 
                 var iDst = meshData.GetIndexData<uint>();
                 var iSrc = _indexScratch.GetSubArray(iStart, indexCount);
-                for (var k = 0; k < indexCount; k++)
-                    iDst[k] = iSrc[k];
+                iDst.CopyFrom(iSrc);
 
                 meshData.SetSubMesh(0, new SubMeshDescriptor(0, indexCount), MeshUpdateFlags.DontRecalculateBounds);
             }
@@ -1547,12 +1592,14 @@ public sealed class TerrainGenerator : MonoBehaviour
                 return 0;
 
             var worldCenter = _terrainRoot.TransformPoint(localCenter);
-            var dist = Vector2.Distance(
-                new Vector2(worldCenter.x, worldCenter.z),
-                new Vector2(camera.position.x, camera.position.z));
-            if (dist > lod2)
+            var dx = worldCenter.x - camera.position.x;
+            var dz = worldCenter.z - camera.position.z;
+            var distSq = dx * dx + dz * dz;
+            var lod2Sq = lod2 * lod2;
+            var lod1Sq = lod1 * lod1;
+            if (distSq > lod2Sq)
                 return 2;
-            if (dist > lod1)
+            if (distSq > lod1Sq)
                 return 1;
             return 0;
         }
