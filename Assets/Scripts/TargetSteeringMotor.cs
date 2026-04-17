@@ -100,6 +100,7 @@ public class TargetSteeringMotor : MonoBehaviour
     Vector3? _pendingDodgeReferencePosition;
     float _pendingDodgeTime;
     float _lastRangedDodgeApplyTime = float.NegativeInfinity;
+    bool _dodgeImpulseThisFixed;
 
     public Transform AnchorTarget
     {
@@ -188,6 +189,7 @@ public class TargetSteeringMotor : MonoBehaviour
         v.x = h.x;
         v.z = h.z;
         _rb.linearVelocity = v;
+        _dodgeImpulseThisFixed = true;
     }
 
     public void InitializeOrbitRandom()
@@ -280,7 +282,10 @@ public class TargetSteeringMotor : MonoBehaviour
         }
 
         if (anchorTarget == null)
+        {
+            _dodgeImpulseThisFixed = false;
             return;
+        }
 
         CacheAnchorRigidbody();
 
@@ -393,7 +398,30 @@ public class TargetSteeringMotor : MonoBehaviour
             velocity.z = newHorizontal.z;
         }
 
+        ClampHorizontalWater(ref velocity);
         _rb.linearVelocity = velocity;
+    }
+
+    void ClampHorizontalWater(ref Vector3 velocity)
+    {
+        if (WaterMovement.SpeedMultiplier(transform.position.y) >= 1f)
+        {
+            _dodgeImpulseThisFixed = false;
+            return;
+        }
+
+        bool allowDodgeBurst = _dodgeImpulseThisFixed;
+        _dodgeImpulseThisFixed = false;
+
+        float cap = EffectiveMoveSpeed;
+        if (allowDodgeBurst)
+            cap *= 2.05f;
+
+        Vector3 h = new Vector3(velocity.x, 0f, velocity.z);
+        if (h.sqrMagnitude > cap * cap)
+            h = h.normalized * cap;
+        velocity.x = h.x;
+        velocity.z = h.z;
     }
 
     Vector3 GetSeekPoint(Vector3 goal)
