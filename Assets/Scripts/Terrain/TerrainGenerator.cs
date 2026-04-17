@@ -37,7 +37,7 @@ public struct TerrainMeshVertex
 }
 
 /// <summary>
-/// Orchestrates procedural heightmap generation, splat painting, distance fields, and pooled terrain chunk meshes.
+/// Orchestrates procedural heightmap generation, path splat mask, distance fields, and pooled terrain chunk meshes.
 /// </summary>
 [ExecuteAlways]
 [DisallowMultipleComponent]
@@ -182,7 +182,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>True after a successful <see cref="RunPipeline"/> run with a valid heightmap.</summary>
     public bool IsTerrainReady => _chunksBuilt && _heightmap.IsCreated;
 
-    /// <summary>RGBA splat weights texture; null until <see cref="Regenerate"/> completes successfully.</summary>
+    /// <summary>Path mask (R = path weight, GBA unused); null until <see cref="Regenerate"/> completes successfully.</summary>
     public Texture2D? SplatmapTexture => _splatmapTexture;
 
     /// <summary>Bilinear sample of procedural height at world XZ (same space as chunk meshes).</summary>
@@ -537,16 +537,12 @@ public sealed class TerrainGenerator : MonoBehaviour
             math.max(1e-4f, riverCarveBlendDistance),
             _heightmap);
 
-        var riverOuter = math.max(1e-4f, riverChannelHalfWidth) + math.max(1e-4f, riverCarveBlendDistance);
         _splatmapPainter.Paint(
-            _heightmap,
             _pathDistanceField,
-            _riverDistanceField,
             worldResolution,
             worldSize,
             SplatmapResolution,
             transform.position,
-            riverOuter,
             _splatmapRgba);
 
         EnsureSplatmapTexture(ref _splatmapTexture, _splatmapRgba);
@@ -1160,7 +1156,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     #region SplatmapPainter
 
     /// <summary>
-    /// Paints a normalized RGBA splatmap using Burst and height/slope cues.
+    /// Paints a path-only splatmap: R = path blend weight, G/B/A = 0; off-path pixels are zero.
     /// </summary>
     public sealed class SplatmapPainter
     {
@@ -1168,26 +1164,20 @@ public sealed class TerrainGenerator : MonoBehaviour
         /// Schedules splat painting and completes the job.
         /// </summary>
         public void Paint(
-            NativeArray<float> heightmap,
             NativeArray<float> pathDf,
-            NativeArray<float> riverDf,
-            int heightResolution,
+            int dfResolution,
             float worldSize,
             int splatResolution,
             Vector3 worldOrigin,
-            float riverOuterDistance,
             NativeArray<float> rgbaOut)
         {
             new SplatmapJob
             {
-                Heightmap = heightmap,
                 PathDf = pathDf,
-                RiverDf = riverDf,
-                HeightResolution = heightResolution,
+                DfResolution = dfResolution,
                 WorldSize = worldSize,
                 SplatResolution = splatResolution,
                 WorldOrigin = new float3(worldOrigin.x, worldOrigin.y, worldOrigin.z),
-                RiverOuterDistance = riverOuterDistance,
                 RgbaOut = rgbaOut
             }.Schedule(splatResolution * splatResolution, 64).Complete();
         }
@@ -1195,14 +1185,11 @@ public sealed class TerrainGenerator : MonoBehaviour
         [BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
         struct SplatmapJob : IJobParallelFor
         {
-            [ReadOnly, NativeDisableParallelForRestriction] public NativeArray<float> Heightmap;
             [ReadOnly, NativeDisableParallelForRestriction] public NativeArray<float> PathDf;
-            [ReadOnly, NativeDisableParallelForRestriction] public NativeArray<float> RiverDf;
-            public int HeightResolution;
+            public int DfResolution;
             public float WorldSize;
             public int SplatResolution;
             public float3 WorldOrigin;
-            public float RiverOuterDistance;
             [NativeDisableParallelForRestriction] public NativeArray<float> RgbaOut;
 
             public void Execute(int index)
@@ -1213,61 +1200,14 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var wx = WorldOrigin.x + ((ix + 0.5f) / res - 0.5f) * WorldSize;
                 var wz = WorldOrigin.z + ((iz + 0.5f) / res - 0.5f) * WorldSize;
 
-                var h = SampleHeightBilinear(wx, wz);
-                var gx = SampleHeightBilinear(wx + 0.75f, wz);
-                var gz = SampleHeightBilinear(wx, wz + 0.75f);
-                var slope = math.length(new float2(gx - h, gz - h));
-
-                var grass = math.saturate(1f - slope * 3.5f);
-                var rock = math.saturate(slope * 4.5f - 0.15f);
-                var sand = 0.05f;
-
-                var pathDist = SampleDfWorld(PathDf, HeightResolution, WorldSize, WorldOrigin, wx, wz);
+                var pathDist = SampleDfWorld(PathDf, DfResolution, WorldSize, WorldOrigin, wx, wz);
                 var pathWeight = math.smoothstep(8f, 0f, pathDist);
 
-                var riverDist = SampleDfWorld(RiverDf, HeightResolution, WorldSize, WorldOrigin, wx, wz);
-                var bankBlend = math.smoothstep(RiverOuterDistance, 0f, riverDist);
-                sand = math.lerp(sand, 1f, bankBlend);
-
-                var r = grass;
-                var g = rock;
-                var b = sand;
-                var a = pathWeight;
-
-                var rgb = new float3(r, g, b) * (1f - a);
-                r = rgb.x;
-                g = rgb.y;
-                b = rgb.z;
-
-                var sum = r + g + b + a + 1e-5f;
-                r /= sum;
-                g /= sum;
-                b /= sum;
-                a /= sum;
-
                 var baseIndex = index * 4;
-                RgbaOut[baseIndex + 0] = r;
-                RgbaOut[baseIndex + 1] = g;
-                RgbaOut[baseIndex + 2] = b;
-                RgbaOut[baseIndex + 3] = a;
-            }
-
-            float SampleHeightBilinear(float wx, float wz)
-            {
-                var hr = HeightResolution;
-                var fx = (wx - WorldOrigin.x + WorldSize * 0.5f) / WorldSize * (hr - 1);
-                var fz = (wz - WorldOrigin.z + WorldSize * 0.5f) / WorldSize * (hr - 1);
-                var ix = math.clamp((int)math.floor(fx), 0, hr - 2);
-                var iz = math.clamp((int)math.floor(fz), 0, hr - 2);
-                var tx = fx - ix;
-                var tz = fz - iz;
-
-                var heightmap = Heightmap;
-                var h00 = heightmap[iz * hr + ix];
-                var h10 = heightmap[iz * hr + (ix + 1)];
-                var h01 = heightmap[(iz + 1) * hr + ix];
-                var h11 = heightmap[(iz + 1) * hr + (ix + 1)];
-                return math.lerp(math.lerp(h00, h10, tx), math.lerp(h01, h11, tx), tz);
+                RgbaOut[baseIndex + 0] = pathWeight;
+                RgbaOut[baseIndex + 1] = 0f;
+                RgbaOut[baseIndex + 2] = 0f;
+                RgbaOut[baseIndex + 3] = 0f;
             }
 
             static float SampleDfWorld(
