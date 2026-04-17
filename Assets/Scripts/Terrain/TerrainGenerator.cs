@@ -182,6 +182,9 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>True after a successful <see cref="RunPipeline"/> run with a valid heightmap.</summary>
     public bool IsTerrainReady => _chunksBuilt && _heightmap.IsCreated;
 
+    /// <summary>RGBA splat weights texture; null until <see cref="Regenerate"/> completes successfully.</summary>
+    public Texture2D? SplatmapTexture => _splatmapTexture;
+
     /// <summary>Bilinear sample of procedural height at world XZ (same space as chunk meshes).</summary>
     public float SampleHeightWorldXZ(float worldX, float worldZ)
     {
