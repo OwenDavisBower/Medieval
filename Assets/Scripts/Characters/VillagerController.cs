@@ -29,7 +29,6 @@ public class VillagerController : MonoBehaviour
         if (!_initialized)
             _motor.InitializeWanderAroundAnchor(transform);
 
-        if (_character != null)
-            _motor.MoveSpeedScale = _character.MovementSpeedMultiplier;
+        CharacterMotorLink.ApplyMovementSpeed(_character, _motor);
     }
 }

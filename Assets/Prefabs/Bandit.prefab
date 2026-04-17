@@ -224,13 +224,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f3e2a1b4c5d6e7f8091a2b3c4d5e6f7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BanditController
-  aggroRadius: 50
+  combatRange: 20
   eyeHeight: 1.5
   targetHeight: 1
   obstacleLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  combatRange: 20
+  aggroRadius: 50
 --- !u!114 &8820116209973403167
 MonoBehaviour:
   m_ObjectHideFlags: 0
