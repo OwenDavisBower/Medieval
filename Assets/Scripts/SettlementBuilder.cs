@@ -16,12 +16,12 @@ public class SettlementBuilder : MonoBehaviour
 
     [Header("Layout")]
     [Tooltip("Cabins spawn between these radii from the settlement center.")]
-    [SerializeField] float cabinRadiusMin = 8f;
-    [SerializeField] float cabinRadiusMax = 26f;
+    [SerializeField] float cabinRadiusMin = 0f;
+    [SerializeField] float cabinRadiusMax = 14f;
     [Tooltip("Farms spawn between these radii (should be outside cabin ring).")]
-    [SerializeField] float farmRadiusMin = 30f;
-    [SerializeField] float farmRadiusMax = 52f;
-    [SerializeField] float minSeparation = 14f;
+    [SerializeField] float farmRadiusMin = 15f;
+    [SerializeField] float farmRadiusMax = 20f;
+    [SerializeField] float minSeparation = 4;
     [SerializeField] int maxAttemptsPerStructure = 120;
     [Tooltip("Search this radius (XZ) around this transform for a flat settlement center.")]
     [SerializeField] float centerSearchRadius = 72f;
