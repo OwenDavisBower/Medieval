@@ -545,6 +545,14 @@ PrefabInstance:
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
+      propertyPath: wormStepLength
+      value: 12
+      objectReference: {fileID: 0}
+    - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
+      propertyPath: wormSegmentCount
+      value: 96
+      objectReference: {fileID: 0}
+    - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
       propertyPath: maxHeightVariation
       value: 100
       objectReference: {fileID: 0}

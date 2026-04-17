@@ -91,8 +91,10 @@ public sealed class TerrainGenerator : MonoBehaviour
     [SerializeField] bool generateWormRivers = true;
     [SerializeField] int pathWormCount = 4;
     [SerializeField] int riverWormCount = 2;
-    [SerializeField] int wormSegmentCount = 48;
-    [SerializeField] float wormStepLength = 8f;
+    [Tooltip("More segments = longer worms (each step advances Step Length).")]
+    [SerializeField] int wormSegmentCount = 96;
+    [Tooltip("World-units per worm step; larger steps also lengthen the polyline.")]
+    [SerializeField] float wormStepLength = 12f;
     [SerializeField] float wormNoiseScale = 0.015f;
     [SerializeField] float wormMaxTurnRadians = 0.45f;
     [SerializeField] float wormBoundaryMargin = 24f;
