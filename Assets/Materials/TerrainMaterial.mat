@@ -39,9 +39,9 @@ Material:
     m_Ints: []
     m_Floats:
     - _GrassTiling: 1
-    - _PathTiling: 1
     - _HexBlend: 10
     - _HexSize: 0.2
+    - _PathTiling: 0.13
     m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1
