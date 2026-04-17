@@ -224,14 +224,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 75da5c82b9ef45cba62e06789e543149, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FollowerController
-  maxDistanceFromLeader: 25
-  banditAggroRadius: 50
   combatRange: 20
   eyeHeight: 1.5
   targetHeight: 1
   obstacleLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+  aggroRadius: 50
+  maxDistanceFromLeader: 25
 --- !u!114 &8820116209973403167
 MonoBehaviour:
   m_ObjectHideFlags: 0
