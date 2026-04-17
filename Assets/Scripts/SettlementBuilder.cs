@@ -9,6 +9,10 @@ public class SettlementBuilder : MonoBehaviour
     [SerializeField] GameObject cabinPrefab;
     [SerializeField] GameObject farmPrefab;
 
+    [Header("Water")]
+    [Tooltip("Structures are not placed at or below this world Y (e.g. water surface).")]
+    [SerializeField] float minSurfaceY = 0f;
+
     [Header("Flat ground")]
     [SerializeField] float flatHeightTolerance = 0.75f;
     [SerializeField] float maxSlope = 0.35f;
@@ -21,7 +25,7 @@ public class SettlementBuilder : MonoBehaviour
     [Tooltip("Farms spawn between these radii (should be outside cabin ring).")]
     [SerializeField] float farmRadiusMin = 15f;
     [SerializeField] float farmRadiusMax = 20f;
-    [SerializeField] float minSeparation = 4;
+    [SerializeField] float minSeparation = 6f;
     [SerializeField] int maxAttemptsPerStructure = 120;
     [Tooltip("Search this radius (XZ) around this transform for a flat settlement center.")]
     [SerializeField] float centerSearchRadius = 72f;
@@ -161,6 +165,8 @@ public class SettlementBuilder : MonoBehaviour
                 continue;
 
             worldPos = TerrainSpawnUtility.GetWorldPositionOnTerrain(candidate);
+            if (worldPos.y < minSurfaceY)
+                continue;
             return true;
         }
 
@@ -170,6 +176,8 @@ public class SettlementBuilder : MonoBehaviour
     bool IsFlatAt(TerrainGenerator gen, float baseH, float x, float z, out float y)
     {
         y = gen.SampleHeightWorldXZ(x, z);
+        if (y < minSurfaceY)
+            return false;
         if (Mathf.Abs(y - baseH) > flatHeightTolerance)
             return false;
 
