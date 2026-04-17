@@ -32,15 +32,16 @@ public class MeleeCombat : MonoBehaviour
         if (Time.time < _nextAttackTime)
             return false;
 
-        Vector3 d = target.position - transform.position;
-        d.y = 0f;
-        if (d.sqrMagnitude > meleeRange * meleeRange)
+        if (SpatialMath.FlatSqrDistance(transform.position, target.position) > meleeRange * meleeRange)
             return false;
 
         _nextAttackTime = Time.time + attackInterval;
 
         if (Random.value > hitChance)
             return true;
+
+        Vector3 d = target.position - transform.position;
+        d.y = 0f;
 
         var character = target.GetComponentInParent<Character>();
         if (character != null && character.transform.root != _selfRoot)

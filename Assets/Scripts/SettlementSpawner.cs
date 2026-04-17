@@ -57,12 +57,10 @@ public class SettlementSpawner : MonoBehaviour
     {
         for (int attempt = 0; attempt < maxSpawnAttemptsPerSettlement; attempt++)
         {
-            float angle = Random.Range(0f, Mathf.PI * 2f);
-            float r = spawnRadius * Mathf.Sqrt(Random.value);
-            Vector3 candidate = spawnOrigin + new Vector3(Mathf.Cos(angle) * r, 0f, Mathf.Sin(angle) * r);
-            candidate = ClampToTerrainXZ(candidate, gen, terrainEdgeMargin);
+            Vector3 candidate = spawnOrigin + SpawnPlacementUtility.RandomUniformDiskOffsetXZ(spawnRadius);
+            candidate = SpawnPlacementUtility.ClampWorldXZToTerrain(gen, candidate, terrainEdgeMargin);
 
-            if (IsFarEnoughXZ(candidate, placedCenters, minSepSq))
+            if (SpawnPlacementUtility.IsFarEnoughFromAllXZ(candidate, placedCenters, minSepSq))
             {
                 pos = candidate;
                 return true;
@@ -71,30 +69,5 @@ public class SettlementSpawner : MonoBehaviour
 
         pos = default;
         return false;
-    }
-
-    static bool IsFarEnoughXZ(Vector3 candidate, List<Vector3> placedCenters, float minSepSq)
-    {
-        for (int i = 0; i < placedCenters.Count; i++)
-        {
-            float dx = candidate.x - placedCenters[i].x;
-            float dz = candidate.z - placedCenters[i].z;
-            if (dx * dx + dz * dz < minSepSq)
-                return false;
-        }
-
-        return true;
-    }
-
-    static Vector3 ClampToTerrainXZ(Vector3 worldPos, TerrainGenerator gen, float margin)
-    {
-        float half = gen.worldSize * 0.5f - margin;
-        if (half <= 0f)
-            half = gen.worldSize * 0.25f;
-
-        var o = gen.transform.position;
-        float x = Mathf.Clamp(worldPos.x, o.x - half, o.x + half);
-        float z = Mathf.Clamp(worldPos.z, o.z - half, o.z + half);
-        return new Vector3(x, worldPos.y, z);
     }
 }

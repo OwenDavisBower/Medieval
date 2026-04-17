@@ -341,10 +341,9 @@ public class TargetSteeringMotor : MonoBehaviour
         if (Time.time >= _nextWanderPickTime)
         {
             _nextWanderPickTime = Time.time + repickWanderInterval * Random.Range(0.7f, 1.3f);
-            float ang = Random.Range(0f, Mathf.PI * 2f);
-            float pickedRadius = wanderRadius * Mathf.Sqrt(Random.value);
-            _baseAngle = ang;
-            _baseRadius = pickedRadius;
+            Vector3 disk = SpawnPlacementUtility.RandomUniformDiskOffsetXZ_SinXCosZ(wanderRadius);
+            _baseRadius = disk.magnitude;
+            _baseAngle = _baseRadius > 1e-5f ? Mathf.Atan2(disk.x, disk.z) : 0f;
         }
 
         float t = Time.time * noiseFrequency;
@@ -517,9 +516,9 @@ public class TargetSteeringMotor : MonoBehaviour
 
         if (separationGroup == TargetSteeringSeparationGroup.Followers && anchorTarget != null)
         {
+            float sq = SpatialMath.FlatSqrDistance(p, anchorTarget.position);
             Vector3 d = p - anchorTarget.position;
             d.y = 0f;
-            float sq = d.sqrMagnitude;
             if (sq > 1e-6f && sq < rSq)
             {
                 float dist = Mathf.Sqrt(sq);
@@ -532,9 +531,9 @@ public class TargetSteeringMotor : MonoBehaviour
                 if (other == null || other == this)
                     continue;
 
+                float osq = SpatialMath.FlatSqrDistance(p, other.transform.position);
                 Vector3 od = p - other.transform.position;
                 od.y = 0f;
-                float osq = od.sqrMagnitude;
                 if (osq > 1e-6f && osq < rSq)
                 {
                     float dist = Mathf.Sqrt(osq);
@@ -553,9 +552,9 @@ public class TargetSteeringMotor : MonoBehaviour
                 if (other == null || other == this)
                     continue;
 
+                float sq = SpatialMath.FlatSqrDistance(p, other.transform.position);
                 Vector3 d = p - other.transform.position;
                 d.y = 0f;
-                float sq = d.sqrMagnitude;
                 if (sq > 1e-6f && sq < rSq)
                 {
                     float dist = Mathf.Sqrt(sq);

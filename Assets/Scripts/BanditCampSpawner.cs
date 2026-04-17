@@ -74,16 +74,14 @@ public class BanditCampSpawner : MonoBehaviour
     {
         for (int attempt = 0; attempt < maxSpawnAttemptsPerCamp; attempt++)
         {
-            float angle = Random.Range(0f, Mathf.PI * 2f);
-            float r = spawnRadius * Mathf.Sqrt(Random.value);
-            Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * r;
-            Vector3 candidate = TerrainSpawnUtility.GetWorldPositionOnTerrain(spawnOrigin + offset);
+            Vector3 candidate = TerrainSpawnUtility.GetWorldPositionOnTerrain(
+                spawnOrigin + SpawnPlacementUtility.RandomUniformDiskOffsetXZ(spawnRadius));
             if (candidate.y < 0f)
                 continue;
 
-            if (!IsFarEnoughXZ(candidate, settlementCenters, minSettleSq))
+            if (!SpawnPlacementUtility.IsFarEnoughFromAllXZ(candidate, settlementCenters, minSettleSq))
                 continue;
-            if (!IsFarEnoughXZ(candidate, placedCamps, minCampSq))
+            if (!SpawnPlacementUtility.IsFarEnoughFromAllXZ(candidate, placedCamps, minCampSq))
                 continue;
 
             pos = candidate;
@@ -92,20 +90,5 @@ public class BanditCampSpawner : MonoBehaviour
 
         pos = default;
         return false;
-    }
-
-    static bool IsFarEnoughXZ(Vector3 candidate, List<Vector3> others, float minSepSq)
-    {
-        float cx = candidate.x;
-        float cz = candidate.z;
-        for (int i = 0; i < others.Count; i++)
-        {
-            float dx = cx - others[i].x;
-            float dz = cz - others[i].z;
-            if (dx * dx + dz * dz < minSepSq)
-                return false;
-        }
-
-        return true;
     }
 }

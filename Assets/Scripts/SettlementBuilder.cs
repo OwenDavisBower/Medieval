@@ -110,12 +110,11 @@ public class SettlementBuilder : MonoBehaviour
 
         for (int a = 0; a < maxCenterAttempts; a++)
         {
-            float ang = Random.Range(0f, Mathf.PI * 2f);
-            float r = centerSearchRadius * Mathf.Sqrt(Random.value);
-            float x = origin.x + Mathf.Cos(ang) * r;
-            float z = origin.z + Mathf.Sin(ang) * r;
+            Vector3 disk = SpawnPlacementUtility.RandomUniformDiskOffsetXZ(centerSearchRadius);
+            float x = origin.x + disk.x;
+            float z = origin.z + disk.z;
 
-            if (!IsInsideTerrain(gen, x, z))
+            if (!SpawnPlacementUtility.IsWorldXZInsideTerrain(gen, x, z))
                 continue;
 
             if (IsFlatAt(gen, baseH, x, z, out float y))
@@ -142,31 +141,18 @@ public class SettlementBuilder : MonoBehaviour
 
         for (int attempt = 0; attempt < maxAttemptsPerStructure; attempt++)
         {
-            float ang = Random.Range(0f, Mathf.PI * 2f);
-            float rad = Random.Range(rMin, rMax);
-            float x = c.x + Mathf.Cos(ang) * rad;
-            float z = c.z + Mathf.Sin(ang) * rad;
+            Vector3 ring = SpawnPlacementUtility.RandomAnnulusOffsetXZ(rMin, rMax);
+            float x = c.x + ring.x;
+            float z = c.z + ring.z;
 
-            if (!IsInsideTerrain(gen, x, z))
+            if (!SpawnPlacementUtility.IsWorldXZInsideTerrain(gen, x, z))
                 continue;
 
             if (!IsFlatAt(gen, baseH, x, z, out float y))
                 continue;
 
             var candidate = new Vector3(x, y, z);
-            bool ok = true;
-            for (int i = 0; i < placed.Count; i++)
-            {
-                float dx = candidate.x - placed[i].x;
-                float dz = candidate.z - placed[i].z;
-                if (dx * dx + dz * dz < minSepSq)
-                {
-                    ok = false;
-                    break;
-                }
-            }
-
-            if (!ok)
+            if (!SpawnPlacementUtility.IsFarEnoughFromAllXZ(candidate, placed, minSepSq))
                 continue;
 
             worldPos = TerrainSpawnUtility.GetWorldPositionOnTerrain(candidate);
@@ -194,13 +180,6 @@ public class SettlementBuilder : MonoBehaviour
         return slope <= maxSlope;
     }
 
-    static bool IsInsideTerrain(TerrainGenerator gen, float x, float z)
-    {
-        float half = gen.worldSize * 0.5f;
-        var o = gen.transform.position;
-        return x >= o.x - half && x <= o.x + half && z >= o.z - half && z <= o.z + half;
-    }
-
     void SpawnPrefab(GameObject prefab, Vector3 worldPos)
     {
         float yaw = Random.Range(0f, 360f);
@@ -216,9 +195,7 @@ public class SettlementBuilder : MonoBehaviour
         int count = Random.Range(2, 4);
         for (int v = 0; v < count; v++)
         {
-            float ang = Random.Range(0f, Mathf.PI * 2f);
-            float rad = Random.Range(0.8f, 4f);
-            Vector3 offset = new Vector3(Mathf.Cos(ang) * rad, 0f, Mathf.Sin(ang) * rad);
+            Vector3 offset = SpawnPlacementUtility.RandomAnnulusOffsetXZ(0.8f, 4f);
             Vector3 vpos = cabinWorldPos + offset;
             vpos = TerrainSpawnUtility.GetWorldPositionOnTerrain(vpos);
             if (vpos.y < minSurfaceY)

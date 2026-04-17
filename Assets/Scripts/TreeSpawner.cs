@@ -32,28 +32,12 @@ public class TreeSpawner : MonoBehaviour
         {
             totalAttempts++;
 
-            float angle = Random.Range(0f, Mathf.PI * 2f);
-            float r = Mathf.Sqrt(Random.Range(0f, 1f)) * regionRadius;
-            float x = Mathf.Cos(angle) * r;
-            float z = Mathf.Sin(angle) * r;
-
-            Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(basePos + new Vector3(x, 0f, z));
+            Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(
+                basePos + SpawnPlacementUtility.RandomUniformDiskOffsetXZ(regionRadius));
             if (p.y < 0f)
                 continue;
 
-            bool ok = true;
-            for (int i = 0; i < accepted.Count; i++)
-            {
-                float dx = p.x - accepted[i].x;
-                float dz = p.z - accepted[i].z;
-                if (dx * dx + dz * dz < minSepSq)
-                {
-                    ok = false;
-                    break;
-                }
-            }
-
-            if (ok)
+            if (SpawnPlacementUtility.IsFarEnoughFromAllXZ(p, accepted, minSepSq))
                 accepted.Add(p);
         }
 

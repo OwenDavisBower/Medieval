@@ -86,9 +86,8 @@ public class BanditController : MonoBehaviour
         if (chase == null)
             return;
 
-        Vector3 d = chase.position - transform.position;
-        d.y = 0f;
-        if (_isRanged && _ranged != null && _ranged.enabled && d.sqrMagnitude <= combatRange * combatRange)
+        if (_isRanged && _ranged != null && _ranged.enabled &&
+            SpatialMath.FlatSqrDistance(transform.position, chase.position) <= combatRange * combatRange)
             _ranged.TryFireAt(chase);
         else if (!_isRanged && _melee != null && _melee.enabled)
             _melee.TryAttack(chase);
@@ -102,10 +101,8 @@ public class BanditController : MonoBehaviour
 
         if (_player != null)
         {
-            Vector3 d = _player.position - transform.position;
-            d.y = 0f;
-            float sq = d.sqrMagnitude;
-            if (sq <= aggroSq && sq < bestSq && HasLineOfSight(_player))
+            float sq = SpatialMath.FlatSqrDistance(transform.position, _player.position);
+            if (sq <= aggroSq && sq < bestSq && HasLineOfSightTo(_player))
             {
                 best = _player;
                 bestSq = sq;
@@ -125,10 +122,8 @@ public class BanditController : MonoBehaviour
             if (f == null)
                 continue;
             Transform ft = f.transform;
-            Vector3 d = ft.position - transform.position;
-            d.y = 0f;
-            float sq = d.sqrMagnitude;
-            if (sq <= aggroSq && sq < bestSq && HasLineOfSight(ft))
+            float sq = SpatialMath.FlatSqrDistance(transform.position, ft.position);
+            if (sq <= aggroSq && sq < bestSq && HasLineOfSightTo(ft))
             {
                 best = ft;
                 bestSq = sq;
@@ -148,10 +143,8 @@ public class BanditController : MonoBehaviour
             if (v == null)
                 continue;
             Transform vt = v.transform;
-            Vector3 d = vt.position - transform.position;
-            d.y = 0f;
-            float sq = d.sqrMagnitude;
-            if (sq <= aggroSq && sq < bestSq && HasLineOfSight(vt))
+            float sq = SpatialMath.FlatSqrDistance(transform.position, vt.position);
+            if (sq <= aggroSq && sq < bestSq && HasLineOfSightTo(vt))
             {
                 best = vt;
                 bestSq = sq;
@@ -161,36 +154,7 @@ public class BanditController : MonoBehaviour
         return best;
     }
 
-    bool HasLineOfSight(Transform target)
-    {
-        Vector3 eye = transform.position + Vector3.up * eyeHeight;
-        Vector3 tgt = target.position + Vector3.up * targetHeight;
-        Vector3 delta = tgt - eye;
-        float dist = delta.magnitude;
-        if (dist < 0.02f)
-            return true;
-
-        Vector3 dir = delta / dist;
-        const float skin = 0.4f;
-        Vector3 origin = eye + dir * skin;
-        float remain = dist - skin;
-        if (remain <= 0.01f)
-            return true;
-
-        if (Physics.Raycast(origin, dir, out RaycastHit hit, remain, obstacleLayers, QueryTriggerInteraction.Ignore))
-            return IsTargetOrChild(hit.collider.transform, target);
-
-        return true;
-    }
-
-    static bool IsTargetOrChild(Transform hitTransform, Transform target)
-    {
-        for (Transform t = hitTransform; t != null; t = t.parent)
-        {
-            if (t == target)
-                return true;
-        }
-
-        return false;
-    }
+    bool HasLineOfSightTo(Transform target) =>
+        LineOfSightUtility.HasClearLineOfSight(transform.position, target, eyeHeight, targetHeight, obstacleLayers,
+            transform.root);
 }

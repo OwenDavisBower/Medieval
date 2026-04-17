@@ -81,15 +81,12 @@ public class FollowerController : MonoBehaviour
         if (maxDistanceFromLeader > 0f)
         {
             Transform anchor = _motor.AnchorTarget;
-            if (anchor != null)
+            if (anchor != null &&
+                SpatialMath.FlatSqrDistance(transform.position, anchor.position) >
+                maxDistanceFromLeader * maxDistanceFromLeader)
             {
-                Vector3 toLeader = transform.position - anchor.position;
-                toLeader.y = 0f;
-                if (toLeader.sqrMagnitude > maxDistanceFromLeader * maxDistanceFromLeader)
-                {
-                    _motor.SeekOverride = null;
-                    return;
-                }
+                _motor.SeekOverride = null;
+                return;
             }
         }
 
@@ -99,9 +96,8 @@ public class FollowerController : MonoBehaviour
         if (bandit == null)
             return;
 
-        Vector3 d = bandit.position - transform.position;
-        d.y = 0f;
-        if (_isRanged && _ranged != null && _ranged.enabled && d.sqrMagnitude <= combatRange * combatRange)
+        if (_isRanged && _ranged != null && _ranged.enabled &&
+            SpatialMath.FlatSqrDistance(transform.position, bandit.position) <= combatRange * combatRange)
             _ranged.TryFireAt(bandit);
         else if (!_isRanged && _melee != null && _melee.enabled)
             _melee.TryAttack(bandit);
@@ -126,10 +122,8 @@ public class FollowerController : MonoBehaviour
             if (b == null)
                 continue;
             Transform bt = b.transform;
-            Vector3 d = bt.position - transform.position;
-            d.y = 0f;
-            float sq = d.sqrMagnitude;
-            if (sq <= aggroSq && sq < bestSq && HasLineOfSight(bt))
+            float sq = SpatialMath.FlatSqrDistance(transform.position, bt.position);
+            if (sq <= aggroSq && sq < bestSq && HasLineOfSightTo(bt))
             {
                 best = bt;
                 bestSq = sq;
@@ -139,36 +133,7 @@ public class FollowerController : MonoBehaviour
         return best;
     }
 
-    bool HasLineOfSight(Transform target)
-    {
-        Vector3 eye = transform.position + Vector3.up * eyeHeight;
-        Vector3 tgt = target.position + Vector3.up * targetHeight;
-        Vector3 delta = tgt - eye;
-        float dist = delta.magnitude;
-        if (dist < 0.02f)
-            return true;
-
-        Vector3 dir = delta / dist;
-        const float skin = 0.4f;
-        Vector3 origin = eye + dir * skin;
-        float remain = dist - skin;
-        if (remain <= 0.01f)
-            return true;
-
-        if (Physics.Raycast(origin, dir, out RaycastHit hit, remain, obstacleLayers, QueryTriggerInteraction.Ignore))
-            return IsTargetOrChild(hit.collider.transform, target);
-
-        return true;
-    }
-
-    static bool IsTargetOrChild(Transform hitTransform, Transform target)
-    {
-        for (Transform t = hitTransform; t != null; t = t.parent)
-        {
-            if (t == target)
-                return true;
-        }
-
-        return false;
-    }
+    bool HasLineOfSightTo(Transform target) =>
+        LineOfSightUtility.HasClearLineOfSight(transform.position, target, eyeHeight, targetHeight, obstacleLayers,
+            transform.root);
 }
