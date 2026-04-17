@@ -78,6 +78,8 @@ public class BanditCampSpawner : MonoBehaviour
             float r = spawnRadius * Mathf.Sqrt(Random.value);
             Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * r;
             Vector3 candidate = TerrainSpawnUtility.GetWorldPositionOnTerrain(spawnOrigin + offset);
+            if (candidate.y < 0f)
+                continue;
 
             if (!IsFarEnoughXZ(candidate, settlementCenters, minSettleSq))
                 continue;
