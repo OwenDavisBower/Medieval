@@ -35,6 +35,12 @@ public class Character : MonoBehaviour
     Image _fillImage;
     Transform _billboardRoot;
     static Sprite _whiteSprite;
+    static int s_billboardCamFrame = -1;
+    static Camera s_billboardMainCam;
+
+    float _meleeDamageMultiplier;
+    float _movementSpeedMultiplier;
+    float _rangedAimErrorMultiplier;
 
     public float CurrentHealth => _current;
     public float MaxHealth => _rolledMaxHealth;
@@ -45,13 +51,13 @@ public class Character : MonoBehaviour
     public bool IsDead => _current <= 0f;
 
     /// <summary>Higher strength increases melee damage (see <see cref="MeleeCombat"/>).</summary>
-    public float MeleeDamageMultiplier => StatMultiplier(_strength, minStrength, maxStrength, 0.78f, 1.22f);
+    public float MeleeDamageMultiplier => _meleeDamageMultiplier;
 
     /// <summary>Higher dexterity increases movement speed (see <see cref="TargetSteeringMotor"/> / <see cref="PlayerController"/>).</summary>
-    public float MovementSpeedMultiplier => StatMultiplier(_dexterity, minDexterity, maxDexterity, 0.86f, 1.14f);
+    public float MovementSpeedMultiplier => _movementSpeedMultiplier;
 
     /// <summary>Higher focus tightens bow aim spread (values &lt; 1 reduce error).</summary>
-    public float RangedAimErrorMultiplier => StatMultiplier(_focus, minFocus, maxFocus, 1.28f, 0.62f);
+    public float RangedAimErrorMultiplier => _rangedAimErrorMultiplier;
 
     /// <summary>True when health is low enough that this character should stop engaging and retreat (NPC combat).</summary>
     public bool ShouldFleeFromCombatThreat
@@ -81,6 +87,9 @@ public class Character : MonoBehaviour
     void Awake()
     {
         RollStats();
+        _meleeDamageMultiplier = StatMultiplier(_strength, minStrength, maxStrength, 0.78f, 1.22f);
+        _movementSpeedMultiplier = StatMultiplier(_dexterity, minDexterity, maxDexterity, 0.86f, 1.14f);
+        _rangedAimErrorMultiplier = StatMultiplier(_focus, minFocus, maxFocus, 1.28f, 0.62f);
         _current = _rolledMaxHealth;
         BuildHealthBar();
         if (_canvas != null)
@@ -112,7 +121,13 @@ public class Character : MonoBehaviour
     {
         if (_billboardRoot == null || !_billboardRoot.gameObject.activeInHierarchy)
             return;
-        var cam = Camera.main;
+        if (Time.frameCount != s_billboardCamFrame)
+        {
+            s_billboardCamFrame = Time.frameCount;
+            s_billboardMainCam = Camera.main;
+        }
+
+        var cam = s_billboardMainCam;
         if (cam == null)
             return;
         Vector3 toCam = cam.transform.position - _billboardRoot.position;

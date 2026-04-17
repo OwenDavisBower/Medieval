@@ -20,10 +20,6 @@ public class BanditController : MonoBehaviour
     Character _character;
     bool _isRanged = true;
     Transform _player;
-    FollowerController[] _followersCache;
-    float _followersCacheTime;
-    VillagerController[] _villagersCache;
-    float _villagersCacheTime;
     bool _initialized;
 
     public void Initialize(Transform campAnchor)
@@ -109,13 +105,7 @@ public class BanditController : MonoBehaviour
             }
         }
 
-        if (Time.time >= _followersCacheTime)
-        {
-            _followersCacheTime = Time.time + 0.15f;
-            _followersCache = FindObjectsByType<FollowerController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        }
-
-        FollowerController[] followers = _followersCache ?? System.Array.Empty<FollowerController>();
+        FollowerController[] followers = CombatUnitRegistry.GetFollowers();
         for (int i = 0; i < followers.Length; i++)
         {
             FollowerController f = followers[i];
@@ -130,13 +120,7 @@ public class BanditController : MonoBehaviour
             }
         }
 
-        if (Time.time >= _villagersCacheTime)
-        {
-            _villagersCacheTime = Time.time + 0.15f;
-            _villagersCache = FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        }
-
-        VillagerController[] villagers = _villagersCache ?? System.Array.Empty<VillagerController>();
+        VillagerController[] villagers = CombatUnitRegistry.GetVillagers();
         for (int i = 0; i < villagers.Length; i++)
         {
             VillagerController v = villagers[i];

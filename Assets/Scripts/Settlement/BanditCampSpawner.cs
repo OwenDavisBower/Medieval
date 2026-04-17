@@ -22,7 +22,7 @@ public class BanditCampSpawner : MonoBehaviour
         if (_spawned || banditCampPrefab == null)
             return;
 
-        var gen = Object.FindFirstObjectByType<TerrainGenerator>();
+        var gen = TerrainGenerator.GetActiveOrFind();
         if (gen == null || !gen.IsTerrainReady)
             return;
 

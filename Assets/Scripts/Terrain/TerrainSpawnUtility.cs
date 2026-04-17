@@ -15,7 +15,7 @@ public static class TerrainSpawnUtility
             return worldPosition;
         }
 
-        var proc = Object.FindFirstObjectByType<TerrainGenerator>();
+        var proc = TerrainGenerator.GetActiveOrFind();
         if (proc != null && proc.IsTerrainReady)
         {
             worldPosition.y = proc.SampleHeightWorldXZ(worldPosition.x, worldPosition.z) + heightOffset;

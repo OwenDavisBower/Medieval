@@ -27,7 +27,7 @@ public class DayNightCycle : MonoBehaviour
         transform.rotation = _baseRotation * Quaternion.AngleAxis(t * 360f, Vector3.right);
 
         // Directional light rays follow transform.forward; compare to "down" for day vs night.
-        float sunDown = Vector3.Dot(transform.forward.normalized, Vector3.down);
+        float sunDown = Vector3.Dot(transform.forward, Vector3.down);
         float dayBlend = Mathf.InverseLerp(dayBlendSunDownDot, dayBlendSunUpDot, sunDown);
         dayBlend = Mathf.Clamp01(dayBlend);
 

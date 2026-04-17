@@ -172,6 +172,13 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Fired in play mode after chunk meshes and colliders are built (end of <see cref="RunPipeline"/>).</summary>
     public static event Action<TerrainGenerator>? TerrainGenerated;
 
+    /// <summary>Currently enabled terrain generator (last <see cref="OnEnable"/>); null if none.</summary>
+    public static TerrainGenerator? Instance { get; private set; }
+
+    /// <summary>Uses <see cref="Instance"/> when set; otherwise finds one in the scene (e.g. before first <see cref="OnEnable"/>).</summary>
+    public static TerrainGenerator? GetActiveOrFind() =>
+        Instance != null ? Instance : UnityEngine.Object.FindFirstObjectByType<TerrainGenerator>();
+
     /// <summary>True after a successful <see cref="RunPipeline"/> run with a valid heightmap.</summary>
     public bool IsTerrainReady => _chunksBuilt && _heightmap.IsCreated;
 
@@ -200,11 +207,14 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     void OnEnable()
     {
+        Instance = this;
         RenderPipelineManager.beginContextRendering += OnBeginContextRendering;
     }
 
     void OnDisable()
     {
+        if (Instance == this)
+            Instance = null;
         RenderPipelineManager.beginContextRendering -= OnBeginContextRendering;
     }
 

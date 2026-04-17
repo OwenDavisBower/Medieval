@@ -21,7 +21,7 @@ public class SpawningCoordinator : MonoBehaviour
 
     void RunSpawnSequence()
     {
-        var gen = Object.FindFirstObjectByType<TerrainGenerator>();
+        var gen = TerrainGenerator.GetActiveOrFind();
         if (gen == null || !gen.IsTerrainReady)
             return;
 

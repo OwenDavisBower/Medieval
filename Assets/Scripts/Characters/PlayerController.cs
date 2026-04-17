@@ -43,7 +43,7 @@ public class PlayerController : MonoBehaviour
         if (_snappedToTerrain)
             return;
 
-        var gen = Object.FindFirstObjectByType<TerrainGenerator>();
+        var gen = TerrainGenerator.GetActiveOrFind();
         if (gen == null || !gen.IsTerrainReady)
             return;
 

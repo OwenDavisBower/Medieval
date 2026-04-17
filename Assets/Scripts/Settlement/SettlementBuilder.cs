@@ -62,7 +62,7 @@ public class SettlementBuilder : MonoBehaviour
         if (_built || cabinPrefab == null || farmPrefab == null)
             return;
 
-        var gen = Object.FindFirstObjectByType<TerrainGenerator>();
+        var gen = TerrainGenerator.GetActiveOrFind();
         if (gen == null || !gen.IsTerrainReady)
             return;
 

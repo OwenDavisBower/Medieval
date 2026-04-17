@@ -16,7 +16,7 @@ public class TreeSpawner : MonoBehaviour
         if (_spawned || treePrefab == null)
             return;
 
-        var gen = Object.FindFirstObjectByType<TerrainGenerator>();
+        var gen = TerrainGenerator.GetActiveOrFind();
         if (gen == null || !gen.IsTerrainReady)
             return;
 

@@ -20,8 +20,6 @@ public class FollowerController : MonoBehaviour
     MeleeCombat _melee;
     Character _character;
     bool _isRanged = true;
-    BanditController[] _banditsCache;
-    float _banditsCacheTime;
 
     void Awake()
     {
@@ -109,13 +107,7 @@ public class FollowerController : MonoBehaviour
         Transform best = null;
         float bestSq = float.MaxValue;
 
-        if (Time.time >= _banditsCacheTime)
-        {
-            _banditsCacheTime = Time.time + 0.15f;
-            _banditsCache = FindObjectsByType<BanditController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        }
-
-        BanditController[] bandits = _banditsCache ?? System.Array.Empty<BanditController>();
+        BanditController[] bandits = CombatUnitRegistry.GetBandits();
         for (int i = 0; i < bandits.Length; i++)
         {
             BanditController b = bandits[i];

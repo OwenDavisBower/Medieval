@@ -101,6 +101,7 @@ public class TargetSteeringMotor : MonoBehaviour
     float _pendingDodgeTime;
     float _lastRangedDodgeApplyTime = float.NegativeInfinity;
     bool _dodgeImpulseThisFixed;
+    float _effectiveMoveSpeedThisFixed;
 
     public Transform AnchorTarget
     {
@@ -127,8 +128,6 @@ public class TargetSteeringMotor : MonoBehaviour
         get => moveSpeedScale;
         set => moveSpeedScale = Mathf.Max(0.05f, value);
     }
-
-    float EffectiveMoveSpeed => moveSpeed * moveSpeedScale * WaterMovement.SpeedMultiplier(transform.position.y);
 
     public TargetSteeringMovementMode Mode
     {
@@ -183,7 +182,7 @@ public class TargetSteeringMotor : MonoBehaviour
         v.x += add.x;
         v.z += add.z;
         Vector3 h = new Vector3(v.x, 0f, v.z);
-        float cap = EffectiveMoveSpeed * 2.05f;
+        float cap = ComputeEffectiveMoveSpeed() * 2.05f;
         if (h.sqrMagnitude > cap * cap)
             h = h.normalized * cap;
         v.x = h.x;
@@ -238,12 +237,23 @@ public class TargetSteeringMotor : MonoBehaviour
         switch (separationGroup)
         {
             case TargetSteeringSeparationGroup.Followers:
-                FollowerMotors.Remove(this);
+                RemoveMotorSwap(FollowerMotors, this);
                 break;
             case TargetSteeringSeparationGroup.Bandits:
-                BanditMotors.Remove(this);
+                RemoveMotorSwap(BanditMotors, this);
                 break;
         }
+    }
+
+    static void RemoveMotorSwap(List<TargetSteeringMotor> list, TargetSteeringMotor item)
+    {
+        int i = list.IndexOf(item);
+        if (i < 0)
+            return;
+        int last = list.Count - 1;
+        if (i != last)
+            list[i] = list[last];
+        list.RemoveAt(last);
     }
 
     void Start()
@@ -256,6 +266,8 @@ public class TargetSteeringMotor : MonoBehaviour
 
     void FixedUpdate()
     {
+        _effectiveMoveSpeedThisFixed = ComputeEffectiveMoveSpeed();
+
         if (_pendingDodgeReferencePosition.HasValue && Time.time >= _pendingDodgeTime)
         {
             Vector3 dodgeRef = _pendingDodgeReferencePosition.Value;
@@ -379,9 +391,9 @@ public class TargetSteeringMotor : MonoBehaviour
         {
             Vector3 desiredDir = flat.normalized;
             desiredDir = AdjustForObstacles(desiredDir);
-            Vector3 desired = desiredDir * EffectiveMoveSpeed;
+            Vector3 desired = desiredDir * _effectiveMoveSpeedThisFixed;
             desired += ComputeSeparation();
-            float maxHorizSpeed = EffectiveMoveSpeed;
+            float maxHorizSpeed = _effectiveMoveSpeedThisFixed;
             if (desired.sqrMagnitude > maxHorizSpeed * maxHorizSpeed)
                 desired = desired.normalized * maxHorizSpeed;
 
@@ -401,6 +413,9 @@ public class TargetSteeringMotor : MonoBehaviour
         _rb.linearVelocity = velocity;
     }
 
+    float ComputeEffectiveMoveSpeed() =>
+        moveSpeed * moveSpeedScale * WaterMovement.SpeedMultiplier(transform.position.y);
+
     void ClampHorizontalWater(ref Vector3 velocity)
     {
         if (WaterMovement.SpeedMultiplier(transform.position.y) >= 1f)
@@ -412,7 +427,7 @@ public class TargetSteeringMotor : MonoBehaviour
         bool allowDodgeBurst = _dodgeImpulseThisFixed;
         _dodgeImpulseThisFixed = false;
 
-        float cap = EffectiveMoveSpeed;
+        float cap = _effectiveMoveSpeedThisFixed;
         if (allowDodgeBurst)
             cap *= 2.05f;
 

@@ -31,7 +31,7 @@ public class FollowerSpawner : MonoBehaviour
         if (_spawned || followerPrefab == null)
             return;
 
-        var gen = Object.FindFirstObjectByType<TerrainGenerator>();
+        var gen = TerrainGenerator.GetActiveOrFind();
         if (gen == null || !gen.IsTerrainReady)
             return;
 

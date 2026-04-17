@@ -9,12 +9,13 @@ public class ArrowProjectile : MonoBehaviour
     [SerializeField] float maxLifetime = 12f;
     [SerializeField] float damage = 25f;
 
-    float _spawnTime;
+    Rigidbody _rb;
     Transform _shooterRoot;
 
     void Awake()
     {
-        _spawnTime = Time.time;
+        _rb = GetComponent<Rigidbody>();
+        Destroy(gameObject, maxLifetime);
     }
 
     void OnEnable()
@@ -24,7 +25,18 @@ public class ArrowProjectile : MonoBehaviour
 
     void OnDisable()
     {
-        ActiveInstances.Remove(this);
+        RemoveFromActiveInstances(this);
+    }
+
+    static void RemoveFromActiveInstances(ArrowProjectile ap)
+    {
+        int i = ActiveInstances.IndexOf(ap);
+        if (i < 0)
+            return;
+        int last = ActiveInstances.Count - 1;
+        if (i != last)
+            ActiveInstances[i] = ActiveInstances[last];
+        ActiveInstances.RemoveAt(last);
     }
 
     /// <summary>Call after spawn so the arrow does not damage the shooter's Character.</summary>
@@ -84,11 +96,10 @@ public class ArrowProjectile : MonoBehaviour
         if (_shooterRoot != null && selfRoot == _shooterRoot)
             return false;
 
-        var rb = GetComponent<Rigidbody>();
-        if (rb == null)
+        if (_rb == null)
             return false;
 
-        Vector3 vel = rb.linearVelocity;
+        Vector3 vel = _rb.linearVelocity;
         Vector3 velFlat = new Vector3(vel.x, 0f, vel.z);
         float speed = velFlat.magnitude;
         if (speed < minHorizSpeed)
@@ -102,18 +113,13 @@ public class ArrowProjectile : MonoBehaviour
             return false;
 
         Vector3 perp = w - velDir * along;
-        if (perp.magnitude > maxLateral)
+        float maxLatSq = maxLateral * maxLateral;
+        if (perp.sqrMagnitude > maxLatSq)
             return false;
 
         alongRay = along;
         dodgeReferencePosition = characterRoot.position + new Vector3(velDir.x, 0f, velDir.z);
         return true;
-    }
-
-    void Update()
-    {
-        if (Time.time - _spawnTime > maxLifetime)
-            Destroy(gameObject);
     }
 
     void OnCollisionEnter(Collision collision)

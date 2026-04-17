@@ -24,10 +24,12 @@ public static class LineOfSightUtility
         Vector3 eye = observerFeetWorld + Vector3.up * eyeHeight;
         Vector3 tgt = target.position + Vector3.up * targetHeight;
         Vector3 delta = tgt - eye;
-        float dist = delta.magnitude;
-        if (dist < MinRayLength)
+        float distSq = delta.sqrMagnitude;
+        float minSq = MinRayLength * MinRayLength;
+        if (distSq < minSq)
             return true;
 
+        float dist = Mathf.Sqrt(distSq);
         Vector3 dir = delta / dist;
         Vector3 origin = eye + dir * Skin;
         float remain = dist - Skin;
