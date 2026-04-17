@@ -4,9 +4,13 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
     Properties
     {
         [NoScaleOffset] _GrassTex("Grass", 2D) = "white" {}
+        [NoScaleOffset] _PathTex("Path", 2D) = "white" {}
+        [NoScaleOffset] _SplatmapTex("Path Splat (R = path)", 2D) = "black" {}
         _GrassTiling("Grass Tiling", Float) = 1
+        _PathTiling("Path Tiling", Float) = 1
         _HexSize("Hex Cell Size (UV)", Float) = 1
         _HexBlend("Hex Blend Sharpness", Float) = 10
+        [HideInInspector] _TerrainWorldOriginAndSize("XYZ origin, W world size", Vector) = (0, 0, 0, 1024)
     }
 
     SubShader
@@ -39,11 +43,17 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
 
             TEXTURE2D(_GrassTex);
             SAMPLER(sampler_GrassTex);
+            TEXTURE2D(_PathTex);
+            SAMPLER(sampler_PathTex);
+            TEXTURE2D(_SplatmapTex);
+            SAMPLER(sampler_SplatmapTex);
 
             CBUFFER_START(UnityPerMaterial)
                 half _GrassTiling;
+                half _PathTiling;
                 half _HexSize;
                 half _HexBlend;
+                float4 _TerrainWorldOriginAndSize;
             CBUFFER_END
 
             // Stable hash for per-hex rotation / phase (no texture dependency).
@@ -108,7 +118,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
             }
 
             // Soft Voronoi over 7 hex cells (center + 6 neighbors) with per-cell rotation to hide square tiling.
-            half3 SampleGrassHex(float2 p)
+            half3 SampleTextureHex(float2 p, Texture2D tex, SamplerState samp)
             {
                 float hexSize = max(0.0001, (float)_HexSize);
                 float sharp = max(0.001, (float)_HexBlend);
@@ -149,7 +159,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                     float2 phase = HexHash22(cell + float2(19.19, 47.7));
                     float2 texUV = frac(rot + phase);
 
-                    half3 col = SAMPLE_TEXTURE2D(_GrassTex, sampler_GrassTex, texUV).rgb;
+                    half3 col = SAMPLE_TEXTURE2D(tex, samp, texUV).rgb;
                     half w = (half)exp(-sharp * dist2 / (hexSize * hexSize * 3.0));
 
                     sum += col * w;
@@ -197,7 +207,16 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
                 float2 grassUV = float2(input.positionWS.x, input.positionWS.z) * (float)_GrassTiling;
-                const half3 albedo = SampleGrassHex(grassUV);
+                float2 pathUV = float2(input.positionWS.x, input.positionWS.z) * (float)_PathTiling;
+                const float terrainW = max(_TerrainWorldOriginAndSize.w, 1e-5);
+                const float invTerrainW = rcp(terrainW);
+                const float2 splatUV = float2(
+                    (input.positionWS.x - _TerrainWorldOriginAndSize.x) * invTerrainW + 0.5,
+                    (input.positionWS.z - _TerrainWorldOriginAndSize.z) * invTerrainW + 0.5);
+                const half pathMask = SAMPLE_TEXTURE2D(_SplatmapTex, sampler_SplatmapTex, splatUV).r;
+                const half3 grassCol = SampleTextureHex(grassUV, _GrassTex, sampler_GrassTex);
+                const half3 pathCol = SAMPLE_TEXTURE2D(_PathTex, sampler_PathTex, pathUV).rgb;
+                const half3 albedo = lerp(grassCol, pathCol, pathMask);
                 const half3 n = normalize(input.normalWS);
 
                 const float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);

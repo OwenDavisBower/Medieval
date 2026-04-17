@@ -565,6 +565,14 @@ public sealed class TerrainGenerator : MonoBehaviour
             lod2Distance);
 
         _chunkManager.AssignMaterial(terrainMaterial);
+        if (terrainMaterial != null)
+        {
+            var p = transform.position;
+            terrainMaterial.SetVector("_TerrainWorldOriginAndSize", new Vector4(p.x, p.y, p.z, worldSize));
+            if (_splatmapTexture != null)
+                terrainMaterial.SetTexture("_SplatmapTex", _splatmapTexture);
+        }
+
         if (cameraTransform != null)
             _lastCameraPos = cameraTransform.position;
 

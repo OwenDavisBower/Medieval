@@ -28,12 +28,22 @@ Material:
         m_Texture: {fileID: 2800000, guid: 819311b7a66a8f740b104cf9f9ffadf5, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _PathTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SplatmapTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _GrassTiling: 1
+    - _PathTiling: 1
     - _HexBlend: 10
     - _HexSize: 0.2
-    m_Colors: []
+    m_Colors:
+    - _TerrainWorldOriginAndSize: {r: 0, g: 0, b: 0, a: 1024}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &3922063015719540400
