@@ -1058,10 +1058,10 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var inner = RiverChannelHalfWidth;
                 var outer = RiverChannelHalfWidth + RiverCarveBlendDistance;
                 var carveMask = math.smoothstep(outer, inner, riverDist);
-                var bedDepth = RiverBedDepth;
-                var targetBed = baseNoiseH - bedDepth;
-                var depth = math.max(0f, baseNoiseH - targetBed);
-                var riverCarve = math.min(bedDepth, carveMask * math.smoothstep(0f, bedDepth, depth));
+                // Cross-section weight (0 at outer blend, 1 at channel center). Multiply by RiverBedDepth —
+                // do not min() with bed depth here: carveMask is in [0,1] and the old formula reduced to
+                // min(bedDepth, carveMask), capping the carve at ~1 unit regardless of RiverBedDepth.
+                var riverCarve = carveMask * RiverBedDepth;
 
                 var wScale = inner / 2.2f;
                 var bankMask = math.smoothstep(inner, inner + 3.5f * wScale, riverDist) *
