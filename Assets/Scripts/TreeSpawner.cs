@@ -61,6 +61,8 @@ public class TreeSpawner : MonoBehaviour
                 continue;
 
             Vector3 p = hit.point;
+            if (p.y < 0f)
+                continue;
 
             bool ok = true;
             for (int i = 0; i < accepted.Count; i++)
