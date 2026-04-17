@@ -8,6 +8,7 @@ public class SettlementSpawner : MonoBehaviour
 {
     [SerializeField] GameObject cabinPrefab;
     [SerializeField] GameObject farmPrefab;
+    [SerializeField] GameObject villagerPrefab;
     [SerializeField] int settlementCount = 3;
     [SerializeField] float spawnRadius = 200f;
     [SerializeField] Vector3 spawnOrigin;
@@ -44,7 +45,7 @@ public class SettlementSpawner : MonoBehaviour
             spawned++;
             go.transform.position = pos;
             var builder = go.AddComponent<SettlementBuilder>();
-            builder.InitializeAndBuild(cabinPrefab, farmPrefab);
+            builder.InitializeAndBuild(cabinPrefab, farmPrefab, villagerPrefab);
         }
     }
 

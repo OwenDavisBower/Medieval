@@ -22,6 +22,8 @@ public class BanditController : MonoBehaviour
     Transform _player;
     FollowerController[] _followersCache;
     float _followersCacheTime;
+    VillagerController[] _villagersCache;
+    float _villagersCacheTime;
     bool _initialized;
 
     public void Initialize(Transform campAnchor)
@@ -129,6 +131,29 @@ public class BanditController : MonoBehaviour
             if (sq <= aggroSq && sq < bestSq && HasLineOfSight(ft))
             {
                 best = ft;
+                bestSq = sq;
+            }
+        }
+
+        if (Time.time >= _villagersCacheTime)
+        {
+            _villagersCacheTime = Time.time + 0.15f;
+            _villagersCache = FindObjectsByType<VillagerController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        }
+
+        VillagerController[] villagers = _villagersCache ?? System.Array.Empty<VillagerController>();
+        for (int i = 0; i < villagers.Length; i++)
+        {
+            VillagerController v = villagers[i];
+            if (v == null)
+                continue;
+            Transform vt = v.transform;
+            Vector3 d = vt.position - transform.position;
+            d.y = 0f;
+            float sq = d.sqrMagnitude;
+            if (sq <= aggroSq && sq < bestSq && HasLineOfSight(vt))
+            {
+                best = vt;
                 bestSq = sq;
             }
         }

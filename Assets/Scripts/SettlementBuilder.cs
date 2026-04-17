@@ -8,6 +8,7 @@ public class SettlementBuilder : MonoBehaviour
 {
     [SerializeField] GameObject cabinPrefab;
     [SerializeField] GameObject farmPrefab;
+    [SerializeField] GameObject villagerPrefab;
 
     [Header("Water")]
     [Tooltip("Structures are not placed at or below this world Y (e.g. water surface).")]
@@ -48,10 +49,11 @@ public class SettlementBuilder : MonoBehaviour
     void OnTerrainGenerated(TerrainGenerator _) => TryBuildSettlement();
 
     /// <summary>Used when prefabs are assigned at runtime (e.g. from <see cref="SettlementSpawner"/>).</summary>
-    public void InitializeAndBuild(GameObject cabin, GameObject farm)
+    public void InitializeAndBuild(GameObject cabin, GameObject farm, GameObject villager = null)
     {
         cabinPrefab = cabin;
         farmPrefab = farm;
+        villagerPrefab = villager;
         TryBuildSettlement();
     }
 
@@ -82,7 +84,10 @@ public class SettlementBuilder : MonoBehaviour
                 continue;
 
             placed.Add(pos);
-            SpawnPrefab(cabinPrefab, pos);
+            float yaw = Random.Range(0f, 360f);
+            Quaternion rot = Quaternion.Euler(0f, yaw, 0f);
+            GameObject cabin = Instantiate(cabinPrefab, pos, rot, transform);
+            SpawnVillagersForCabin(cabin.transform, pos);
         }
 
         for (int i = 0; i < farmCount; i++)
@@ -201,5 +206,29 @@ public class SettlementBuilder : MonoBehaviour
         float yaw = Random.Range(0f, 360f);
         Quaternion rot = Quaternion.Euler(0f, yaw, 0f);
         Instantiate(prefab, worldPos, rot, transform);
+    }
+
+    void SpawnVillagersForCabin(Transform cabinAnchor, Vector3 cabinWorldPos)
+    {
+        if (villagerPrefab == null)
+            return;
+
+        int count = Random.Range(2, 4);
+        for (int v = 0; v < count; v++)
+        {
+            float ang = Random.Range(0f, Mathf.PI * 2f);
+            float rad = Random.Range(0.8f, 4f);
+            Vector3 offset = new Vector3(Mathf.Cos(ang) * rad, 0f, Mathf.Sin(ang) * rad);
+            Vector3 vpos = cabinWorldPos + offset;
+            vpos = TerrainSpawnUtility.GetWorldPositionOnTerrain(vpos);
+            if (vpos.y < minSurfaceY)
+                continue;
+
+            float vyaw = Random.Range(0f, 360f);
+            GameObject villagerGo = Instantiate(villagerPrefab, vpos, Quaternion.Euler(0f, vyaw, 0f), transform);
+            var villager = villagerGo.GetComponent<VillagerController>();
+            if (villager != null)
+                villager.Initialize(cabinAnchor);
+        }
     }
 }
