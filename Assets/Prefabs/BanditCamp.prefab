@@ -10,12 +10,14 @@ GameObject:
   m_Component:
   - component: {fileID: 9100000000000000002}
   - component: {fileID: 9100000000000000003}
+  - component: {fileID: 6947795797200106646}
+  - component: {fileID: 2759642568978267268}
   m_Layer: 0
   m_Name: BanditCamp
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &9100000000000000002
 Transform:
@@ -49,6 +51,43 @@ MonoBehaviour:
   banditCount: 10
   spawnRadiusMin: 1
   spawnRadiusMax: 6
+--- !u!65 &6947795797200106646
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9100000000000000001}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 4, y: 1, z: 5}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!208 &2759642568978267268
+NavMeshObstacle:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9100000000000000001}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Shape: 1
+  m_Extents: {x: 2, y: 0.5, z: 2.5}
+  m_MoveThreshold: 0.1
+  m_Carve: 1
+  m_CarveOnlyStationary: 1
+  m_Center: {x: 0, y: 0, z: 0}
+  m_TimeToStationary: 0.5
 --- !u!1 &9185641045475561167
 GameObject:
   m_ObjectHideFlags: 0
@@ -63,7 +102,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &4331268944500833040
 Transform:
@@ -93,9 +132,13 @@ PrefabInstance:
       propertyPath: m_Name
       value: RedTent
       objectReference: {fileID: 0}
+    - target: {fileID: 463778061750964780, guid: 709b17e707d8a9949bc009e140655877, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
     - target: {fileID: 2849687385816032412, guid: 709b17e707d8a9949bc009e140655877, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 1.81772
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2849687385816032412, guid: 709b17e707d8a9949bc009e140655877, type: 3}
       propertyPath: m_LocalPosition.y
@@ -103,7 +146,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2849687385816032412, guid: 709b17e707d8a9949bc009e140655877, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -4.10339
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2849687385816032412, guid: 709b17e707d8a9949bc009e140655877, type: 3}
       propertyPath: m_LocalRotation.w
@@ -115,11 +158,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2849687385816032412, guid: 709b17e707d8a9949bc009e140655877, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2849687385816032412, guid: 709b17e707d8a9949bc009e140655877, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2849687385816032412, guid: 709b17e707d8a9949bc009e140655877, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
