@@ -653,7 +653,8 @@ public sealed class TerrainGenerator : MonoBehaviour
     static void EnsureSplatmapTexture(ref Texture2D? texture, NativeArray<float> rgbaData)
     {
         const int res = SplatmapResolution;
-        if (texture != null && texture.width == res && texture.height == res)
+        // RGBAFloat: four floats per texel — matches _splatmapRgba (RGBA32 would be 8-bit and misreads float data).
+        if (texture != null && texture.width == res && texture.height == res && texture.format == TextureFormat.RGBAFloat)
         {
             texture.SetPixelData(rgbaData, 0);
             texture.Apply(false, false);
@@ -668,7 +669,7 @@ public sealed class TerrainGenerator : MonoBehaviour
                 UnityEngine.Object.DestroyImmediate(texture);
         }
 
-        texture = new Texture2D(res, res, TextureFormat.RGBA32, false, true)
+        texture = new Texture2D(res, res, TextureFormat.RGBAFloat, false, true)
         {
             name = "ProceduralSplatmap",
             wrapMode = TextureWrapMode.Clamp,

@@ -5,7 +5,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
     {
         [NoScaleOffset] _GrassTex("Grass", 2D) = "white" {}
         [NoScaleOffset] _PathTex("Path", 2D) = "white" {}
-        [NoScaleOffset] _SplatmapTex("Path Splat (R = path)", 2D) = "black" {}
+        [NoScaleOffset] _SplatmapTex("Path Splat (R = path, linear float)", 2D) = "black" {}
         _GrassTiling("Grass Tiling", Float) = 1
         _PathTiling("Path Tiling", Float) = 1
         _HexSize("Hex Cell Size (UV)", Float) = 1
@@ -209,10 +209,11 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
 
                 float2 grassUV = float2(input.positionWS.x, input.positionWS.z) * (float)_GrassTiling;
                 float2 pathUV = float2(input.positionWS.x, input.positionWS.z) * (float)_PathTiling;
-                const half pathMask = SAMPLE_TEXTURE2D(_SplatmapTex, sampler_SplatmapTex, input.splatUV).r;
+                // Splat is RGBAFloat: R = path blend 0–1 (linear). RGBA32 upload of floats produced garbage / noise.
+                float pathMask = saturate(SAMPLE_TEXTURE2D(_SplatmapTex, sampler_SplatmapTex, input.splatUV).r);
                 const half3 grassCol = SampleTextureHex(grassUV, _GrassTex, sampler_GrassTex);
                 const half3 pathCol = SAMPLE_TEXTURE2D(_PathTex, sampler_PathTex, pathUV).rgb;
-                const half3 albedo = lerp(grassCol, pathCol, pathMask);
+                const half3 albedo = lerp(grassCol, pathCol, (half)pathMask);
                 const half3 n = normalize(input.normalWS);
 
                 const float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
