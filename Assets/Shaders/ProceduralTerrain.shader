@@ -10,7 +10,6 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
         _PathTiling("Path Tiling", Float) = 1
         _HexSize("Hex Cell Size (UV)", Float) = 1
         _HexBlend("Hex Blend Sharpness", Float) = 10
-        [HideInInspector] _TerrainWorldOriginAndSize("XYZ origin, W world size", Vector) = (0, 0, 0, 1024)
     }
 
     SubShader
@@ -53,7 +52,6 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 half _PathTiling;
                 half _HexSize;
                 half _HexBlend;
-                float4 _TerrainWorldOriginAndSize;
             CBUFFER_END
 
             // Stable hash for per-hex rotation / phase (no texture dependency).
@@ -173,6 +171,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS : NORMAL;
+                float2 uv0 : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -181,6 +180,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : TEXCOORD0;
                 half3 normalWS : TEXCOORD1;
+                float2 splatUV : TEXCOORD2;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -198,6 +198,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 output.positionCS = vertexInput.positionCS;
                 output.positionWS = vertexInput.positionWS;
                 output.normalWS = half3(normalInput.normalWS);
+                output.splatUV = input.uv0;
                 return output;
             }
 
@@ -208,12 +209,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
 
                 float2 grassUV = float2(input.positionWS.x, input.positionWS.z) * (float)_GrassTiling;
                 float2 pathUV = float2(input.positionWS.x, input.positionWS.z) * (float)_PathTiling;
-                const float terrainW = max(_TerrainWorldOriginAndSize.w, 1e-5);
-                const float invTerrainW = rcp(terrainW);
-                const float2 splatUV = float2(
-                    (input.positionWS.x - _TerrainWorldOriginAndSize.x) * invTerrainW + 0.5,
-                    (input.positionWS.z - _TerrainWorldOriginAndSize.z) * invTerrainW + 0.5);
-                const half pathMask = SAMPLE_TEXTURE2D(_SplatmapTex, sampler_SplatmapTex, splatUV).r;
+                const half pathMask = SAMPLE_TEXTURE2D(_SplatmapTex, sampler_SplatmapTex, input.splatUV).r;
                 const half3 grassCol = SampleTextureHex(grassUV, _GrassTex, sampler_GrassTex);
                 const half3 pathCol = SAMPLE_TEXTURE2D(_PathTex, sampler_PathTex, pathUV).rgb;
                 const half3 albedo = lerp(grassCol, pathCol, pathMask);
