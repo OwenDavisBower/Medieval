@@ -84,6 +84,21 @@ public sealed class TerrainGenerator : MonoBehaviour
     [Tooltip("Optional Unity Splines authoring sources; merged with riverSplines after list-based splines.")]
     [SerializeField] List<SplineContainer>? authoringRiverSplines;
 
+    [Header("Procedural worm splines")]
+    [Tooltip("When enabled, path polylines are appended from Perlin-noise worms before distance fields (merged with Path Splines).")]
+    [SerializeField] bool generateWormPaths = true;
+    [Tooltip("When enabled, river polylines are appended from Perlin-noise worms before distance fields (merged with River Splines).")]
+    [SerializeField] bool generateWormRivers = true;
+    [SerializeField] int pathWormCount = 4;
+    [SerializeField] int riverWormCount = 2;
+    [SerializeField] int wormSegmentCount = 48;
+    [SerializeField] float wormStepLength = 8f;
+    [SerializeField] float wormNoiseScale = 0.015f;
+    [SerializeField] float wormMaxTurnRadians = 0.45f;
+    [SerializeField] float wormBoundaryMargin = 24f;
+    [SerializeField] float riverWormLocalYHigh = 35f;
+    [SerializeField] float riverWormLocalYLow = -15f;
+
     [Header("Rendering")]
     [SerializeField] Transform? cameraTransform;
     [SerializeField] Material? terrainMaterial;
@@ -135,6 +150,11 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     readonly List<Vector2> _gizmoPathPoints = new();
     readonly List<Vector2> _gizmoRiverPoints = new();
+
+    readonly List<List<Vector3>> _generatedPathSplines = new();
+    readonly List<List<Vector3>> _generatedRiverSplines = new();
+    readonly List<List<Vector3>> _mergedPathsForBuild = new();
+    readonly List<List<Vector3>> _mergedRiversForBuild = new();
 
     /// <summary>Fired in play mode after chunk meshes and colliders are built (end of <see cref="RunPipeline"/>).</summary>
     public static event Action<TerrainGenerator>? TerrainGenerated;
@@ -439,10 +459,22 @@ public sealed class TerrainGenerator : MonoBehaviour
         if (worldResolution < 8 || chunkCount < 1 || worldSize <= 0f)
             return;
 
+        _generatedPathSplines.Clear();
+        _generatedRiverSplines.Clear();
+
+        if (generateWormPaths)
+            NoiseWormSplineGenerator.GeneratePaths(transform, BuildWormSettings(), _generatedPathSplines);
+
+        if (generateWormRivers)
+            NoiseWormSplineGenerator.GenerateRivers(transform, BuildWormSettings(), _generatedRiverSplines);
+
+        MergeListBasedSplines(pathSplines, _generatedPathSplines, _mergedPathsForBuild);
+        MergeListBasedSplines(riverSplines, _generatedRiverSplines, _mergedRiversForBuild);
+
         _splineSystem.BuildSamples(
             transform,
-            pathSplines,
-            riverSplines,
+            _mergedPathsForBuild,
+            _mergedRiversForBuild,
             authoringPathSplines,
             authoringRiverSplines,
             splineSampleCount,
@@ -542,6 +574,43 @@ public sealed class TerrainGenerator : MonoBehaviour
             _gizmoRiverPoints.Add(_riverSamples[i]);
     }
 
+    NoiseWormSplineGenerator.Settings BuildWormSettings()
+    {
+        return new NoiseWormSplineGenerator.Settings
+        {
+            Seed = seed,
+            WorldSize = worldSize,
+            BoundaryMargin = wormBoundaryMargin,
+            PathWormCount = generateWormPaths ? pathWormCount : 0,
+            RiverWormCount = generateWormRivers ? riverWormCount : 0,
+            SegmentCount = wormSegmentCount,
+            StepLength = wormStepLength,
+            NoiseScale = wormNoiseScale,
+            MaxTurnRadians = wormMaxTurnRadians,
+            RiverLocalYHigh = riverWormLocalYHigh,
+            RiverLocalYLow = riverWormLocalYLow
+        };
+    }
+
+    static void MergeListBasedSplines(
+        List<List<Vector3>> authored,
+        List<List<Vector3>> generated,
+        List<List<Vector3>> destination)
+    {
+        destination.Clear();
+        foreach (var s in authored)
+        {
+            if (s != null && s.Count >= 2)
+                destination.Add(s);
+        }
+
+        foreach (var s in generated)
+        {
+            if (s != null && s.Count >= 2)
+                destination.Add(s);
+        }
+    }
+
     void DisposeNativeBuffers()
     {
         if (_pathDistanceField.IsCreated)
@@ -579,6 +648,32 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         Gizmos.color = Color.blue;
         foreach (var spline in riverSplines)
+        {
+            if (spline == null || spline.Count < 2)
+                continue;
+            for (var i = 0; i < spline.Count - 1; i++)
+            {
+                var a = transform.TransformPoint(spline[i]);
+                var b = transform.TransformPoint(spline[i + 1]);
+                Gizmos.DrawLine(a, b);
+            }
+        }
+
+        Gizmos.color = Color.cyan;
+        foreach (var spline in _generatedPathSplines)
+        {
+            if (spline == null || spline.Count < 2)
+                continue;
+            for (var i = 0; i < spline.Count - 1; i++)
+            {
+                var a = transform.TransformPoint(spline[i]);
+                var b = transform.TransformPoint(spline[i + 1]);
+                Gizmos.DrawLine(a, b);
+            }
+        }
+
+        Gizmos.color = Color.magenta;
+        foreach (var spline in _generatedRiverSplines)
         {
             if (spline == null || spline.Count < 2)
                 continue;
