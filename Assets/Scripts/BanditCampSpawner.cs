@@ -9,24 +9,7 @@ public class BanditCampSpawner : MonoBehaviour
 
     bool _spawned;
 
-    void OnEnable()
-    {
-        TerrainGenerator.TerrainGenerated += OnTerrainGenerated;
-    }
-
-    void OnDisable()
-    {
-        TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
-    }
-
-    void Start()
-    {
-        SpawnCamps();
-    }
-
-    void OnTerrainGenerated(TerrainGenerator _) => SpawnCamps();
-
-    void SpawnCamps()
+    public void SpawnCamps()
     {
         if (_spawned || banditCampPrefab == null)
             return;

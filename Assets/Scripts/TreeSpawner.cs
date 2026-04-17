@@ -8,28 +8,10 @@ public class TreeSpawner : MonoBehaviour
     [SerializeField] float regionRadius = 200f;
     [SerializeField] float minSeparation = 12f;
     [SerializeField] int maxAttemptsPerTree = 80;
-    [SerializeField] float raycastHeight = 300f;
 
     bool _spawned;
 
-    void OnEnable()
-    {
-        TerrainGenerator.TerrainGenerated += OnTerrainGenerated;
-    }
-
-    void OnDisable()
-    {
-        TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
-    }
-
-    void Start()
-    {
-        TrySpawnTrees();
-    }
-
-    void OnTerrainGenerated(TerrainGenerator _) => TrySpawnTrees();
-
-    void TrySpawnTrees()
+    public void TrySpawnTrees()
     {
         if (_spawned || treePrefab == null)
             return;
@@ -55,12 +37,7 @@ public class TreeSpawner : MonoBehaviour
             float x = Mathf.Cos(angle) * r;
             float z = Mathf.Sin(angle) * r;
 
-            Vector3 origin = basePos + new Vector3(x, raycastHeight, z);
-            if (!Physics.Raycast(origin, Vector3.down, out RaycastHit hit, raycastHeight * 2f,
-                    Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
-                continue;
-
-            Vector3 p = hit.point;
+            Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(basePos + new Vector3(x, 0f, z));
             if (p.y < 0f)
                 continue;
 

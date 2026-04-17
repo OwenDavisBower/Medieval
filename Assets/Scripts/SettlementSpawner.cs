@@ -34,32 +34,38 @@ public class SettlementSpawner : MonoBehaviour
 
     void TrySpawnSettlements()
     {
-        if (_spawned || cabinPrefab == null || farmPrefab == null)
-            return;
-
         var gen = Object.FindFirstObjectByType<TerrainGenerator>();
         if (gen == null || !gen.IsTerrainReady)
             return;
 
-        _spawned = true;
-
-        float minSepSq = minSettlementSeparation * minSettlementSeparation;
-        var placedCenters = new List<Vector3>(settlementCount);
-        int spawned = 0;
-
-        for (int i = 0; i < settlementCount; i++)
+        if (!_spawned && cabinPrefab != null && farmPrefab != null)
         {
-            if (!TryPickSettlementPosition(gen, placedCenters, minSepSq, out Vector3 pos))
-                continue;
+            _spawned = true;
 
-            placedCenters.Add(pos);
+            float minSepSq = minSettlementSeparation * minSettlementSeparation;
+            var placedCenters = new List<Vector3>(settlementCount);
+            int spawned = 0;
 
-            var go = new GameObject($"Settlement_{spawned}");
-            spawned++;
-            go.transform.position = pos;
-            var builder = go.AddComponent<SettlementBuilder>();
-            builder.InitializeAndBuild(cabinPrefab, farmPrefab);
+            for (int i = 0; i < settlementCount; i++)
+            {
+                if (!TryPickSettlementPosition(gen, placedCenters, minSepSq, out Vector3 pos))
+                    continue;
+
+                placedCenters.Add(pos);
+
+                var go = new GameObject($"Settlement_{spawned}");
+                spawned++;
+                go.transform.position = pos;
+                var builder = go.AddComponent<SettlementBuilder>();
+                builder.InitializeAndBuild(cabinPrefab, farmPrefab);
+            }
         }
+
+        foreach (var bandit in FindObjectsByType<BanditCampSpawner>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            bandit.SpawnCamps();
+
+        foreach (var trees in FindObjectsByType<TreeSpawner>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            trees.TrySpawnTrees();
     }
 
     bool TryPickSettlementPosition(
