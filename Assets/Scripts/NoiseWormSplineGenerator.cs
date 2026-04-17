@@ -67,7 +67,7 @@ public static class NoiseWormSplineGenerator
         }
     }
 
-    /// <summary>Append river worms (XZ only); flow height is applied when sampling via River Local Y High/Low on TerrainGenerator.</summary>
+    /// <summary>Append river worms (XZ only).</summary>
     public static void GenerateRivers(Transform terrainRoot, Settings settings, List<List<Vector2>> outSplines)
     {
         if (settings.RiverWormCount <= 0 || settings.SegmentCount < 2 || settings.StepLength <= 0f)

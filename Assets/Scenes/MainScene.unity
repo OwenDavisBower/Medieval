@@ -654,6 +654,10 @@ PrefabInstance:
       value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
+      propertyPath: riverBedDepth
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
       propertyPath: riverWormCount
       value: 5
       objectReference: {fileID: 0}

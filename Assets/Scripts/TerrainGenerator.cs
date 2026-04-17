@@ -82,7 +82,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Path splines as nested control-point lists; each <see cref="Vector2"/> is local XZ (relative to this transform).</summary>
     public List<List<Vector2>> pathSplines = new();
 
-    /// <summary>River splines; local XZ only. Flow height along each river uses River Local Y High/Low when sampling.</summary>
+    /// <summary>River splines; local XZ only (world Y ignored for sampling).</summary>
     public List<List<Vector2>> riverSplines = new();
 
     [Tooltip("Optional Unity Splines authoring sources; merged with pathSplines after list-based splines.")]
@@ -105,10 +105,14 @@ public sealed class TerrainGenerator : MonoBehaviour
     [SerializeField] float wormNoiseScale = 0.015f;
     [SerializeField] float wormMaxTurnRadians = 0.45f;
     [SerializeField] float wormBoundaryMargin = 24f;
-    [Tooltip("Local Y at river start (high) used when sampling list-based and worm river polylines for flow height.")]
-    [SerializeField] float riverWormLocalYHigh = 35f;
-    [Tooltip("Local Y at river end (low) used when sampling list-based and worm river polylines for flow height.")]
-    [SerializeField] float riverWormLocalYLow = -15f;
+
+    [Header("River carving")]
+    [Tooltip("How far below the undisturbed terrain height the river bed is carved (world units); constant along the river.")]
+    [SerializeField] float riverBedDepth = 6f;
+    [Tooltip("Half-width of the carved channel: distance from the river centerline to the inner bank (world units).")]
+    [SerializeField] float riverChannelHalfWidth = 2.2f;
+    [Tooltip("Distance from the inner bank to the outer edge where carving fades to zero (world units).")]
+    [SerializeField] float riverCarveBlendDistance = 3.8f;
 
     [Header("Rendering")]
     [SerializeField] Transform? cameraTransform;
@@ -140,12 +144,10 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     NativeArray<float> _pathDistanceField;
     NativeArray<float> _riverDistanceField;
-    NativeArray<float> _riverNearestFlow;
     NativeArray<float> _heightmap;
     NativeArray<float> _splatmapRgba;
     NativeArray<float2> _pathSamples;
     NativeArray<float2> _riverSamples;
-    NativeArray<float> _riverFlowHeights;
 
     Texture2D? _splatmapTexture;
 
@@ -489,37 +491,30 @@ public sealed class TerrainGenerator : MonoBehaviour
             authoringPathSplines,
             authoringRiverSplines,
             splineSampleCount,
-            riverWormLocalYHigh,
-            riverWormLocalYLow,
             Allocator.Persistent,
             out _pathSamples,
-            out _riverSamples,
-            out _riverFlowHeights);
+            out _riverSamples);
 
         RebuildGizmoPoints();
 
         var count = worldResolution * worldResolution;
         _pathDistanceField = new NativeArray<float>(count, Allocator.Persistent);
         _riverDistanceField = new NativeArray<float>(count, Allocator.Persistent);
-        _riverNearestFlow = new NativeArray<float>(count, Allocator.Persistent);
         _heightmap = new NativeArray<float>(count, Allocator.Persistent);
         _splatmapRgba = new NativeArray<float>(SplatmapResolution * SplatmapResolution * 4, Allocator.Persistent);
 
         _distanceFieldBaker.Bake(
             _pathSamples,
             _riverSamples,
-            _riverFlowHeights,
             worldResolution,
             worldSize,
             transform.position,
             _pathDistanceField,
-            _riverDistanceField,
-            _riverNearestFlow);
+            _riverDistanceField);
 
         _heightmapGenerator.Generate(
             _pathDistanceField,
             _riverDistanceField,
-            _riverNearestFlow,
             worldResolution,
             worldSize,
             baseHeight,
@@ -529,8 +524,12 @@ public sealed class TerrainGenerator : MonoBehaviour
             falloffDistance,
             seed,
             transform.position,
+            math.max(1e-4f, riverBedDepth),
+            math.max(1e-4f, riverChannelHalfWidth),
+            math.max(1e-4f, riverCarveBlendDistance),
             _heightmap);
 
+        var riverOuter = math.max(1e-4f, riverChannelHalfWidth) + math.max(1e-4f, riverCarveBlendDistance);
         _splatmapPainter.Paint(
             _heightmap,
             _pathDistanceField,
@@ -539,6 +538,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             worldSize,
             SplatmapResolution,
             transform.position,
+            riverOuter,
             _splatmapRgba);
 
         _splatmapTexture = new Texture2D(SplatmapResolution, SplatmapResolution, TextureFormat.RGBA32, false, true)
@@ -629,8 +629,6 @@ public sealed class TerrainGenerator : MonoBehaviour
             _pathDistanceField.Dispose();
         if (_riverDistanceField.IsCreated)
             _riverDistanceField.Dispose();
-        if (_riverNearestFlow.IsCreated)
-            _riverNearestFlow.Dispose();
         if (_heightmap.IsCreated)
             _heightmap.Dispose();
         if (_splatmapRgba.IsCreated)
@@ -639,8 +637,6 @@ public sealed class TerrainGenerator : MonoBehaviour
             _pathSamples.Dispose();
         if (_riverSamples.IsCreated)
             _riverSamples.Dispose();
-        if (_riverFlowHeights.IsCreated)
-            _riverFlowHeights.Dispose();
     }
 
     void OnDrawGizmos()
@@ -717,7 +713,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     #region SplineSystem
 
     /// <summary>
-    /// Builds merged spline samples for distance fields and river flow heights.
+    /// Builds merged spline samples for distance fields (world XZ only).
     /// </summary>
     public sealed class SplineSystem
     {
@@ -731,45 +727,34 @@ public sealed class TerrainGenerator : MonoBehaviour
             List<SplineContainer>? authoringPathSplines,
             List<SplineContainer>? authoringRiverSplines,
             int samplesPerSpline,
-            float riverFlowLocalYHigh,
-            float riverFlowLocalYLow,
             Allocator allocator,
             out NativeArray<float2> pathSamples,
-            out NativeArray<float2> riverSamples,
-            out NativeArray<float> riverFlowHeights)
+            out NativeArray<float2> riverSamples)
         {
             using var pathTmp = new NativeList<float2>(Allocator.Temp);
             using var riverTmp = new NativeList<float2>(Allocator.Temp);
-            using var flowTmp = new NativeList<float>(Allocator.Temp);
 
-            AppendListSplines(terrainRoot, pathSplines, samplesPerSpline, pathTmp, default, 0f, 0f);
-            AppendContainerSplines(authoringPathSplines, samplesPerSpline, pathTmp, default);
+            AppendListSplines(terrainRoot, pathSplines, samplesPerSpline, pathTmp);
+            AppendContainerSplines(authoringPathSplines, samplesPerSpline, pathTmp);
 
-            AppendListSplines(terrainRoot, riverSplines, samplesPerSpline, riverTmp, flowTmp, riverFlowLocalYHigh, riverFlowLocalYLow);
-            AppendContainerSplines(authoringRiverSplines, samplesPerSpline, riverTmp, flowTmp);
+            AppendListSplines(terrainRoot, riverSplines, samplesPerSpline, riverTmp);
+            AppendContainerSplines(authoringRiverSplines, samplesPerSpline, riverTmp);
 
             if (pathTmp.Length == 0)
                 pathTmp.Add(float2.zero);
 
             if (riverTmp.Length == 0)
-            {
                 riverTmp.Add(float2.zero);
-                flowTmp.Add(0f);
-            }
 
             pathSamples = new NativeArray<float2>(pathTmp.AsArray(), allocator);
             riverSamples = new NativeArray<float2>(riverTmp.AsArray(), allocator);
-            riverFlowHeights = new NativeArray<float>(flowTmp.AsArray(), allocator);
         }
 
         static void AppendListSplines(
             Transform terrainRoot,
             List<List<Vector2>> splines,
             int samplesPerSpline,
-            NativeList<float2> xzOut,
-            NativeList<float> flowOut,
-            float riverLocalYHigh,
-            float riverLocalYLow)
+            NativeList<float2> xzOut)
         {
             if (splines == null)
                 return;
@@ -779,15 +764,14 @@ public sealed class TerrainGenerator : MonoBehaviour
                 if (ctrl == null || ctrl.Count < 2)
                     continue;
 
-                SampleCatmullRom2D(terrainRoot, ctrl, samplesPerSpline, xzOut, flowOut, riverLocalYHigh, riverLocalYLow);
+                SampleCatmullRom2D(terrainRoot, ctrl, samplesPerSpline, xzOut);
             }
         }
 
         static void AppendContainerSplines(
             List<SplineContainer>? containers,
             int samplesPerSpline,
-            NativeList<float2> xzOut,
-            NativeList<float> flowOut)
+            NativeList<float2> xzOut)
         {
             if (containers == null)
                 return;
@@ -800,31 +784,21 @@ public sealed class TerrainGenerator : MonoBehaviour
                 if (c.Spline.Count < 2)
                     continue;
 
-                var yStart = c.EvaluatePosition(0f).y;
-                var yEnd = c.EvaluatePosition(1f).y;
-                var hi = math.max(yStart, yEnd);
-                var lo = math.min(yStart, yEnd);
-
                 for (var s = 0; s < samplesPerSpline; s++)
                 {
                     var t = samplesPerSpline <= 1 ? 0f : s / (float)(samplesPerSpline - 1);
                     var world = c.EvaluatePosition(t);
                     xzOut.Add(new float2(world.x, world.z));
-                    if (flowOut.IsCreated)
-                        flowOut.Add(math.lerp(hi, lo, t));
                 }
             }
         }
 
-        /// <summary>Control points are local XZ; <paramref name="riverLocalYHigh"/>/<paramref name="riverLocalYLow"/> define flow height when <paramref name="flowOut"/> is used.</summary>
+        /// <summary>Control points are local XZ; samples are projected to world XZ (Y ignored).</summary>
         static void SampleCatmullRom2D(
             Transform terrainRoot,
             List<Vector2> controls,
             int totalSamples,
-            NativeList<float2> xzOut,
-            NativeList<float> flowOut,
-            float riverLocalYHigh,
-            float riverLocalYLow)
+            NativeList<float2> xzOut)
         {
             if (controls.Count < 2 || totalSamples < 2)
                 return;
@@ -844,17 +818,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var p3 = ToFloat2(controls[math.min(controls.Count - 1, seg + 2)]);
 
                 var pos2 = CatmullRom2(p0, p1, p2, p3, lt);
-                float localY;
-                if (flowOut.IsCreated)
-                    localY = math.lerp(riverLocalYHigh, riverLocalYLow, u);
-                else
-                    localY = 0f;
-
-                var world = terrainRoot.TransformPoint(new Vector3(pos2.x, localY, pos2.y));
+                var world = terrainRoot.TransformPoint(new Vector3(pos2.x, 0f, pos2.y));
                 xzOut.Add(new float2(world.x, world.z));
-
-                if (flowOut.IsCreated)
-                    flowOut.Add(world.y);
             }
         }
 
@@ -882,18 +847,16 @@ public sealed class TerrainGenerator : MonoBehaviour
     public sealed class DistanceFieldBaker
     {
         /// <summary>
-        /// Runs Burst jobs to populate path and river distance fields (and nearest river flow height).
+        /// Runs Burst jobs to populate path and river distance fields.
         /// </summary>
         public void Bake(
             NativeArray<float2> pathSamples,
             NativeArray<float2> riverSamples,
-            NativeArray<float> riverFlowHeights,
             int resolution,
             float worldSize,
             Vector3 worldOrigin,
             NativeArray<float> pathDistanceField,
-            NativeArray<float> riverDistanceField,
-            NativeArray<float> riverNearestFlow)
+            NativeArray<float> riverDistanceField)
         {
             var pathJob = new PathDistanceFieldJob
             {
@@ -907,12 +870,10 @@ public sealed class TerrainGenerator : MonoBehaviour
             var riverJob = new RiverDistanceFieldJob
             {
                 Samples = riverSamples,
-                FlowSamples = riverFlowHeights,
                 Resolution = resolution,
                 WorldSize = worldSize,
                 WorldOrigin = new float3(worldOrigin.x, worldOrigin.y, worldOrigin.z),
-                DistanceOut = riverDistanceField,
-                FlowOut = riverNearestFlow
+                DistanceOut = riverDistanceField
             }.Schedule(riverDistanceField.Length, 64);
 
             pathJob.Complete();
@@ -977,12 +938,10 @@ public sealed class TerrainGenerator : MonoBehaviour
         struct RiverDistanceFieldJob : IJobParallelFor
         {
             [ReadOnly, NativeDisableParallelForRestriction] public NativeArray<float2> Samples;
-            [ReadOnly, NativeDisableParallelForRestriction] public NativeArray<float> FlowSamples;
             public int Resolution;
             public float WorldSize;
             public float3 WorldOrigin;
             public NativeArray<float> DistanceOut;
-            public NativeArray<float> FlowOut;
 
             public void Execute(int index)
             {
@@ -994,20 +953,14 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var p = new float2(wx, wz);
 
                 var best = float.MaxValue;
-                var bestFlow = 0f;
                 for (var i = 0; i < Samples.Length; i++)
                 {
                     var d = math.distance(p, Samples[i]);
                     if (d < best)
-                    {
                         best = d;
-                        if (FlowSamples.IsCreated && i < FlowSamples.Length)
-                            bestFlow = FlowSamples[i];
-                    }
                 }
 
                 DistanceOut[index] = best;
-                FlowOut[index] = bestFlow;
             }
         }
     }
@@ -1027,7 +980,6 @@ public sealed class TerrainGenerator : MonoBehaviour
         public void Generate(
             NativeArray<float> pathDf,
             NativeArray<float> riverDf,
-            NativeArray<float> riverFlow,
             int resolution,
             float worldSize,
             float baseH,
@@ -1037,13 +989,15 @@ public sealed class TerrainGenerator : MonoBehaviour
             float falloff,
             int noiseSeed,
             Vector3 worldOrigin,
+            float riverBedDepth,
+            float riverChannelHalfWidth,
+            float riverCarveBlendDistance,
             NativeArray<float> heightOut)
         {
             new HeightmapJob
             {
                 PathDf = pathDf,
                 RiverDf = riverDf,
-                RiverFlow = riverFlow,
                 Resolution = resolution,
                 WorldSize = worldSize,
                 WorldOrigin = new float3(worldOrigin.x, worldOrigin.y, worldOrigin.z),
@@ -1053,6 +1007,9 @@ public sealed class TerrainGenerator : MonoBehaviour
                 FlatRadius = flatR,
                 FalloffDistance = falloff,
                 Seed = noiseSeed,
+                RiverBedDepth = riverBedDepth,
+                RiverChannelHalfWidth = riverChannelHalfWidth,
+                RiverCarveBlendDistance = riverCarveBlendDistance,
                 HeightOut = heightOut
             }.Schedule(heightOut.Length, 64).Complete();
         }
@@ -1062,7 +1019,6 @@ public sealed class TerrainGenerator : MonoBehaviour
         {
             [ReadOnly] public NativeArray<float> PathDf;
             [ReadOnly] public NativeArray<float> RiverDf;
-            [ReadOnly] public NativeArray<float> RiverFlow;
             public int Resolution;
             public float WorldSize;
             public float3 WorldOrigin;
@@ -1072,6 +1028,9 @@ public sealed class TerrainGenerator : MonoBehaviour
             public float FlatRadius;
             public float FalloffDistance;
             public int Seed;
+            public float RiverBedDepth;
+            public float RiverChannelHalfWidth;
+            public float RiverCarveBlendDistance;
             public NativeArray<float> HeightOut;
 
             public void Execute(int index)
@@ -1094,17 +1053,19 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var biased = math.pow(math.abs(n), 1.8f) * math.sign(n);
                 var noiseTerm = biased * MaxVariation * variationMask;
 
-                var riverFlowH = RiverFlow[index];
                 var baseNoiseH = BaseHeight + noiseTerm;
 
-                var inner = 2.2f;
-                var outer = 6.0f;
+                var inner = RiverChannelHalfWidth;
+                var outer = RiverChannelHalfWidth + RiverCarveBlendDistance;
                 var carveMask = math.smoothstep(outer, inner, riverDist);
-                var targetBed = riverFlowH - 3f;
+                var bedDepth = RiverBedDepth;
+                var targetBed = baseNoiseH - bedDepth;
                 var depth = math.max(0f, baseNoiseH - targetBed);
-                var riverCarve = math.min(3f, carveMask * math.smoothstep(0f, 3f, depth));
+                var riverCarve = math.min(bedDepth, carveMask * math.smoothstep(0f, bedDepth, depth));
 
-                var bankMask = math.smoothstep(inner, inner + 3.5f, riverDist) * (1f - math.smoothstep(inner + 3.5f, inner + 7f, riverDist));
+                var wScale = inner / 2.2f;
+                var bankMask = math.smoothstep(inner, inner + 3.5f * wScale, riverDist) *
+                    (1f - math.smoothstep(inner + 3.5f * wScale, inner + 7f * wScale, riverDist));
                 var bankRaise = bankMask * 0.6f;
 
                 var h = baseNoiseH - riverCarve + bankRaise;
@@ -1154,6 +1115,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             float worldSize,
             int splatResolution,
             Vector3 worldOrigin,
+            float riverOuterDistance,
             NativeArray<float> rgbaOut)
         {
             new SplatmapJob
@@ -1165,6 +1127,7 @@ public sealed class TerrainGenerator : MonoBehaviour
                 WorldSize = worldSize,
                 SplatResolution = splatResolution,
                 WorldOrigin = new float3(worldOrigin.x, worldOrigin.y, worldOrigin.z),
+                RiverOuterDistance = riverOuterDistance,
                 RgbaOut = rgbaOut
             }.Schedule(splatResolution * splatResolution, 64).Complete();
         }
@@ -1179,6 +1142,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             public float WorldSize;
             public int SplatResolution;
             public float3 WorldOrigin;
+            public float RiverOuterDistance;
             [NativeDisableParallelForRestriction] public NativeArray<float> RgbaOut;
 
             public void Execute(int index)
@@ -1202,7 +1166,7 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var pathWeight = math.smoothstep(8f, 0f, pathDist);
 
                 var riverDist = SampleDfWorld(RiverDf, HeightResolution, WorldSize, WorldOrigin, wx, wz);
-                var bankBlend = math.smoothstep(6f, 0f, riverDist);
+                var bankBlend = math.smoothstep(RiverOuterDistance, 0f, riverDist);
                 sand = math.lerp(sand, 1f, bankBlend);
 
                 var r = grass;
