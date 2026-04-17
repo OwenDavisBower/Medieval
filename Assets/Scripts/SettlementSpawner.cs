@@ -18,54 +18,34 @@ public class SettlementSpawner : MonoBehaviour
 
     bool _spawned;
 
-    void OnEnable()
+    public void TrySpawnSettlements()
     {
-        TerrainGenerator.TerrainGenerated += OnTerrainGenerated;
-    }
+        if (_spawned || cabinPrefab == null || farmPrefab == null)
+            return;
 
-    void OnDisable()
-    {
-        TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
-    }
-
-    void Start() => TrySpawnSettlements();
-
-    void OnTerrainGenerated(TerrainGenerator _) => TrySpawnSettlements();
-
-    void TrySpawnSettlements()
-    {
         var gen = Object.FindFirstObjectByType<TerrainGenerator>();
         if (gen == null || !gen.IsTerrainReady)
             return;
 
-        if (!_spawned && cabinPrefab != null && farmPrefab != null)
+        _spawned = true;
+
+        float minSepSq = minSettlementSeparation * minSettlementSeparation;
+        var placedCenters = new List<Vector3>(settlementCount);
+        int spawned = 0;
+
+        for (int i = 0; i < settlementCount; i++)
         {
-            _spawned = true;
+            if (!TryPickSettlementPosition(gen, placedCenters, minSepSq, out Vector3 pos))
+                continue;
 
-            float minSepSq = minSettlementSeparation * minSettlementSeparation;
-            var placedCenters = new List<Vector3>(settlementCount);
-            int spawned = 0;
+            placedCenters.Add(pos);
 
-            for (int i = 0; i < settlementCount; i++)
-            {
-                if (!TryPickSettlementPosition(gen, placedCenters, minSepSq, out Vector3 pos))
-                    continue;
-
-                placedCenters.Add(pos);
-
-                var go = new GameObject($"Settlement_{spawned}");
-                spawned++;
-                go.transform.position = pos;
-                var builder = go.AddComponent<SettlementBuilder>();
-                builder.InitializeAndBuild(cabinPrefab, farmPrefab);
-            }
+            var go = new GameObject($"Settlement_{spawned}");
+            spawned++;
+            go.transform.position = pos;
+            var builder = go.AddComponent<SettlementBuilder>();
+            builder.InitializeAndBuild(cabinPrefab, farmPrefab);
         }
-
-        foreach (var bandit in FindObjectsByType<BanditCampSpawner>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
-            bandit.SpawnCamps();
-
-        foreach (var trees in FindObjectsByType<TreeSpawner>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
-            trees.TrySpawnTrees();
     }
 
     bool TryPickSettlementPosition(
