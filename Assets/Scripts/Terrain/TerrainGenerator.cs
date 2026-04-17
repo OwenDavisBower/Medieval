@@ -135,6 +135,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     [SerializeField] float navMeshRebuildDebounceSeconds = 0.35f;
 
     const int SplatmapResolution = 512;
+    const string TerrainChunkGameObjectPrefix = "TerrainChunk";
 
     SplineSystem _splineSystem = new();
     DistanceFieldBaker _distanceFieldBaker = new();
@@ -449,7 +450,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     [ContextMenu("Regenerate")]
     public void Regenerate()
     {
-        _chunkManager.DestroyChunkObjects();
+        _chunkManager.DestroyChunkObjects(transform, TerrainChunkGameObjectPrefix);
         _chunksBuilt = false;
 
         RunPipeline();
@@ -462,7 +463,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     public void ClearTerrain()
     {
         DisposeNativeBuffers();
-        _chunkManager.DestroyChunkObjects();
+        _chunkManager.DestroyChunkObjects(transform, TerrainChunkGameObjectPrefix);
         _chunksBuilt = false;
         if (_splatmapTexture != null)
         {
@@ -547,7 +548,7 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         EnsureSplatmapTexture(ref _splatmapTexture, _splatmapRgba);
 
-        _chunkManager.InitializePool(transform, chunkCount, worldSize, "TerrainChunk");
+        _chunkManager.InitializePool(transform, chunkCount, worldSize, TerrainChunkGameObjectPrefix);
         _chunksBuilt = true;
 
         _chunkManager.GenerateAllChunkMeshes(
@@ -1262,11 +1263,13 @@ public sealed class TerrainGenerator : MonoBehaviour
         bool _scratchAllocated;
 
         /// <summary>
-        /// Creates pooled chunk objects under the provided root.
+        /// Creates pooled chunk objects under an empty child of <paramref name="root"/> named <c>TerrainChunks</c>.
         /// </summary>
         public void InitializePool(Transform root, int chunkAxis, float worldSize, string chunkName)
         {
             DisposeScratch();
+
+            DestroyChunksHierarchy(root, chunkName);
 
             _terrainRoot = root;
             _chunkAxis = chunkAxis;
@@ -1276,13 +1279,21 @@ public sealed class TerrainGenerator : MonoBehaviour
             _colliders.Clear();
             _meshes.Clear();
 
+            var chunksParentGo = new GameObject("TerrainChunks");
+            chunksParentGo.hideFlags = HideFlags.DontSave;
+            var chunksParent = chunksParentGo.transform;
+            chunksParent.SetParent(root, false);
+            chunksParent.localPosition = Vector3.zero;
+            chunksParent.localRotation = Quaternion.identity;
+            chunksParent.localScale = Vector3.one;
+
             var chunkWorld = worldSize / math.max(1, chunkAxis);
             for (var z = 0; z < chunkAxis; z++)
             {
                 for (var x = 0; x < chunkAxis; x++)
                 {
                     var go = new GameObject($"{chunkName}_{x}_{z}");
-                    go.transform.SetParent(root, false);
+                    go.transform.SetParent(chunksParent, false);
                     go.transform.localRotation = Quaternion.identity;
                     go.transform.localScale = Vector3.one;
                     go.transform.localPosition = new Vector3(-worldSize * 0.5f + x * chunkWorld, 0f, -worldSize * 0.5f + z * chunkWorld);
@@ -1314,30 +1325,36 @@ public sealed class TerrainGenerator : MonoBehaviour
         }
 
         /// <summary>
-        /// Destroys pooled chunk GameObjects.
+        /// Destroys all terrain chunk objects under <paramref name="terrainGeneratorRoot"/> (including any saved
+        /// in the scene when <see cref="ChunkManager"/> has no live references after a reload).
         /// </summary>
-        public void DestroyChunkObjects()
+        public void DestroyChunkObjects(Transform? terrainGeneratorRoot, string chunkNamePrefix)
         {
             DisposeScratch();
 
-            foreach (var f in _filters)
+            if (terrainGeneratorRoot != null)
+                DestroyChunksHierarchy(terrainGeneratorRoot, chunkNamePrefix);
+            else
             {
-                if (f == null)
-                    continue;
-                var mesh = f.sharedMesh;
-                if (mesh != null)
+                foreach (var f in _filters)
                 {
-                    if (Application.isPlaying)
-                        UnityEngine.Object.Destroy(mesh);
-                    else
-                        UnityEngine.Object.DestroyImmediate(mesh);
-                }
+                    if (f == null)
+                        continue;
+                    var mesh = f.sharedMesh;
+                    if (mesh != null)
+                    {
+                        if (Application.isPlaying)
+                            UnityEngine.Object.Destroy(mesh);
+                        else
+                            UnityEngine.Object.DestroyImmediate(mesh);
+                    }
 
-                var go = f.gameObject;
-                if (Application.isPlaying)
-                    UnityEngine.Object.Destroy(go);
-                else
-                    UnityEngine.Object.DestroyImmediate(go);
+                    var go = f.gameObject;
+                    if (Application.isPlaying)
+                        UnityEngine.Object.Destroy(go);
+                    else
+                        UnityEngine.Object.DestroyImmediate(go);
+                }
             }
 
             _filters.Clear();
@@ -1350,6 +1367,34 @@ public sealed class TerrainGenerator : MonoBehaviour
                 _lodLevels.Dispose();
 
             _terrainRoot = null;
+        }
+
+        /// <summary>
+        /// Removes the organized <c>TerrainChunks</c> container and any legacy chunk objects parented directly to <paramref name="root"/>.
+        /// </summary>
+        static void DestroyChunksHierarchy(Transform root, string chunkNamePrefix)
+        {
+            var container = root.Find("TerrainChunks");
+            if (container != null)
+            {
+                if (Application.isPlaying)
+                    UnityEngine.Object.Destroy(container.gameObject);
+                else
+                    UnityEngine.Object.DestroyImmediate(container.gameObject);
+            }
+
+            var prefix = chunkNamePrefix + "_";
+            for (var i = root.childCount - 1; i >= 0; i--)
+            {
+                var child = root.GetChild(i);
+                if (child.name.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    if (Application.isPlaying)
+                        UnityEngine.Object.Destroy(child.gameObject);
+                    else
+                        UnityEngine.Object.DestroyImmediate(child.gameObject);
+                }
+            }
         }
 
         /// <summary>
