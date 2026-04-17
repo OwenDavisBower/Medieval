@@ -47,14 +47,27 @@ MonoBehaviour:
   worldResolution: 512
   worldSize: 1024
   baseHeight: 0
-  maxHeightVariation: 40
-  flatRadius: 18
+  waterHeightAdjustmentAmount: 20
+  maxHeightVariation: 150
+  flatRadius: 20
   falloffDistance: 35
   chunkCount: 8
   seed: 42
   splineSampleCount: 400
   authoringPathSplines: []
   authoringRiverSplines: []
+  generateWormPaths: 1
+  generateWormRivers: 1
+  pathWormCount: 10
+  riverWormCount: 5
+  wormSegmentCount: 96
+  wormStepLength: 12
+  wormNoiseScale: 0.015
+  wormMaxTurnRadians: 0.45
+  wormBoundaryMargin: 24
+  riverBedDepth: 10
+  riverChannelHalfWidth: 1
+  riverCarveBlendDistance: 10
   cameraTransform: {fileID: 0}
   terrainMaterial: {fileID: 2100000, guid: ce161d6f295cc4485a1fb30129cf8277, type: 2}
   chunkVertexDensity: 32

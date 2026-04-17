@@ -127,7 +127,7 @@ public class TargetSteeringMotor : MonoBehaviour
         set => moveSpeedScale = Mathf.Max(0.05f, value);
     }
 
-    float EffectiveMoveSpeed => moveSpeed * moveSpeedScale;
+    float EffectiveMoveSpeed => moveSpeed * moveSpeedScale * WaterMovement.SpeedMultiplier(transform.position.y);
 
     public TargetSteeringMovementMode Mode
     {

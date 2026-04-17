@@ -82,6 +82,7 @@ public class PlayerController : MonoBehaviour
         float speed = moveSpeed;
         if (_character != null)
             speed *= _character.MovementSpeedMultiplier;
+        speed *= WaterMovement.SpeedMultiplier(transform.position.y);
         Vector3 targetHorizontal = move * speed;
         velocity.x = targetHorizontal.x;
         velocity.z = targetHorizontal.z;
