@@ -209,6 +209,22 @@ public sealed class TerrainGenerator : MonoBehaviour
         return Mathf.Lerp(Mathf.Lerp(h00, h10, tx), Mathf.Lerp(h01, h11, tx), tz);
     }
 
+    /// <summary>
+    /// Bilinear sample of distance to the nearest path spline sample in world XZ (same space as <see cref="SampleHeightWorldXZ"/>).
+    /// </summary>
+    public float SamplePathDistanceWorldXZ(float worldX, float worldZ)
+    {
+        if (!_pathDistanceField.IsCreated)
+            return float.MaxValue;
+
+        return DistanceFieldBaker.SampleDf(
+            _pathDistanceField,
+            worldResolution,
+            worldSize,
+            transform.position,
+            new Vector2(worldX, worldZ));
+    }
+
     void OnEnable()
     {
         Instance = this;

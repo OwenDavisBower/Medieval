@@ -17,4 +17,5 @@ MonoBehaviour:
   regionRadius: 100
   minSeparation: 6
   maxAttemptsPerTree: 80
+  pathClearance: 4
   regionCenter: {x: 0, y: 0, z: 0}

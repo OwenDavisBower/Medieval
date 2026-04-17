@@ -16,6 +16,9 @@ public class TreeSpawning
 
         _spawned = true;
 
+        float minPathClearance = config.PathClearance >= 0f
+            ? config.PathClearance
+            : gen.flatRadius + 2f;
         float minSepSq = config.MinSeparation * config.MinSeparation;
         var accepted = new List<Vector3>(config.TreeCount);
         int totalAttempts = 0;
@@ -29,6 +32,9 @@ public class TreeSpawning
             Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(
                 basePos + SpawnPlacementUtility.RandomUniformDiskOffsetXZ(config.RegionRadius));
             if (p.y < 0f)
+                continue;
+
+            if (gen.SamplePathDistanceWorldXZ(p.x, p.z) < minPathClearance)
                 continue;
 
             if (SpawnPlacementUtility.IsFarEnoughFromAllXZ(p, accepted, minSepSq))
