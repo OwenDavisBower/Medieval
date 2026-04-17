@@ -48,7 +48,7 @@ public class SettlementBuilder : MonoBehaviour
 
     void OnTerrainGenerated(TerrainGenerator _) => TryBuildSettlement();
 
-    /// <summary>Used when prefabs are assigned at runtime (e.g. from <see cref="SettlementSpawner"/>).</summary>
+    /// <summary>Used when prefabs are assigned at runtime (e.g. from <see cref="SettlementSpawning"/>).</summary>
     public void InitializeAndBuild(GameObject cabin, GameObject farm, GameObject villager = null)
     {
         cabinPrefab = cabin;
