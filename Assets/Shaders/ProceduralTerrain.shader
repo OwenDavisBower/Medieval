@@ -10,6 +10,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
         _PathTiling("Path Tiling", Float) = 1
         _HexSize("Hex Cell Size (UV)", Float) = 1
         _HexBlend("Hex Blend Sharpness", Float) = 10
+        _EdgeNoiseScale("Path Edge Noise Scale (world)", Float) = 4
     }
 
     SubShader
@@ -52,6 +53,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 half _PathTiling;
                 half _HexSize;
                 half _HexBlend;
+                half _EdgeNoiseScale;
             CBUFFER_END
 
             // Stable hash for per-hex rotation / phase (no texture dependency).
@@ -167,6 +169,33 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 return sum / max(wsum, 1e-4);
             }
 
+            // Value noise [0,1] for stochastic grass/path edges (patchy threshold vs splat).
+            float TerrainHash01(float2 p)
+            {
+                return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453123);
+            }
+
+            float TerrainValueNoise(float2 p)
+            {
+                float2 i = floor(p);
+                float2 f = frac(p);
+                float2 u = f * f * (3.0 - 2.0 * f);
+                float a = TerrainHash01(i);
+                float b = TerrainHash01(i + float2(1, 0));
+                float c = TerrainHash01(i + float2(0, 1));
+                float d = TerrainHash01(i + float2(1, 1));
+                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
+            }
+
+            // Two octaves for smaller breakup without pure white noise.
+            float TerrainEdgeNoise(float2 worldXZ, float scale)
+            {
+                float s = max(scale, 0.001);
+                float2 uv = worldXZ * s;
+                float n = TerrainValueNoise(uv) * 0.62 + TerrainValueNoise(uv * 2.18 + float2(13.7, 9.2)) * 0.38;
+                return saturate(n);
+            }
+
             struct Attributes
             {
                 float4 positionOS : POSITION;
@@ -213,7 +242,10 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 float pathMask = saturate(SAMPLE_TEXTURE2D(_SplatmapTex, sampler_SplatmapTex, input.splatUV).r);
                 const half3 grassCol = SampleTextureHex(grassUV, _GrassTex, sampler_GrassTex);
                 const half3 pathCol = SAMPLE_TEXTURE2D(_PathTex, sampler_PathTex, pathUV).rgb;
-                const half3 albedo = lerp(grassCol, pathCol, (half)pathMask);
+                float edgeN = TerrainEdgeNoise(float2(input.positionWS.x, input.positionWS.z), (float)_EdgeNoiseScale);
+                // Stochastic blend: P(path) = pathMask; sharp patches instead of smooth lerp.
+                half pathPick = (half)step(edgeN, pathMask);
+                const half3 albedo = lerp(grassCol, pathCol, pathPick);
                 const half3 n = normalize(input.normalWS);
 
                 const float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
