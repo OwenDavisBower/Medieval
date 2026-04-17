@@ -4,6 +4,10 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class FollowerController : MonoBehaviour
 {
+    [Header("Formation")]
+    [Tooltip("Horizontal distance from the leader beyond which followers stop chasing and move back. 0 = no limit.")]
+    [SerializeField] float maxDistanceFromLeader = 25f;
+
     [Header("Combat")]
     [SerializeField] float banditAggroRadius = 50f;
     [SerializeField] float combatRange = 20f;
@@ -72,6 +76,21 @@ public class FollowerController : MonoBehaviour
         {
             _motor.SeekOverride = null;
             return;
+        }
+
+        if (maxDistanceFromLeader > 0f)
+        {
+            Transform anchor = _motor.AnchorTarget;
+            if (anchor != null)
+            {
+                Vector3 toLeader = transform.position - anchor.position;
+                toLeader.y = 0f;
+                if (toLeader.sqrMagnitude > maxDistanceFromLeader * maxDistanceFromLeader)
+                {
+                    _motor.SeekOverride = null;
+                    return;
+                }
+            }
         }
 
         Transform bandit = FindBanditTarget();
