@@ -54,6 +54,13 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Baseline terrain height in world units.</summary>
     public float baseHeight = 0f;
 
+    /// <summary>
+    /// When height is below <see cref="baseHeight"/>, compresses how far below: effective height is
+    /// <c>baseHeight - (baseHeight - y) / waterHeightAdjustmentAmount</c> (larger values = shallower valleys).
+    /// </summary>
+    [Tooltip("Divide depth below base height by this amount (e.g. 10 turns -4 into -0.4 when base height is 0).")]
+    public float waterHeightAdjustmentAmount = 10f;
+
     /// <summary>Maximum fBm height contribution in world units (before bias).</summary>
     public float maxHeightVariation = 40f;
 
@@ -516,6 +523,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             worldResolution,
             worldSize,
             baseHeight,
+            waterHeightAdjustmentAmount,
             maxHeightVariation,
             flatRadius,
             falloffDistance,
@@ -1023,6 +1031,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             int resolution,
             float worldSize,
             float baseH,
+            float waterHeightAdjust,
             float maxVar,
             float flatR,
             float falloff,
@@ -1039,6 +1048,7 @@ public sealed class TerrainGenerator : MonoBehaviour
                 WorldSize = worldSize,
                 WorldOrigin = new float3(worldOrigin.x, worldOrigin.y, worldOrigin.z),
                 BaseHeight = baseH,
+                WaterHeightAdjustmentAmount = waterHeightAdjust,
                 MaxVariation = maxVar,
                 FlatRadius = flatR,
                 FalloffDistance = falloff,
@@ -1057,6 +1067,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             public float WorldSize;
             public float3 WorldOrigin;
             public float BaseHeight;
+            public float WaterHeightAdjustmentAmount;
             public float MaxVariation;
             public float FlatRadius;
             public float FalloffDistance;
@@ -1096,7 +1107,14 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var bankMask = math.smoothstep(inner, inner + 3.5f, riverDist) * (1f - math.smoothstep(inner + 3.5f, inner + 7f, riverDist));
                 var bankRaise = bankMask * 0.6f;
 
-                HeightOut[index] = baseNoiseH - riverCarve + bankRaise;
+                var h = baseNoiseH - riverCarve + bankRaise;
+                if (h < BaseHeight)
+                {
+                    var denom = math.max(1e-4f, WaterHeightAdjustmentAmount);
+                    h = h / denom;
+                }
+
+                HeightOut[index] = h;
             }
 
             static float Fbm3(float2 p)
