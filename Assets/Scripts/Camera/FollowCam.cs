@@ -3,6 +3,7 @@ using UnityEngine;
 public class FollowCam : MonoBehaviour
 {
     [SerializeField] Transform target;
+    [Tooltip("World-space offset from target (ignores target yaw/pitch/roll).")]
     [SerializeField] Vector3 offset = new Vector3(0f, 2.5f, -6f);
     [SerializeField] float smooth = 8f;
     [SerializeField] float lookAtHeight = 1.2f;
@@ -12,7 +13,7 @@ public class FollowCam : MonoBehaviour
         if (target == null)
             return;
 
-        Vector3 desired = target.position + target.TransformDirection(offset);
+        Vector3 desired = target.position + offset;
         float t = 1f - Mathf.Exp(-smooth * Time.deltaTime);
         transform.position = Vector3.Lerp(transform.position, desired, t);
 

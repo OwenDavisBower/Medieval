@@ -6,6 +6,8 @@ public class PlayerController : MonoBehaviour
 {
     [SerializeField] float moveSpeed = 6f;
     [SerializeField] float terrainSnapHeightOffset = 0.05f;
+    [Tooltip("Max degrees per second when rotating to face movement input.")]
+    [SerializeField] float facingTurnSpeedDegreesPerSecond = 720f;
 
     Rigidbody _rb;
     Transform _cam;
@@ -87,6 +89,13 @@ public class PlayerController : MonoBehaviour
         velocity.x = targetHorizontal.x;
         velocity.z = targetHorizontal.z;
         _rb.linearVelocity = velocity;
+
+        if (move.sqrMagnitude > 1e-4f)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(move, Vector3.up);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot,
+                facingTurnSpeedDegreesPerSecond * Time.fixedDeltaTime);
+        }
     }
 
     static void ReadMoveAxes(out float h, out float v)

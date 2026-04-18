@@ -41,6 +41,8 @@ public class TargetSteeringMotor : MonoBehaviour
     [SerializeField] float moveSpeedScale = 1f;
     [SerializeField] float arriveThreshold = 0.15f;
     [SerializeField] float acceleration = 14f;
+    [Tooltip("Max degrees per second to rotate toward horizontal velocity.")]
+    [SerializeField] float facingTurnSpeedDegreesPerSecond = 720f;
     [Tooltip("Horizontal speed added sideways right after a ranged shot (strafe dodge).")]
     [SerializeField] float postRangedDodgeImpulse = 3.6f;
     [Tooltip("Fraction of dodge impulse applied away from the target (retreat after shooting).")]
@@ -411,6 +413,17 @@ public class TargetSteeringMotor : MonoBehaviour
 
         ClampHorizontalWater(ref velocity);
         _rb.linearVelocity = velocity;
+        ApplyFacingFromHorizontalVelocity();
+    }
+
+    void ApplyFacingFromHorizontalVelocity()
+    {
+        Vector3 h = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
+        if (h.sqrMagnitude < 1e-4f)
+            return;
+        Quaternion targetRot = Quaternion.LookRotation(h.normalized, Vector3.up);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot,
+            facingTurnSpeedDegreesPerSecond * Time.fixedDeltaTime);
     }
 
     float ComputeEffectiveMoveSpeed() =>
