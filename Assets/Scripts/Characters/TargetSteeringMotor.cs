@@ -43,6 +43,8 @@ public class TargetSteeringMotor : MonoBehaviour
     [SerializeField] float acceleration = 14f;
     [Tooltip("Max degrees per second to rotate toward horizontal velocity.")]
     [SerializeField] float facingTurnSpeedDegreesPerSecond = 720f;
+    [Tooltip("Below this horizontal speed (m/s), facing is not updated. Avoids fast spin when nearly idle from velocity jitter.")]
+    [SerializeField] float facingMinHorizontalSpeed = 1f;
     [Tooltip("Horizontal speed added sideways right after a ranged shot (strafe dodge).")]
     [SerializeField] float postRangedDodgeImpulse = 3.6f;
     [Tooltip("Fraction of dodge impulse applied away from the target (retreat after shooting).")]
@@ -424,7 +426,8 @@ public class TargetSteeringMotor : MonoBehaviour
     void ApplyFacingFromHorizontalVelocity()
     {
         Vector3 h = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
-        if (h.sqrMagnitude < 1e-4f)
+        float minSqr = facingMinHorizontalSpeed * facingMinHorizontalSpeed;
+        if (h.sqrMagnitude < minSqr)
             return;
         Quaternion targetRot = Quaternion.LookRotation(h.normalized, Vector3.up);
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot,

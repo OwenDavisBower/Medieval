@@ -244,6 +244,7 @@ MonoBehaviour:
   arriveThreshold: 0.15
   acceleration: 12
   facingTurnSpeedDegreesPerSecond: 720
+  facingMinHorizontalSpeed: 1
   postRangedDodgeImpulse: 3.6
   postRangedDodgeRetreatRatio: 0.28
   postRangedDodgeDelay: 0.14
