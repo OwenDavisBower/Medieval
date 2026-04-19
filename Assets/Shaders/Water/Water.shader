@@ -532,5 +532,5 @@ Shader "Universal Render Pipeline/Water"
     }
 
     FallBack "Hidden/Universal Render Pipeline/FallbackError"
-    CustomEditor "UnityEditor.Rendering.Universal.ShaderGUI.LitShader"
+    CustomEditor "Medieval.Editor.WaterShaderGUI"
 }
