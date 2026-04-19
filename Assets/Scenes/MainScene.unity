@@ -566,6 +566,7 @@ GameObject:
   - component: {fileID: 1497770489}
   - component: {fileID: 1497770488}
   - component: {fileID: 1497770487}
+  - component: {fileID: 1497770491}
   m_Layer: 0
   m_Name: Water
   m_TagString: Untagged
@@ -602,7 +603,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1497770486}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -667,6 +668,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1497770491
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1497770486}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7e2c9a184b356047a1de8f3c4b5e902, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnableMeshRendererOnAwake
 --- !u!1001 &2037707251
 PrefabInstance:
   m_ObjectHideFlags: 0
