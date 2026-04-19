@@ -105,9 +105,6 @@ public class TargetSteeringMotor : MonoBehaviour
     bool _dodgeImpulseThisFixed;
     float _effectiveMoveSpeedThisFixed;
 
-    /// <summary>Max configured horizontal speed this physics step (move speed × scale × water). Updated in <see cref="FixedUpdate"/>.</summary>
-    public float EffectiveMoveSpeed { get; private set; }
-
     public Transform AnchorTarget
     {
         get => anchorTarget;
@@ -221,7 +218,6 @@ public class TargetSteeringMotor : MonoBehaviour
         _rb = GetComponent<Rigidbody>();
         _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
         _navPath = new NavMeshPath();
-        EffectiveMoveSpeed = ComputeEffectiveMoveSpeed();
     }
 
     void OnEnable()
@@ -273,7 +269,6 @@ public class TargetSteeringMotor : MonoBehaviour
     void FixedUpdate()
     {
         _effectiveMoveSpeedThisFixed = ComputeEffectiveMoveSpeed();
-        EffectiveMoveSpeed = _effectiveMoveSpeedThisFixed;
 
         if (_pendingDodgeReferencePosition.HasValue && Time.time >= _pendingDodgeTime)
         {
