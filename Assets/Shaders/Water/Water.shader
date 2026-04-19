@@ -65,6 +65,12 @@ Shader "Universal Render Pipeline/Water"
 
         _ScrollSpeedY("Scroll Speed Y", Float) = 0.25
 
+        [Header(Waves)]
+        _WaveAmplitude("Wave Amplitude", Range(0.0, 1.0)) = 0.08
+        _WaveFrequency("Wave Frequency", Range(0.05, 4.0)) = 0.65
+        _WaveSpeed("Wave Speed", Float) = 1.0
+        _WaveSecondaryAmp("Secondary Wave", Range(0.0, 1.0)) = 0.35
+
         // ObsoleteProperties
         [HideInInspector] _MainTex("BaseMap", 2D) = "white" {}
         [HideInInspector] _Color("Base Color", Color) = (1, 1, 1, 1)
