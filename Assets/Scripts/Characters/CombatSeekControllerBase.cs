@@ -14,6 +14,8 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
     [SerializeField] Animator locomotionAnimator;
     [Tooltip("Below this horizontal speed (m/s), animation playback is stopped.")]
     [SerializeField] float locomotionStopSpeedThreshold = 0.04f;
+    [Tooltip("Scales walk animation vs. movement after speed is normalized. Raise to reduce foot sliding backward; lower if feet look too fast.")]
+    [SerializeField] float locomotionAnimationSpeedScale = 2f;
 
     [Header("Combat")]
     [SerializeField] protected float combatRange = 20f;
@@ -95,7 +97,8 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
             return;
         }
 
-        locomotionAnimator.speed = Mathf.Clamp01(horizontalSpeed / maxSpeed);
+        float normalized = Mathf.Clamp01(horizontalSpeed / maxSpeed);
+        locomotionAnimator.speed = normalized * locomotionAnimationSpeedScale;
     }
 
     protected virtual void FixedUpdate()

@@ -337,6 +337,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f3e2a1b4c5d6e7f8091a2b3c4d5e6f7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BanditController
+  locomotionAnimator: {fileID: 0}
+  locomotionStopSpeedThreshold: 0.04
+  locomotionAnimationSpeedScale: 2
   combatRange: 20
   eyeHeight: 1.5
   targetHeight: 1

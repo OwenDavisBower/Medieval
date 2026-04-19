@@ -337,6 +337,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 75da5c82b9ef45cba62e06789e543149, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FollowerController
+  locomotionAnimator: {fileID: 0}
+  locomotionStopSpeedThreshold: 0.04
+  locomotionAnimationSpeedScale: 2
   combatRange: 20
   eyeHeight: 1.5
   targetHeight: 1
@@ -365,6 +368,7 @@ MonoBehaviour:
   moveSpeedScale: 1
   arriveThreshold: 0.15
   acceleration: 14
+  facingTurnSpeedDegreesPerSecond: 720
   postRangedDodgeImpulse: 3.6
   postRangedDodgeRetreatRatio: 0.28
   postRangedDodgeDelay: 0.14
