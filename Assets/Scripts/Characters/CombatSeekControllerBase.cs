@@ -9,6 +9,12 @@ using UnityEngine.Serialization;
 [RequireComponent(typeof(Rigidbody))]
 public abstract class CombatSeekControllerBase : MonoBehaviour
 {
+    [Header("Locomotion animation")]
+    [Tooltip("Leave empty to use the first Animator under this object (e.g. soldier mesh).")]
+    [SerializeField] Animator locomotionAnimator;
+    [Tooltip("Below this horizontal speed (m/s), animation playback is stopped.")]
+    [SerializeField] float locomotionStopSpeedThreshold = 0.04f;
+
     [Header("Combat")]
     [SerializeField] protected float combatRange = 20f;
     [SerializeField] protected float eyeHeight = 1.5f;
@@ -25,9 +31,13 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
     protected Character Character { get; private set; }
     protected bool IsRanged { get; private set; } = true;
 
+    Rigidbody _rigidbody;
+
     protected virtual void Awake()
     {
         CacheComponents();
+        if (locomotionAnimator == null)
+            locomotionAnimator = GetComponentInChildren<Animator>();
     }
 
     protected void EnsureComponentsInitialized()
@@ -39,6 +49,7 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
     void CacheComponents()
     {
         Motor = GetComponent<TargetSteeringMotor>();
+        _rigidbody = GetComponent<Rigidbody>();
         Ranged = GetComponent<RangedCombat>();
         Melee = GetComponent<MeleeCombat>();
         Character = GetComponent<Character>();
@@ -63,6 +74,28 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
     protected void ApplyMotorSpeedFromCharacter()
     {
         CharacterMotorLink.ApplyMovementSpeed(Character, Motor);
+    }
+
+    protected virtual void LateUpdate()
+    {
+        UpdateLocomotionAnimationSpeed();
+    }
+
+    void UpdateLocomotionAnimationSpeed()
+    {
+        if (locomotionAnimator == null || Motor == null || _rigidbody == null)
+            return;
+
+        Vector3 v = _rigidbody.linearVelocity;
+        float horizontalSpeed = new Vector3(v.x, 0f, v.z).magnitude;
+        float maxSpeed = Motor.EffectiveMoveSpeed;
+        if (horizontalSpeed < locomotionStopSpeedThreshold || maxSpeed < 0.01f)
+        {
+            locomotionAnimator.speed = 0f;
+            return;
+        }
+
+        locomotionAnimator.speed = Mathf.Clamp01(horizontalSpeed / maxSpeed);
     }
 
     protected virtual void FixedUpdate()
