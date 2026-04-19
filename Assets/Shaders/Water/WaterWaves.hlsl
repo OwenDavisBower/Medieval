@@ -17,10 +17,15 @@ void WaterEvaluateWaves(float2 xz, float waveTime, out float height, out float d
     float w1 = dot(xz, dir1) * k1 + waveTime;
     float w2 = dot(xz, dir2) * k2 + waveTime * phase2;
 
-    height = _WaveAmplitude * (sin(w1) + _WaveSecondaryAmp * sin(w2));
+    float s = sin(w1) + _WaveSecondaryAmp * sin(w2);
+    // Only displace upward from the mesh plane; troughs sit at zero offset.
+    height = _WaveAmplitude * max(0.0, s);
 
-    dhdx = _WaveAmplitude * (k1 * dir1.x * cos(w1) + _WaveSecondaryAmp * k2 * dir2.x * cos(w2));
-    dhdz = _WaveAmplitude * (k1 * dir1.y * cos(w1) + _WaveSecondaryAmp * k2 * dir2.y * cos(w2));
+    float dhdxRaw = k1 * dir1.x * cos(w1) + _WaveSecondaryAmp * k2 * dir2.x * cos(w2);
+    float dhdzRaw = k1 * dir1.y * cos(w1) + _WaveSecondaryAmp * k2 * dir2.y * cos(w2);
+    float active = s > 0.0 ? 1.0 : 0.0;
+    dhdx = _WaveAmplitude * active * dhdxRaw;
+    dhdz = _WaveAmplitude * active * dhdzRaw;
 }
 
 void ApplyWaterWavesWorldSpaceAtTime(inout float3 positionWS, out float3 waveNormalWS, float timeSeconds)
