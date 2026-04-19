@@ -1,0 +1,40 @@
+#pragma kernel CullGrass
+
+struct GrassInstance
+{
+    float3 position;
+    float rotationY;
+    float3 scale;
+    float pad;
+};
+
+StructuredBuffer<GrassInstance> _GrassInstances;
+AppendStructuredBuffer<uint> _VisibleIndices;
+
+uint _InstanceCount;
+float4 _FrustumPlanes[6];
+
+bool PointInsideFrustum(float3 p)
+{
+    for (uint i = 0; i < 6; i++)
+    {
+        float4 pl = _FrustumPlanes[i];
+        if (dot(pl.xyz, p) + pl.w < 0.0)
+            return false;
+    }
+    return true;
+}
+
+[numthreads(64, 1, 1)]
+void CullGrass(uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+    if (i >= _InstanceCount)
+        return;
+
+    float3 p = _GrassInstances[i].position;
+    if (!PointInsideFrustum(p))
+        return;
+
+    _VisibleIndices.Append(i);
+}
