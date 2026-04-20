@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class BanditCampSpawning
 {
+    /// <summary>Matches <see cref="TerrainGenerator"/> splat path mask falloff (smoothstep 8→0 on path distance).</summary>
+    const float MinPathDistanceFromSplatPaths = 8f;
+
     bool _spawned;
 
     public void SpawnCamps(BanditCampSpawnConfig config)
@@ -25,7 +28,7 @@ public class BanditCampSpawning
 
         for (int i = 0; i < config.CampCount; i++)
         {
-            if (!TryPickCampPosition(config, settlementCenters, placedCamps, minSettleSq, minCampSq, out Vector3 pos))
+            if (!TryPickCampPosition(gen, config, settlementCenters, placedCamps, minSettleSq, minCampSq, out Vector3 pos))
                 continue;
 
             placedCamps.Add(pos);
@@ -54,6 +57,7 @@ public class BanditCampSpawning
     }
 
     static bool TryPickCampPosition(
+        TerrainGenerator terrain,
         BanditCampSpawnConfig config,
         List<Vector3> settlementCenters,
         List<Vector3> placedCamps,
@@ -66,6 +70,9 @@ public class BanditCampSpawning
             Vector3 candidate = TerrainSpawnUtility.GetWorldPositionOnTerrain(
                 config.SpawnOrigin + SpawnPlacementUtility.RandomUniformDiskOffsetXZ(config.SpawnRadius));
             if (candidate.y < 0f)
+                continue;
+
+            if (terrain.SamplePathDistanceWorldXZ(candidate.x, candidate.z) < MinPathDistanceFromSplatPaths)
                 continue;
 
             if (!SpawnPlacementUtility.IsFarEnoughFromAllXZ(candidate, settlementCenters, minSettleSq))
