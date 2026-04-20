@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class MeshSpawning
 {
+    /// <summary>When <see cref="MeshSpawnConfig.PathClearance"/> is negative; matches typical tree spawn tuning (see MainScene_TreeSpawn).</summary>
+    const float AutoPathClearanceMeters = 4f;
+
     bool _spawned;
 
     public void TrySpawnMeshes(MeshSpawnConfig config, RockIndirectRenderer renderer)
@@ -59,6 +62,9 @@ public class MeshSpawning
         seeds = new List<RockInstanceSeed>(planned);
         Vector3 origin = config.RegionCenter;
         float margin = config.TerrainEdgeMargin;
+        float minPathClearance = config.PathClearance >= 0f
+            ? config.PathClearance
+            : AutoPathClearanceMeters;
 
         for (int vi = 0; vi < variantIndices.Length; vi++)
         {
@@ -84,6 +90,8 @@ public class MeshSpawning
 
                 Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(xz, config.TerrainHeightOffset);
                 if (p.y < 0f)
+                    continue;
+                if (gen.SamplePathDistanceWorldXZ(p.x, p.z) < minPathClearance)
                     continue;
 
                 float yaw = Random.Range(0f, Mathf.PI * 2f);

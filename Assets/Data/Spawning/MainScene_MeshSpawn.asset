@@ -25,7 +25,7 @@ MonoBehaviour:
     lightProbeUsage: 0
   - mesh: {fileID: -7817339922576292930, guid: 45e055da01554ad4086d58285793b572, type: 3}
     material: {fileID: 2100000, guid: ebfef4fa29d7d4f96978a2dcbbd71b75, type: 2}
-    instanceCount: 2000
+    instanceCount: 1000
     minScale: 0.5
     maxScale: 1
     windYawRadiansPerSecond: 0
@@ -48,5 +48,6 @@ MonoBehaviour:
   regionCenter: {x: 0, y: 0, z: 0}
   terrainHeightOffset: 0
   terrainEdgeMargin: 8
+  pathClearance: -0.01
   maxAttemptsPerInstance: 80
   meshInstanceCompute: {fileID: 7200000, guid: e1d2c3b4a5968778695a4b3c2d1e0f9a, type: 3}

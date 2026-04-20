@@ -58,6 +58,8 @@ public class MeshSpawnConfig : ScriptableObject
     [SerializeField] float terrainHeightOffset = 0.05f;
     [Tooltip("Clamp XZ to terrain footprint before sampling height; 0 disables clamp.")]
     [SerializeField] float terrainEdgeMargin = 8f;
+    [Tooltip("Minimum distance from path centerline (meters). Values >= 0 use that distance. Any negative value (including -1) uses the auto default (4 m), aligned with MainScene tree spawn — not terrain flatRadius, which is much wider.")]
+    [SerializeField] float pathClearance = -1f;
     [SerializeField, FormerlySerializedAs("maxAttemptsPerRock")]
     int maxAttemptsPerInstance = 60;
     [SerializeField, FormerlySerializedAs("rocksInstanceCompute")]
@@ -69,6 +71,7 @@ public class MeshSpawnConfig : ScriptableObject
     public Vector3 RegionCenter => regionCenter;
     public float TerrainHeightOffset => terrainHeightOffset;
     public float TerrainEdgeMargin => terrainEdgeMargin;
+    public float PathClearance => pathClearance;
     public int MaxAttemptsPerInstance => maxAttemptsPerInstance;
 
     /// <summary>True when at least one variant has a mesh and material assigned.</summary>
@@ -112,6 +115,7 @@ public class MeshSpawnConfig : ScriptableObject
         regionRadius = Mathf.Max(0f, regionRadius);
         maxAttemptsPerInstance = Mathf.Max(1, maxAttemptsPerInstance);
         terrainEdgeMargin = Mathf.Max(0f, terrainEdgeMargin);
+        pathClearance = Mathf.Max(-1f, pathClearance);
 
         if (meshVariants != null)
         {
