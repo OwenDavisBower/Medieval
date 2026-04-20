@@ -33,25 +33,9 @@ public sealed class PixelatePass : ScriptableRenderPass
         height = Mathf.Max(1, cameraData.scaledHeight);
     }
 
-    static bool TryGetVolume(out PixelateVolume volume)
-    {
-        if (VolumeManager.instance == null)
-        {
-            volume = null;
-            return false;
-        }
-
-        volume = VolumeManager.instance.stack.GetComponent<PixelateVolume>();
-        return volume != null && volume.IsEffectActive;
-    }
-
     static PixelateRuntimeSettings BuildSettings(PixelateVolume volume, int scaledWidth, int scaledHeight)
     {
-        int h = Mathf.Max(2, volume.screenHeight.value);
-        float aspect = scaledWidth / (float)scaledHeight;
-        int w = volume.matchAspectRatio.value
-            ? Mathf.Max(2, Mathf.RoundToInt(h * aspect))
-            : h;
+        PixelateGrid.GetLogicalPixelCounts(volume, scaledWidth, scaledHeight, out int w, out int h);
 
         float posterize = volume.colorDepth.value > 0.001f
             ? Mathf.Max(2f, volume.colorDepth.value)
@@ -78,7 +62,7 @@ public sealed class PixelatePass : ScriptableRenderPass
         if (m_Material == null)
             return;
 
-        if (!TryGetVolume(out PixelateVolume volume))
+        if (!PixelateGrid.TryGetActiveVolume(out PixelateVolume volume))
             return;
 
         if (!cameraData.requiresOpaqueTexture)

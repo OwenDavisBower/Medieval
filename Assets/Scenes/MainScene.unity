@@ -273,6 +273,10 @@ MonoBehaviour:
   offset: {x: 0, y: 30, z: -5}
   smooth: 8
   lookAtHeight: 1
+  pixelGridSnapEnabled: 1
+  pixelGridSnapReferenceDistance: 10
+  pixelGridSnapPivotOverride: {fileID: 0}
+  pixelGridSnapOnlyInPlayGameCamera: 1
 --- !u!1 &405064906
 GameObject:
   m_ObjectHideFlags: 0

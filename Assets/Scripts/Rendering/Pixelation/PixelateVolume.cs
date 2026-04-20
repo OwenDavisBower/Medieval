@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 /// <summary>
 /// Volume-driven settings for <see cref="PixelateRendererFeature"/>. Add this to a Volume Profile on a
 /// Global Volume (or local volume) so each scene can tune pixelation independently.
+/// Pair with <see cref="FollowCam"/> (pixel grid snap section) on the game camera to reduce sub-pixel crawl while moving.
 /// </summary>
 [VolumeComponentMenu("Rendering/Pixelate")]
 public sealed class PixelateVolume : VolumeComponent
