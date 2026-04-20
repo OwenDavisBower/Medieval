@@ -14,11 +14,7 @@ public static class PixelateGrid
         if (VolumeManager.instance == null)
             return false;
 
-        var stack = VolumeManager.instance.stack;
-        if (stack == null)
-            return false;
-
-        volume = stack.GetComponent<PixelateVolume>();
+        volume = VolumeManager.instance.stack.GetComponent<PixelateVolume>();
         return volume != null && volume.IsEffectActive;
     }
 
