@@ -22,6 +22,7 @@ public class Character : MonoBehaviour
 
     [SerializeField] float healthBarHeightOffset = 2.15f;
     [SerializeField] float healthBarScale = 0.011f;
+    [SerializeField] [Tooltip("Use the same name as a user layer in Project Settings; assigned to the health bar so it can render on the URP overlay and skip pixelation.")] string _healthBarLayer = "HealthBar";
 
     float _current;
     float _rolledMaxHealth;
@@ -199,6 +200,18 @@ public class Character : MonoBehaviour
         _fillRect.pivot = new Vector2(0f, 0.5f);
         _fillRect.offsetMin = Vector2.zero;
         _fillRect.offsetMax = Vector2.zero;
+
+        int hb = LayerMask.NameToLayer(_healthBarLayer);
+        if (hb >= 0)
+            SetLayerRecursively(barRoot, hb);
+    }
+
+    static void SetLayerRecursively(GameObject go, int layer)
+    {
+        go.layer = layer;
+        var t = go.transform;
+        for (int i = 0; i < t.childCount; i++)
+            SetLayerRecursively(t.GetChild(i).gameObject, layer);
     }
 
     static Sprite WhiteSprite()

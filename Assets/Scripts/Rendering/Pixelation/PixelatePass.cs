@@ -27,6 +27,16 @@ public sealed class PixelatePass : ScriptableRenderPass
     static bool ShouldRun(CameraType cameraType) =>
         cameraType is CameraType.Game or CameraType.SceneView;
 
+    static bool IsOverlayCamera(UniversalCameraData cameraData)
+    {
+        Camera c = cameraData.camera;
+        if (c == null)
+            return false;
+        if (!c.TryGetComponent<UniversalAdditionalCameraData>(out var u))
+            return false;
+        return u.renderType == CameraRenderType.Overlay;
+    }
+
     static void GetCameraResolution(UniversalCameraData cameraData, out int width, out int height)
     {
         width = Mathf.Max(1, cameraData.scaledWidth);
@@ -57,6 +67,9 @@ public sealed class PixelatePass : ScriptableRenderPass
         UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
 
         if (!ShouldRun(cameraData.cameraType))
+            return;
+
+        if (IsOverlayCamera(cameraData))
             return;
 
         if (m_Material == null)

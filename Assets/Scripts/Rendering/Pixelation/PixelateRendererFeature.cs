@@ -37,6 +37,9 @@ public sealed class PixelateRendererFeature : ScriptableRendererFeature
         if (!ShouldRun(cameraData.cameraType))
             return;
 
+        if (IsOverlayCamera(cameraData))
+            return;
+
         if (VolumeManager.instance == null)
             return;
 
@@ -55,6 +58,16 @@ public sealed class PixelateRendererFeature : ScriptableRendererFeature
 
     static bool ShouldRun(CameraType cameraType) =>
         cameraType is CameraType.Game or CameraType.SceneView;
+
+    static bool IsOverlayCamera(CameraData cameraData)
+    {
+        Camera c = cameraData.camera;
+        if (c == null)
+            return false;
+        if (!c.TryGetComponent<UniversalAdditionalCameraData>(out var u))
+            return false;
+        return u.renderType == CameraRenderType.Overlay;
+    }
 
     protected override void Dispose(bool disposing)
     {
