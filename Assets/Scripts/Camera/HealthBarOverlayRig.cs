@@ -3,7 +3,7 @@ using UnityEngine.Rendering.Universal;
 
 /// <summary>
 /// Puts <see cref="Character"/> world-space health bars (layer <c>HealthBar</c>) on a URP overlay
-/// so they are drawn after the base pass post-processing at native resolution (on top of render-scale upscaling).
+/// so they are drawn after the base pass post-processing, avoiding <see cref="PixelatePass"/> and other full-screen output.
 /// </summary>
 [RequireComponent(typeof(Camera))]
 [DefaultExecutionOrder(-40)]

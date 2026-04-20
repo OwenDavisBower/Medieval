@@ -3,8 +3,8 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 /// <summary>
-/// Shared resolution math for <see cref="PixelateRenderScaleApplier"/> / <see cref="FollowCam"/> (pixel grid snap)
-/// so the virtual pixel grid used for snapping matches the active render resolution.
+/// Shared resolution math for <see cref="PixelatePass"/> and <see cref="FollowCam"/> (pixel grid snap) so the
+/// virtual pixel grid used for snapping matches the post-process quantization.
 /// </summary>
 public static class PixelateGrid
 {
