@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c70aeb97e75d248c5180a32f35eb433, type: 3}
+  m_Name: MainScene_MeshSpawn
+  m_EditorClassIdentifier: 
+  meshVariants:
+  - mesh: {fileID: 4199401309831131938, guid: 0a99d2c7b45da014a9006fc6863e6471, type: 3}
+    material: {fileID: 2100000, guid: f0e1d2c3b4a596877869504132231190, type: 2}
+    instanceCount: 200
+    minScale: 0.4
+    maxScale: 0.8
+    windYawRadiansPerSecond: 0
+    layer: 0
+    shadowCastingMode: 1
+    receiveShadows: 1
+    lightProbeUsage: 0
+  - mesh: {fileID: -7817339922576292930, guid: 45e055da01554ad4086d58285793b572, type: 3}
+    material: {fileID: 2100000, guid: ebfef4fa29d7d4f96978a2dcbbd71b75, type: 2}
+    instanceCount: 2000
+    minScale: 0.5
+    maxScale: 1
+    windYawRadiansPerSecond: 0
+    layer: 0
+    shadowCastingMode: 1
+    receiveShadows: 1
+    lightProbeUsage: 0
+  rockMesh: {fileID: 4199401309831131938, guid: 0a99d2c7b45da014a9006fc6863e6471, type: 3}
+  rockMaterial: {fileID: 2100000, guid: f0e1d2c3b4a596877869504132231190, type: 2}
+  minScale: 0.4
+  maxScale: 0.8
+  windRockYawRadiansPerSecond: 0
+  layer: 0
+  shadowCastingMode: 1
+  receiveShadows: 1
+  lightProbeUsage: 0
+  _legacyInstanceCount: -1
+  _legacyRockCount: -1
+  regionRadius: 90
+  regionCenter: {x: 0, y: 0, z: 0}
+  terrainHeightOffset: 0
+  terrainEdgeMargin: 8
+  maxAttemptsPerInstance: 80
+  meshInstanceCompute: {fileID: 7200000, guid: e1d2c3b4a5968778695a4b3c2d1e0f9a, type: 3}

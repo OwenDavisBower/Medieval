@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -21,14 +22,15 @@ public class WorldGenerationCoordinator : MonoBehaviour
     [SerializeField] SettlementSpawnConfig settlementSpawn;
     [SerializeField] TreeSpawnConfig treeSpawn;
     [SerializeField] BanditCampSpawnConfig banditCampSpawn;
-    [SerializeField] RockSpawnConfig rockSpawn;
+    [SerializeField, FormerlySerializedAs("rockSpawn")]
+    MeshSpawnConfig meshSpawn;
     [Tooltip("Optional parent for instantiated trees; may be null.")]
     [SerializeField] Transform treeSpawnParent;
 
     readonly SettlementSpawning _settlementSpawning = new SettlementSpawning();
     readonly TreeSpawning _treeSpawning = new TreeSpawning();
     readonly BanditCampSpawning _banditCampSpawning = new BanditCampSpawning();
-    readonly RockSpawning _rockSpawning = new RockSpawning();
+    readonly MeshSpawning _meshSpawning = new MeshSpawning();
 
 #if UNITY_EDITOR
     void OnValidate()
@@ -39,8 +41,8 @@ public class WorldGenerationCoordinator : MonoBehaviour
             treeSpawn = AssetDatabase.LoadAssetAtPath<TreeSpawnConfig>(DefaultTreePath);
         if (banditCampSpawn == null)
             banditCampSpawn = AssetDatabase.LoadAssetAtPath<BanditCampSpawnConfig>(DefaultBanditPath);
-        if (rockSpawn == null)
-            rockSpawn = AssetDatabase.LoadAssetAtPath<RockSpawnConfig>(DefaultRockSpawnPath);
+        if (meshSpawn == null)
+            meshSpawn = AssetDatabase.LoadAssetAtPath<MeshSpawnConfig>(DefaultRockSpawnPath);
     }
 #endif
 
@@ -89,12 +91,12 @@ public class WorldGenerationCoordinator : MonoBehaviour
         _banditCampSpawning.SpawnCamps(banditCampSpawn);
         _treeSpawning.TrySpawnTrees(treeSpawn, treeSpawnParent);
 
-        if (rockSpawn != null && rockSpawn.RockMesh != null && rockSpawn.RockMaterial != null)
+        if (meshSpawn != null && meshSpawn.HasRenderableVariants)
         {
             var rockRenderer = GetComponent<RockIndirectRenderer>();
             if (rockRenderer == null)
                 rockRenderer = gameObject.AddComponent<RockIndirectRenderer>();
-            _rockSpawning.TrySpawnRocks(rockSpawn, rockRenderer);
+            _meshSpawning.TrySpawnMeshes(meshSpawn, rockRenderer);
         }
     }
 }

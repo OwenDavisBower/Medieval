@@ -1,12 +1,12 @@
 #pragma kernel BuildMatrices
 
-struct RockSeed
+struct InstanceSeed
 {
     float4 positionAndYaw;
     float4 scaleAndPad;
 };
 
-StructuredBuffer<RockSeed> _Seeds;
+StructuredBuffer<InstanceSeed> _Seeds;
 RWStructuredBuffer<float4x4> _ObjectToWorld;
 
 uint _Count;
@@ -19,7 +19,7 @@ void BuildMatrices(uint id : SV_DispatchThreadID)
     if (id >= _Count)
         return;
 
-    RockSeed s = _Seeds[id];
+    InstanceSeed s = _Seeds[id];
     float3 pos = s.positionAndYaw.xyz;
     float yaw = s.positionAndYaw.w + _TimeSeconds * _WindYawRadiansPerSecond;
     float sc = max(s.scaleAndPad.x, 1e-4);

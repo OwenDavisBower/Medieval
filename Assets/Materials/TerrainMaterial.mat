@@ -38,11 +38,13 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _EdgeNoiseScale: 1.01
+    - _EdgeNoiseScale: 0.05
     - _GrassNoiseLinearData: 0
     - _GrassTiling: 0.24
     - _HexBlend: 10
     - _HexSize: 0.2
+    - _PathEdgeDarkenIntensity: 0.265
+    - _PathEdgeDarkenWidth: 0.62
     - _PathTiling: 0.11
     - _RockTiling: 1.05
     m_Colors:
