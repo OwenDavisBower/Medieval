@@ -13,8 +13,6 @@ public class SettlementSpawnConfig : ScriptableObject
     [Tooltip("Minimum distance between settlement centers (XZ).")]
     [SerializeField] float minSettlementSeparation = 30f;
     [SerializeField] int maxSpawnAttemptsPerSettlement = 120;
-    [Tooltip("XZ disk radius for procedural placement mask: settlement center must be free of path and prior burns.")]
-    [SerializeField] float settlementCenterFootprintRadius = 14f;
 
     public GameObject CabinPrefab => cabinPrefab;
     public GameObject FarmPrefab => farmPrefab;
@@ -25,5 +23,4 @@ public class SettlementSpawnConfig : ScriptableObject
     public float TerrainEdgeMargin => terrainEdgeMargin;
     public float MinSettlementSeparation => minSettlementSeparation;
     public int MaxSpawnAttemptsPerSettlement => maxSpawnAttemptsPerSettlement;
-    public float SettlementCenterFootprintRadius => settlementCenterFootprintRadius;
 }

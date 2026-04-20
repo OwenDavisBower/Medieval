@@ -12,8 +12,6 @@ public class TreeSpawnConfig : ScriptableObject
     [SerializeField] float pathClearance = -1f;
     [Tooltip("Disk center for tree placement (XZ offset added to random samples). Y from terrain.")]
     [SerializeField] Vector3 regionCenter;
-    [Tooltip("Radius burned into the procedural placement mask after each tree spawns (XZ).")]
-    [SerializeField] float occupationFootprintRadius = 2.5f;
 
     public GameObject TreePrefab => treePrefab;
     public int TreeCount => treeCount;
@@ -22,5 +20,4 @@ public class TreeSpawnConfig : ScriptableObject
     public int MaxAttemptsPerTree => maxAttemptsPerTree;
     public float PathClearance => pathClearance;
     public Vector3 RegionCenter => regionCenter;
-    public float OccupationFootprintRadius => occupationFootprintRadius;
 }

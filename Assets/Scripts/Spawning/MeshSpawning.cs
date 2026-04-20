@@ -3,22 +3,26 @@ using UnityEngine;
 
 public class MeshSpawning
 {
+    /// <summary>When <see cref="MeshSpawnConfig.PathClearance"/> is negative; matches typical tree spawn tuning (see MainScene_TreeSpawn).</summary>
+    const float AutoPathClearanceMeters = 4f;
+
     bool _spawned;
 
-    public void TrySpawnMeshes(MeshSpawnConfig config, RockIndirectRenderer renderer, TerrainGenerator gen, ProceduralPlacementMask placementMask)
+    public void TrySpawnMeshes(MeshSpawnConfig config, RockIndirectRenderer renderer)
     {
         if (_spawned || config == null || renderer == null)
             return;
         if (!config.HasRenderableVariants)
             return;
 
-        if (gen == null || !gen.IsTerrainReady || placementMask == null)
+        var gen = TerrainGenerator.GetActiveOrFind();
+        if (gen == null || !gen.IsTerrainReady)
             return;
 
         if (!TryBuildValidVariantIndices(config, out var variantIndices))
             return;
 
-        if (!TryCollectSeeds(config, gen, placementMask, variantIndices, out var seeds) || seeds.Count == 0)
+        if (!TryCollectSeeds(config, gen, variantIndices, out var seeds) || seeds.Count == 0)
             return;
 
         _spawned = true;
@@ -45,7 +49,7 @@ public class MeshSpawning
         return true;
     }
 
-    static bool TryCollectSeeds(MeshSpawnConfig config, TerrainGenerator gen, ProceduralPlacementMask placementMask, int[] variantIndices, out List<RockInstanceSeed> seeds)
+    static bool TryCollectSeeds(MeshSpawnConfig config, TerrainGenerator gen, int[] variantIndices, out List<RockInstanceSeed> seeds)
     {
         int planned = 0;
         for (int i = 0; i < variantIndices.Length; i++)
@@ -58,6 +62,9 @@ public class MeshSpawning
         seeds = new List<RockInstanceSeed>(planned);
         Vector3 origin = config.RegionCenter;
         float margin = config.TerrainEdgeMargin;
+        float minPathClearance = config.PathClearance >= 0f
+            ? config.PathClearance
+            : AutoPathClearanceMeters;
 
         for (int vi = 0; vi < variantIndices.Length; vi++)
         {
@@ -84,7 +91,7 @@ public class MeshSpawning
                 Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(xz, config.TerrainHeightOffset);
                 if (p.y < 0f)
                     continue;
-                if (placementMask.SampleFree01WorldXZ(p.x, p.z) < 0.5f)
+                if (gen.SamplePathDistanceWorldXZ(p.x, p.z) < minPathClearance)
                     continue;
 
                 float yaw = Random.Range(0f, Mathf.PI * 2f);
