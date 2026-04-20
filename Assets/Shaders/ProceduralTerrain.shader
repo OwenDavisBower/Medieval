@@ -3,7 +3,10 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
 {
     Properties
     {
-        [NoScaleOffset] _GrassTex("Grass", 2D) = "white" {}
+        [NoScaleOffset] _GrassNoiseTex("Grass Noise (grey)", 2D) = "gray" {}
+        _GrassColorA("Grass Color A", Color) = (0.25, 0.55, 0.12, 1)
+        _GrassColorB("Grass Color B", Color) = (0.12, 0.38, 0.08, 1)
+        [ToggleUI] _GrassNoiseLinearData("Noise texture is linear data", Float) = 0
         [NoScaleOffset] _PathTex("Path", 2D) = "white" {}
         [NoScaleOffset] _RockTex("Rock", 2D) = "white" {}
         [NoScaleOffset] _SplatmapTex("Splat (R = path, G = rock, linear float)", 2D) = "black" {}
@@ -43,8 +46,8 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-            TEXTURE2D(_GrassTex);
-            SAMPLER(sampler_GrassTex);
+            TEXTURE2D(_GrassNoiseTex);
+            SAMPLER(sampler_GrassNoiseTex);
             TEXTURE2D(_PathTex);
             SAMPLER(sampler_PathTex);
             TEXTURE2D(_RockTex);
@@ -53,6 +56,9 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
             SAMPLER(sampler_SplatmapTex);
 
             CBUFFER_START(UnityPerMaterial)
+                half4 _GrassColorA;
+                half4 _GrassColorB;
+                half _GrassNoiseLinearData;
                 half _GrassTiling;
                 half _PathTiling;
                 half _RockTiling;
@@ -174,6 +180,14 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 return sum / max(wsum, 1e-4);
             }
 
+            // Mid-grey sRGB textures decode to ~0.22 linear; remap to encoding space so lerp(A,B,t) uses an even t.
+            half GrassNoiseMixFromLinearSample(half L)
+            {
+                half lo = L * 12.92h;
+                half hi = 1.055h * pow(max(L, 1e-6h), 1.0h / 2.4h) - 0.055h;
+                return (L <= 0.0031308h) ? lo : hi;
+            }
+
             // Value noise [0,1] for stochastic grass/path edges (patchy threshold vs splat).
             float TerrainHash01(float2 p)
             {
@@ -248,7 +262,12 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 float4 splat = SAMPLE_TEXTURE2D(_SplatmapTex, sampler_SplatmapTex, input.splatUV);
                 float pathMask = saturate(splat.r);
                 float rockMask = saturate(splat.g);
-                const half3 grassCol = SampleTextureHex(grassUV, _GrassTex, sampler_GrassTex);
+                const half3 grassNoise = SampleTextureHex(grassUV, _GrassNoiseTex, sampler_GrassNoiseTex);
+                const half rawGrassMix = saturate(dot(grassNoise, half3(0.299h, 0.587h, 0.114h)));
+                const half grassMix = (_GrassNoiseLinearData > 0.5h)
+                    ? rawGrassMix
+                    : saturate(GrassNoiseMixFromLinearSample(rawGrassMix));
+                const half3 grassCol = lerp(_GrassColorA.rgb, _GrassColorB.rgb, grassMix);
                 const half3 pathCol = SAMPLE_TEXTURE2D(_PathTex, sampler_PathTex, pathUV).rgb;
                 const half3 rockCol = SampleTextureHex(rockUV, _RockTex, sampler_RockTex);
                 float2 wXZ = float2(input.positionWS.x, input.positionWS.z);
