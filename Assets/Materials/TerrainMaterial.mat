@@ -28,10 +28,6 @@ Material:
         m_Texture: {fileID: 2800000, guid: 40e22b3a218d344298ba7bb973cbe385, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
-    - _PathTex:
-        m_Texture: {fileID: 2800000, guid: c2e975e8a074dff45aee75e580a54344, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
     - _RockTex:
         m_Texture: {fileID: 2800000, guid: a22f74dadcc373b4da1943778db036d4, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -52,6 +48,8 @@ Material:
     m_Colors:
     - _GrassColorA: {r: 0.45490196, g: 0.54901963, b: 0.27058825, a: 1}
     - _GrassColorB: {r: 0.041444488, g: 0.21698111, b: 0, a: 1}
+    - _PathColorA: {r: 0.6313726, g: 0.49411765, b: 0.3372549, a: 1}
+    - _PathColorB: {r: 0.26415092, g: 0.18388356, b: 0.10590956, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &3922063015719540400

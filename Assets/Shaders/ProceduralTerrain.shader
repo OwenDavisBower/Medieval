@@ -7,7 +7,8 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
         _GrassColorA("Grass Color A", Color) = (0.25, 0.55, 0.12, 1)
         _GrassColorB("Grass Color B", Color) = (0.12, 0.38, 0.08, 1)
         [ToggleUI] _GrassNoiseLinearData("Noise texture is linear data", Float) = 0
-        [NoScaleOffset] _PathTex("Path", 2D) = "white" {}
+        _PathColorA("Path Color A", Color) = (0.45, 0.38, 0.28, 1)
+        _PathColorB("Path Color B", Color) = (0.26, 0.21, 0.15, 1)
         [NoScaleOffset] _RockTex("Rock", 2D) = "white" {}
         [NoScaleOffset] _SplatmapTex("Splat (R = path, G = rock, linear float)", 2D) = "black" {}
         _GrassTiling("Grass Tiling", Float) = 1
@@ -48,8 +49,6 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
 
             TEXTURE2D(_GrassNoiseTex);
             SAMPLER(sampler_GrassNoiseTex);
-            TEXTURE2D(_PathTex);
-            SAMPLER(sampler_PathTex);
             TEXTURE2D(_RockTex);
             SAMPLER(sampler_RockTex);
             TEXTURE2D(_SplatmapTex);
@@ -58,6 +57,8 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
             CBUFFER_START(UnityPerMaterial)
                 half4 _GrassColorA;
                 half4 _GrassColorB;
+                half4 _PathColorA;
+                half4 _PathColorB;
                 half _GrassNoiseLinearData;
                 half _GrassTiling;
                 half _PathTiling;
@@ -268,7 +269,12 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                     ? rawGrassMix
                     : saturate(GrassNoiseMixFromLinearSample(rawGrassMix));
                 const half3 grassCol = lerp(_GrassColorA.rgb, _GrassColorB.rgb, grassMix);
-                const half3 pathCol = SAMPLE_TEXTURE2D(_PathTex, sampler_PathTex, pathUV).rgb;
+                const half3 pathNoise = SampleTextureHex(pathUV, _GrassNoiseTex, sampler_GrassNoiseTex);
+                const half rawPathMix = saturate(dot(pathNoise, half3(0.299h, 0.587h, 0.114h)));
+                const half pathMix = (_GrassNoiseLinearData > 0.5h)
+                    ? rawPathMix
+                    : saturate(GrassNoiseMixFromLinearSample(rawPathMix));
+                const half3 pathCol = lerp(_PathColorA.rgb, _PathColorB.rgb, pathMix);
                 const half3 rockCol = SampleTextureHex(rockUV, _RockTex, sampler_RockTex);
                 float2 wXZ = float2(input.positionWS.x, input.positionWS.z);
                 float edgeN = TerrainEdgeNoise(wXZ, (float)_EdgeNoiseScale);
