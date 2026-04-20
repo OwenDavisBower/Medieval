@@ -40,11 +40,7 @@ public sealed class PixelateRendererFeature : ScriptableRendererFeature
         if (IsOverlayCamera(cameraData))
             return;
 
-        if (VolumeManager.instance == null)
-            return;
-
-        PixelateVolume volume = VolumeManager.instance.stack.GetComponent<PixelateVolume>();
-        if (volume == null || !volume.IsEffectActive)
+        if (!PixelateGrid.TryGetActiveVolume(out PixelateVolume volume))
             return;
 
         if (!cameraData.requiresOpaqueTexture)
