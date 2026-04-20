@@ -240,6 +240,23 @@ public sealed class TerrainGenerator : MonoBehaviour
             new Vector2(worldX, worldZ));
     }
 
+    /// <summary>
+    /// Writes one byte per heightmap cell: 1 when path distance is under <paramref name="clearanceWorldMeters"/>, else 0.
+    /// <paramref name="blocked"/> length must be at least <c>worldResolution * worldResolution</c>.
+    /// </summary>
+    public void WritePathBlockedBytes(NativeArray<byte> blocked, float clearanceWorldMeters)
+    {
+        if (!blocked.IsCreated || !_pathDistanceField.IsCreated)
+            return;
+
+        int n = worldResolution * worldResolution;
+        if (blocked.Length < n)
+            return;
+
+        for (int i = 0; i < n; i++)
+            blocked[i] = (byte)(_pathDistanceField[i] < clearanceWorldMeters ? 1 : 0);
+    }
+
     void OnEnable()
     {
         Instance = this;

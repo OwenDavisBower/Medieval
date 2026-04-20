@@ -3,18 +3,15 @@ using UnityEngine;
 
 public class BanditCampSpawning
 {
-    /// <summary>Matches <see cref="TerrainGenerator"/> splat path mask falloff (smoothstep 8→0 on path distance).</summary>
-    const float MinPathDistanceFromSplatPaths = 8f;
-
     bool _spawned;
 
-    public void SpawnCamps(BanditCampSpawnConfig config)
+    public void SpawnCamps(BanditCampSpawnConfig config, ProceduralPlacementMask placementMask)
     {
         if (config == null || _spawned || config.BanditCampPrefab == null)
             return;
 
         var gen = TerrainGenerator.GetActiveOrFind();
-        if (gen == null || !gen.IsTerrainReady)
+        if (gen == null || !gen.IsTerrainReady || placementMask == null)
             return;
 
         _spawned = true;
@@ -28,12 +25,25 @@ public class BanditCampSpawning
 
         for (int i = 0; i < config.CampCount; i++)
         {
-            if (!TryPickCampPosition(gen, config, settlementCenters, placedCamps, minSettleSq, minCampSq, out Vector3 pos))
+            if (!TryPickCampPosition(gen, config, settlementCenters, placedCamps, minSettleSq, minCampSq, placementMask, out Vector3 pos))
                 continue;
 
             placedCamps.Add(pos);
-            Object.Instantiate(config.BanditCampPrefab, pos, Quaternion.identity);
+            var campGo = Object.Instantiate(config.BanditCampPrefab, pos, Quaternion.identity);
+            placementMask.BurnFromRendererBoundsXZ(CombineRendererBounds(campGo.gameObject), config.OccupationBurnPadding);
         }
+    }
+
+    static Bounds CombineRendererBounds(GameObject root)
+    {
+        var rends = root.GetComponentsInChildren<Renderer>();
+        if (rends.Length == 0)
+            return new Bounds(root.transform.position, Vector3.one * 4f);
+
+        Bounds b = rends[0].bounds;
+        for (int i = 1; i < rends.Length; i++)
+            b.Encapsulate(rends[i].bounds);
+        return b;
     }
 
     static List<Vector3> CollectSettlementCenters()
@@ -63,8 +73,10 @@ public class BanditCampSpawning
         List<Vector3> placedCamps,
         float minSettleSq,
         float minCampSq,
+        ProceduralPlacementMask placementMask,
         out Vector3 pos)
     {
+        float campR = Mathf.Max(0.5f, config.OccupationFootprintRadius);
         for (int attempt = 0; attempt < config.MaxSpawnAttemptsPerCamp; attempt++)
         {
             Vector3 candidate = TerrainSpawnUtility.GetWorldPositionOnTerrain(
@@ -72,7 +84,7 @@ public class BanditCampSpawning
             if (candidate.y < 0f)
                 continue;
 
-            if (terrain.SamplePathDistanceWorldXZ(candidate.x, candidate.z) < MinPathDistanceFromSplatPaths)
+            if (!placementMask.IsDiskFreeWorldXZ(candidate.x, candidate.z, campR))
                 continue;
 
             if (!SpawnPlacementUtility.IsFarEnoughFromAllXZ(candidate, settlementCenters, minSettleSq))

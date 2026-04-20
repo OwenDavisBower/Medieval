@@ -14,6 +14,9 @@ public class BanditCampSpawnConfig : ScriptableObject
     [Tooltip("Minimum XZ distance from other bandit camps.")]
     [SerializeField] float minDistanceFromOtherCamps = 20f;
     [SerializeField] int maxSpawnAttemptsPerCamp = 120;
+    [Tooltip("XZ radius for mask queries and burning after a camp is placed.")]
+    [SerializeField] float occupationFootprintRadius = 10f;
+    [SerializeField] float occupationBurnPadding = 1f;
 
     public BanditCamp BanditCampPrefab => banditCampPrefab;
     public int CampCount => campCount;
@@ -22,4 +25,6 @@ public class BanditCampSpawnConfig : ScriptableObject
     public float MinDistanceFromSettlements => minDistanceFromSettlements;
     public float MinDistanceFromOtherCamps => minDistanceFromOtherCamps;
     public int MaxSpawnAttemptsPerCamp => maxSpawnAttemptsPerCamp;
+    public float OccupationFootprintRadius => occupationFootprintRadius;
+    public float OccupationBurnPadding => occupationBurnPadding;
 }

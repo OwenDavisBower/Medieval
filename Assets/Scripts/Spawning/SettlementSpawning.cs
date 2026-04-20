@@ -8,7 +8,7 @@ public class SettlementSpawning
 {
     bool _spawned;
 
-    public void TrySpawnSettlements(SettlementSpawnConfig config)
+    public void TrySpawnSettlements(SettlementSpawnConfig config, ProceduralPlacementMask placementMask)
     {
         if (config == null || _spawned || config.CabinPrefab == null || config.FarmPrefab == null)
             return;
@@ -25,7 +25,7 @@ public class SettlementSpawning
 
         for (int i = 0; i < config.SettlementCount; i++)
         {
-            if (!TryPickSettlementPosition(gen, config, placedCenters, minSepSq, out Vector3 pos))
+            if (!TryPickSettlementPosition(gen, config, placedCenters, minSepSq, placementMask, out Vector3 pos))
                 continue;
 
             placedCenters.Add(pos);
@@ -34,7 +34,7 @@ public class SettlementSpawning
             spawned++;
             go.transform.position = pos;
             var builder = go.AddComponent<SettlementBuilder>();
-            builder.InitializeAndBuild(config.CabinPrefab, config.FarmPrefab, config.VillagerPrefab);
+            builder.InitializeAndBuild(config.CabinPrefab, config.FarmPrefab, config.VillagerPrefab, placementMask);
         }
     }
 
@@ -43,12 +43,17 @@ public class SettlementSpawning
         SettlementSpawnConfig config,
         List<Vector3> placedCenters,
         float minSepSq,
+        ProceduralPlacementMask placementMask,
         out Vector3 pos)
     {
+        float centerR = config.SettlementCenterFootprintRadius;
         for (int attempt = 0; attempt < config.MaxSpawnAttemptsPerSettlement; attempt++)
         {
             Vector3 candidate = config.SpawnOrigin + SpawnPlacementUtility.RandomUniformDiskOffsetXZ(config.SpawnRadius);
             candidate = SpawnPlacementUtility.ClampWorldXZToTerrain(gen, candidate, config.TerrainEdgeMargin);
+
+            if (placementMask != null && !placementMask.IsDiskFreeWorldXZ(candidate.x, candidate.z, centerR))
+                continue;
 
             if (SpawnPlacementUtility.IsFarEnoughFromAllXZ(candidate, placedCenters, minSepSq))
             {
