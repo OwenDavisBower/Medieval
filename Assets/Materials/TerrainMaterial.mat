@@ -25,7 +25,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _GrassTex:
-        m_Texture: {fileID: 2800000, guid: 82af0e4c65ab74990b25ca7479144388, type: 3}
+        m_Texture: {fileID: 2800000, guid: 4e18c827275bf47c3a05574455a47705, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _PathTex:
@@ -43,7 +43,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _EdgeNoiseScale: 1.01
-    - _GrassTiling: 1.63
+    - _GrassTiling: 2.13
     - _HexBlend: 10
     - _HexSize: 0.2
     - _PathTiling: 0.13
