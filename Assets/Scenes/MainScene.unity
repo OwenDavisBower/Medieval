@@ -303,7 +303,7 @@ GameObject:
   - component: {fileID: 405064908}
   - component: {fileID: 405064907}
   m_Layer: 0
-  m_Name: SpawningCoordinator
+  m_Name: WorldGenerationCoordinator
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -320,7 +320,8 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1ffd275360e2c435badc1f7c8e877b34, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SpawningCoordinator
+  m_EditorClassIdentifier: Assembly-CSharp::WorldGenerationCoordinator
+  terrainGenerator: {fileID: 2037707253}
   settlementSpawn: {fileID: 11400000, guid: a1b2c3d4e5f60718293a4b5c6d7e8f90, type: 2}
   treeSpawn: {fileID: 11400000, guid: b2c3d4e5f60718293a4b5c6d7e8f901a, type: 2}
   banditCampSpawn: {fileID: 11400000, guid: c3d4e5f60718293a4b5c6d7e8f901a2b, type: 2}
@@ -785,6 +786,17 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 8160483859847513919, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
   m_PrefabInstance: {fileID: 2037707251}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &2037707253 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
+  m_PrefabInstance: {fileID: 2037707251}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2037707252}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97f25dbed719048bb9daea39710587a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainGenerator
 --- !u!114 &2037707256
 MonoBehaviour:
   m_ObjectHideFlags: 0

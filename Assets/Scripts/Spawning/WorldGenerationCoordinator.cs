@@ -4,15 +4,18 @@ using UnityEditor;
 #endif
 
 /// <summary>
-/// After procedural terrain is ready, runs spawners in order: settlements, bandit camps, trees, GPU rocks.
+/// Defers terrain <see cref="TerrainGenerator"/> startup, runs <see cref="TerrainGenerator.Regenerate"/>, then spawns
+/// content after terrain is ready. Procedural spawn RNG uses <see cref="TerrainGenerator.seed"/>.
 /// </summary>
-public class SpawningCoordinator : MonoBehaviour
+[DefaultExecutionOrder(-100)]
+public class WorldGenerationCoordinator : MonoBehaviour
 {
     const string DefaultSettlementPath = "Assets/Data/Spawning/MainScene_SettlementSpawn.asset";
     const string DefaultTreePath = "Assets/Data/Spawning/MainScene_TreeSpawn.asset";
     const string DefaultBanditPath = "Assets/Data/Spawning/MainScene_BanditCampSpawn.asset";
     const string DefaultRockSpawnPath = "Assets/Data/Spawning/MainScene_RockSpawn.asset";
 
+    [SerializeField] TerrainGenerator terrainGenerator;
     [SerializeField] SettlementSpawnConfig settlementSpawn;
     [SerializeField] TreeSpawnConfig treeSpawn;
     [SerializeField] BanditCampSpawnConfig banditCampSpawn;
@@ -39,6 +42,11 @@ public class SpawningCoordinator : MonoBehaviour
     }
 #endif
 
+    void Awake()
+    {
+        ResolveTerrain()?.DeferInitialPipeline();
+    }
+
     void OnEnable()
     {
         TerrainGenerator.TerrainGenerated += OnTerrainGenerated;
@@ -49,15 +57,28 @@ public class SpawningCoordinator : MonoBehaviour
         TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
     }
 
-    void Start() => RunSpawnSequence();
+    void Start()
+    {
+        if (!Application.isPlaying)
+            return;
+
+        var gen = ResolveTerrain();
+        if (gen != null)
+            gen.Regenerate();
+    }
 
     void OnTerrainGenerated(TerrainGenerator _) => RunSpawnSequence();
 
+    TerrainGenerator ResolveTerrain() =>
+        terrainGenerator != null ? terrainGenerator : TerrainGenerator.GetActiveOrFind();
+
     void RunSpawnSequence()
     {
-        var gen = TerrainGenerator.GetActiveOrFind();
+        var gen = ResolveTerrain();
         if (gen == null || !gen.IsTerrainReady)
             return;
+
+        Random.InitState(gen.seed);
 
         _settlementSpawning.TrySpawnSettlements(settlementSpawn);
         _banditCampSpawning.SpawnCamps(banditCampSpawn);

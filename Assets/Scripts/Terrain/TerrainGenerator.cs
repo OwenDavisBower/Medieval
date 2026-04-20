@@ -168,6 +168,9 @@ public sealed class TerrainGenerator : MonoBehaviour
     bool _navMeshRebuildQueuedAfterAsync;
     Coroutine? _navMeshUpdateCoroutine;
 
+    /// <summary>When set before <see cref="Start"/>, automatic <see cref="RunPipeline"/> is skipped (e.g. <c>WorldGenerationCoordinator</c> calls <see cref="Regenerate"/>).</summary>
+    bool _deferInitialPipeline;
+
     readonly List<Vector2> _gizmoPathPoints = new();
     readonly List<Vector2> _gizmoRiverPoints = new();
 
@@ -188,6 +191,9 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     /// <summary>True after a successful <see cref="RunPipeline"/> run with a valid heightmap.</summary>
     public bool IsTerrainReady => _chunksBuilt && _heightmap.IsCreated;
+
+    /// <summary>Call from <see cref="MonoBehaviour.Awake"/> before this component's <see cref="Start"/> so initial generation can be driven by <see cref="WorldGenerationCoordinator"/>.</summary>
+    public void DeferInitialPipeline() => _deferInitialPipeline = true;
 
     /// <summary>Splat mask (R = path, G = rock, BA unused); null until <see cref="Regenerate"/> completes successfully.</summary>
     public Texture2D? SplatmapTexture => _splatmapTexture;
@@ -247,6 +253,9 @@ public sealed class TerrainGenerator : MonoBehaviour
     void Start()
     {
         if (!Application.isPlaying && !IsEditorValidated())
+            return;
+
+        if (_deferInitialPipeline)
             return;
 
         RunPipeline();
