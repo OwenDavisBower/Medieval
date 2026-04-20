@@ -26,7 +26,10 @@ public class WorldGenerationCoordinator : MonoBehaviour
     MeshSpawnConfig meshSpawn;
     [Tooltip("Optional parent for instantiated trees; may be null.")]
     [SerializeField] Transform treeSpawnParent;
+    [Tooltip("When >= 0, path corridor stamped into the placement mask uses at least this many meters from the path centerline. When -1, uses the max of bandit/tree/mesh auto clearances.")]
+    [SerializeField] float pathOccupancyStampMeters = -1f;
 
+    ProceduralPlacementMask _placementMask;
     readonly SettlementSpawning _settlementSpawning = new SettlementSpawning();
     readonly TreeSpawning _treeSpawning = new TreeSpawning();
     readonly BanditCampSpawning _banditCampSpawning = new BanditCampSpawning();
@@ -61,6 +64,12 @@ public class WorldGenerationCoordinator : MonoBehaviour
         TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
     }
 
+    void OnDestroy()
+    {
+        _placementMask?.Dispose();
+        _placementMask = null;
+    }
+
     void Start()
     {
         if (!Application.isPlaying)
@@ -87,16 +96,39 @@ public class WorldGenerationCoordinator : MonoBehaviour
 
         Random.InitState(seed);
 
-        _settlementSpawning.TrySpawnSettlements(settlementSpawn);
-        _banditCampSpawning.SpawnCamps(banditCampSpawn);
-        _treeSpawning.TrySpawnTrees(treeSpawn, treeSpawnParent);
+        _placementMask?.Dispose();
+        _placementMask = new ProceduralPlacementMask();
+        _placementMask.Allocate(gen);
+        float pathStamp = ComputePathOccupancyStampMeters(gen);
+        _placementMask.StampPathFromTerrain(gen, pathStamp);
+
+        _settlementSpawning.TrySpawnSettlements(settlementSpawn, _placementMask);
+        _banditCampSpawning.SpawnCamps(banditCampSpawn, _placementMask);
+        if (treeSpawn != null)
+            _treeSpawning.TrySpawnTrees(treeSpawn, treeSpawnParent, gen, _placementMask);
 
         if (meshSpawn != null && meshSpawn.HasRenderableVariants)
         {
             var rockRenderer = GetComponent<RockIndirectRenderer>();
             if (rockRenderer == null)
                 rockRenderer = gameObject.AddComponent<RockIndirectRenderer>();
-            _meshSpawning.TrySpawnMeshes(meshSpawn, rockRenderer);
+            _placementMask.SyncToTexture();
+            _meshSpawning.TrySpawnMeshes(meshSpawn, rockRenderer, gen, _placementMask);
         }
+    }
+
+    float ComputePathOccupancyStampMeters(TerrainGenerator gen)
+    {
+        const float banditPathClearance = 8f;
+        const float meshAutoPathClearance = 4f;
+        float treeAuto = gen.flatRadius + 2f;
+        float treeClear = treeSpawn != null && treeSpawn.PathClearance >= 0f
+            ? treeSpawn.PathClearance
+            : treeAuto;
+        float meshClear = meshSpawn != null && meshSpawn.PathClearance >= 0f
+            ? meshSpawn.PathClearance
+            : meshAutoPathClearance;
+        float auto = Mathf.Max(banditPathClearance, treeClear, meshClear);
+        return pathOccupancyStampMeters >= 0f ? Mathf.Max(auto, pathOccupancyStampMeters) : auto;
     }
 }
