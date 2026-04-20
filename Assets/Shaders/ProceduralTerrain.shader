@@ -17,6 +17,8 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
         _HexSize("Hex Cell Size (UV)", Float) = 1
         _HexBlend("Hex Blend Sharpness", Float) = 10
         _EdgeNoiseScale("Path Edge Noise Scale (world)", Float) = 4
+        _PathEdgeDarkenIntensity("Path Edge Darken Intensity", Range(0, 1)) = 0
+        _PathEdgeDarkenWidth("Path Edge Darken Width (mask margin)", Float) = 0.2
     }
 
     SubShader
@@ -66,6 +68,8 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 half _HexSize;
                 half _HexBlend;
                 half _EdgeNoiseScale;
+                half _PathEdgeDarkenIntensity;
+                half _PathEdgeDarkenWidth;
             CBUFFER_END
 
             // Stable hash for per-hex rotation / phase (no texture dependency).
@@ -274,10 +278,16 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 const half pathMix = (_GrassNoiseLinearData > 0.5h)
                     ? rawPathMix
                     : saturate(GrassNoiseMixFromLinearSample(rawPathMix));
-                const half3 pathCol = lerp(_PathColorA.rgb, _PathColorB.rgb, pathMix);
-                const half3 rockCol = SampleTextureHex(rockUV, _RockTex, sampler_RockTex);
+                half3 pathCol = lerp(_PathColorA.rgb, _PathColorB.rgb, pathMix);
                 float2 wXZ = float2(input.positionWS.x, input.positionWS.z);
                 float edgeN = TerrainEdgeNoise(wXZ, (float)_EdgeNoiseScale);
+                // Darken path near the splat outer edge (small margin above stochastic threshold).
+                half pathMargin = (half)pathMask - (half)edgeN;
+                half edgeW = max((half)_PathEdgeDarkenWidth, 1e-4h);
+                half edgeProximity = saturate(1.0h - pathMargin / edgeW);
+                half darken = edgeProximity * saturate((half)_PathEdgeDarkenIntensity);
+                pathCol *= 1.0h - darken;
+                const half3 rockCol = SampleTextureHex(rockUV, _RockTex, sampler_RockTex);
                 float rockEdgeN = TerrainEdgeNoise(wXZ + float2(31.7, 12.4), (float)_EdgeNoiseScale);
                 // Stochastic blend: P(layer) = mask; path wins over grass/rock.
                 half rockPick = (half)step(rockEdgeN, rockMask);

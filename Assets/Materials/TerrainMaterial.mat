@@ -43,7 +43,7 @@ Material:
     - _GrassTiling: 0.24
     - _HexBlend: 10
     - _HexSize: 0.2
-    - _PathTiling: 0.13
+    - _PathTiling: 0.11
     - _RockTiling: 1.05
     m_Colors:
     - _GrassColorA: {r: 0.45490196, g: 0.54901963, b: 0.27058825, a: 1}
