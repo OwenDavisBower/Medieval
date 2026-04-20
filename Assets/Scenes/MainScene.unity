@@ -305,6 +305,7 @@ MonoBehaviour:
   settlementSpawn: {fileID: 11400000, guid: a1b2c3d4e5f60718293a4b5c6d7e8f90, type: 2}
   treeSpawn: {fileID: 11400000, guid: b2c3d4e5f60718293a4b5c6d7e8f901a, type: 2}
   banditCampSpawn: {fileID: 11400000, guid: c3d4e5f60718293a4b5c6d7e8f901a2b, type: 2}
+  rockSpawn: {fileID: 11400000, guid: 0de1f2e3d4c5b6a79880716253425111, type: 2}
   treeSpawnParent: {fileID: 835355970}
 --- !u!4 &405064908
 Transform:

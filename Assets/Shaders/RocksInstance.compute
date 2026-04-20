@@ -1,0 +1,48 @@
+#pragma kernel BuildMatrices
+
+struct RockSeed
+{
+    float4 positionAndYaw;
+    float4 scaleAndPad;
+};
+
+StructuredBuffer<RockSeed> _Seeds;
+RWStructuredBuffer<float4x4> _ObjectToWorld;
+
+uint _Count;
+float _TimeSeconds;
+float _WindYawRadiansPerSecond;
+
+[numthreads(64, 1, 1)]
+void BuildMatrices(uint id : SV_DispatchThreadID)
+{
+    if (id >= _Count)
+        return;
+
+    RockSeed s = _Seeds[id];
+    float3 pos = s.positionAndYaw.xyz;
+    float yaw = s.positionAndYaw.w + _TimeSeconds * _WindYawRadiansPerSecond;
+    float sc = max(s.scaleAndPad.x, 1e-4);
+
+    float4x4 S = float4x4(
+        sc, 0, 0, 0,
+        0, sc, 0, 0,
+        0, 0, sc, 0,
+        0, 0, 0, 1);
+
+    float c = cos(yaw);
+    float sn = sin(yaw);
+    float4x4 R = float4x4(
+        c, 0, sn, 0,
+        0, 1, 0, 0,
+        -sn, 0, c, 0,
+        0, 0, 0, 1);
+
+    float4x4 T = float4x4(
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        pos.x, pos.y, pos.z, 1);
+
+    _ObjectToWorld[id] = mul(T, mul(R, S));
+}
