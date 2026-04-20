@@ -52,7 +52,6 @@ MonoBehaviour:
   flatRadius: 20
   falloffDistance: 35
   chunkCount: 8
-  seed: 42
   splineSampleCount: 400
   authoringPathSplines: []
   authoringRiverSplines: []

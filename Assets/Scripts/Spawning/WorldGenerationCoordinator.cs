@@ -5,7 +5,7 @@ using UnityEditor;
 
 /// <summary>
 /// Defers terrain <see cref="TerrainGenerator"/> startup, runs <see cref="TerrainGenerator.Regenerate"/>, then spawns
-/// content after terrain is ready. Procedural spawn RNG uses <see cref="TerrainGenerator.seed"/>.
+/// content after terrain is ready. <see cref="seed"/> drives terrain procedural noise and spawn <see cref="Random"/> state.
 /// </summary>
 [DefaultExecutionOrder(-100)]
 public class WorldGenerationCoordinator : MonoBehaviour
@@ -16,6 +16,8 @@ public class WorldGenerationCoordinator : MonoBehaviour
     const string DefaultRockSpawnPath = "Assets/Data/Spawning/MainScene_RockSpawn.asset";
 
     [SerializeField] TerrainGenerator terrainGenerator;
+    [Tooltip("Deterministic world seed: pushed to terrain before generate and used for spawn RNG.")]
+    [SerializeField] int seed = 42;
     [SerializeField] SettlementSpawnConfig settlementSpawn;
     [SerializeField] TreeSpawnConfig treeSpawn;
     [SerializeField] BanditCampSpawnConfig banditCampSpawn;
@@ -64,7 +66,10 @@ public class WorldGenerationCoordinator : MonoBehaviour
 
         var gen = ResolveTerrain();
         if (gen != null)
+        {
+            gen.SetProceduralSeed(seed);
             gen.Regenerate();
+        }
     }
 
     void OnTerrainGenerated(TerrainGenerator _) => RunSpawnSequence();
@@ -78,7 +83,7 @@ public class WorldGenerationCoordinator : MonoBehaviour
         if (gen == null || !gen.IsTerrainReady)
             return;
 
-        Random.InitState(gen.seed);
+        Random.InitState(seed);
 
         _settlementSpawning.TrySpawnSettlements(settlementSpawn);
         _banditCampSpawning.SpawnCamps(banditCampSpawn);

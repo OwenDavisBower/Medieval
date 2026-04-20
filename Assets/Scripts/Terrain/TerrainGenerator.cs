@@ -73,8 +73,8 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Number of chunks along each axis (chunkCount × chunkCount).</summary>
     public int chunkCount = 8;
 
-    /// <summary>Deterministic noise seed.</summary>
-    public int seed = 42;
+    /// <summary>Noise / worm seed for the current pipeline run; set via <see cref="SetProceduralSeed"/> (e.g. from <c>WorldGenerationCoordinator</c>). Defaults to 42 when unset.</summary>
+    int _proceduralSeed = 42;
 
     [Header("Splines")]
     [SerializeField] int splineSampleCount = 400;
@@ -194,6 +194,9 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     /// <summary>Call from <see cref="MonoBehaviour.Awake"/> before this component's <see cref="Start"/> so initial generation can be driven by <see cref="WorldGenerationCoordinator"/>.</summary>
     public void DeferInitialPipeline() => _deferInitialPipeline = true;
+
+    /// <summary>Sets the deterministic seed used for height noise and worm splines on the next <see cref="RunPipeline"/> / <see cref="Regenerate"/>.</summary>
+    public void SetProceduralSeed(int value) => _proceduralSeed = value;
 
     /// <summary>Splat mask (R = path, G = rock, BA unused); null until <see cref="Regenerate"/> completes successfully.</summary>
     public Texture2D? SplatmapTexture => _splatmapTexture;
@@ -562,7 +565,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             maxHeightVariation,
             flatRadius,
             falloffDistance,
-            seed,
+            _proceduralSeed,
             transform.position,
             math.max(1e-4f, riverBedDepth),
             math.max(1e-4f, riverChannelHalfWidth),
@@ -627,7 +630,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     {
         return new NoiseWormSplineGenerator.Settings
         {
-            Seed = seed,
+            Seed = _proceduralSeed,
             WorldSize = worldSize,
             BoundaryMargin = wormBoundaryMargin,
             PathWormCount = generateWormPaths ? pathWormCount : 0,
