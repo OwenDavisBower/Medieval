@@ -3,102 +3,73 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// GPU rock instances: seeds in a structured buffer, matrices from compute, draw via <see cref="Graphics.RenderMeshIndirect"/>.
+/// Draws rock instances with <see cref="Graphics.RenderMeshInstanced"/> and per-instance
+/// <see cref="Matrix4x4"/> from seeds (avoids indirect-draw instance indexing issues with custom buffers).
 /// </summary>
 [DisallowMultipleComponent]
 public class RockIndirectRenderer : MonoBehaviour
 {
-    static readonly int RockObjectToWorldId = Shader.PropertyToID("_RockObjectToWorld");
-    static readonly int SeedsId = Shader.PropertyToID("_Seeds");
-    static readonly int ObjectToWorldId = Shader.PropertyToID("_ObjectToWorld");
-    static readonly int CountId = Shader.PropertyToID("_Count");
-    static readonly int TimeSecondsId = Shader.PropertyToID("_TimeSeconds");
-    static readonly int WindYawRadiansPerSecondId = Shader.PropertyToID("_WindYawRadiansPerSecond");
-
-    const int ThreadGroupSize = 64;
-    const string KernelBuildMatrices = "BuildMatrices";
-
     RockSpawnConfig _config;
-    GraphicsBuffer _seedsBuffer;
-    GraphicsBuffer _matricesBuffer;
-    GraphicsBuffer _argsBuffer;
-    MaterialPropertyBlock _mpb;
+    Matrix4x4[] _instanceMatrices;
+    RockInstanceSeed[] _seedSnapshot;
     Bounds _worldBounds;
     int _instanceCount;
     Mesh _mesh;
     Material _material;
-    ComputeShader _compute;
-    int _kernelBuild;
     bool _active;
-    bool _perFrameCompute;
+    bool _perFrameMatrices;
 
     void OnDestroy() => Shutdown();
 
     void OnDisable() => Unhook();
 
-    /// <summary>Build GPU buffers, dispatch compute, and start drawing. Safe to call again (releases previous).</summary>
+    /// <summary>Build instance matrices from seeds and start drawing. Safe to call again (releases previous).</summary>
     public void Initialize(RockSpawnConfig config, IReadOnlyList<RockInstanceSeed> seeds)
     {
         Shutdown();
 
         if (config == null || seeds == null || seeds.Count == 0)
             return;
-        if (config.RockMesh == null || config.RockMaterial == null || config.RocksInstanceCompute == null)
+        if (config.RockMesh == null || config.RockMaterial == null)
             return;
 
         _mesh = config.RockMesh;
         _material = config.RockMaterial;
-        _compute = config.RocksInstanceCompute;
         _config = config;
         _instanceCount = seeds.Count;
-
-        _kernelBuild = _compute.FindKernel(KernelBuildMatrices);
-        if (_kernelBuild < 0)
-        {
-            Debug.LogError("RocksInstance.compute must define kernel BuildMatrices.", this);
-            _mesh = null;
-            _material = null;
-            _compute = null;
-            _config = null;
-            _instanceCount = 0;
-            return;
-        }
-
-        _perFrameCompute = Mathf.Abs(config.WindRockYawRadiansPerSecond) > 1e-6f;
-
-        _seedsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, _instanceCount, RockInstanceSeed.Stride);
-        _matricesBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, _instanceCount, sizeof(float) * 16);
-        _argsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
-
-        var seedArray = new RockInstanceSeed[seeds.Count];
+        _seedSnapshot = new RockInstanceSeed[seeds.Count];
         for (int i = 0; i < seeds.Count; i++)
-            seedArray[i] = seeds[i];
-        _seedsBuffer.SetData(seedArray);
+            _seedSnapshot[i] = seeds[i];
 
-        var args = new GraphicsBuffer.IndirectDrawIndexedArgs
-        {
-            indexCountPerInstance = _mesh.GetIndexCount(0),
-            instanceCount = (uint)_instanceCount,
-            startIndex = _mesh.GetIndexStart(0),
-            baseVertexIndex = (uint)_mesh.GetBaseVertex(0),
-            startInstance = 0
-        };
-        _argsBuffer.SetData(new[] { args });
-
-        _compute.SetBuffer(_kernelBuild, SeedsId, _seedsBuffer);
-        _compute.SetBuffer(_kernelBuild, ObjectToWorldId, _matricesBuffer);
-        _compute.SetInt(CountId, _instanceCount);
-        _compute.SetFloat(WindYawRadiansPerSecondId, config.WindRockYawRadiansPerSecond);
-
-        _mpb = new MaterialPropertyBlock();
-        _mpb.SetBuffer(RockObjectToWorldId, _matricesBuffer);
+        _instanceMatrices = new Matrix4x4[_instanceCount];
+        _perFrameMatrices = Mathf.Abs(config.WindRockYawRadiansPerSecond) > 1e-6f;
+        RebuildMatrices(Time.time);
 
         float maxScale = config.MaxScale;
         _worldBounds = EncapsulateSeeds(seeds, _mesh, maxScale);
 
-        DispatchBuildMatrices();
         RenderPipelineManager.beginContextRendering += OnBeginContextRendering;
         _active = true;
+    }
+
+    void RebuildMatrices(float timeSeconds)
+    {
+        if (_seedSnapshot == null || _instanceMatrices == null)
+            return;
+        float wind = _config != null ? _config.WindRockYawRadiansPerSecond : 0f;
+        for (int i = 0; i < _instanceCount; i++)
+            _instanceMatrices[i] = MatrixFromSeed(in _seedSnapshot[i], timeSeconds, wind);
+    }
+
+    /// <summary>Matches <c>RocksInstance.compute</c> TRS: uniform scale, yaw about Y, then translation.</summary>
+    public static Matrix4x4 MatrixFromSeed(in RockInstanceSeed seed, float timeSeconds, float windYawRadiansPerSecond)
+    {
+        var py = seed.PositionAndYaw;
+        var pos = new Vector3(py.x, py.y, py.z);
+        float yawRad = py.w + timeSeconds * windYawRadiansPerSecond;
+        float scale = Mathf.Max(seed.ScaleAndPad.x, 1e-4f);
+        var rot = Quaternion.Euler(0f, yawRad * Mathf.Rad2Deg, 0f);
+        return Matrix4x4.TRS(pos, rot, new Vector3(scale, scale, scale));
     }
 
     static Bounds EncapsulateSeeds(IReadOnlyList<RockInstanceSeed> seeds, Mesh mesh, float maxScale)
@@ -119,23 +90,13 @@ public class RockIndirectRenderer : MonoBehaviour
         return new Bounds(center, size);
     }
 
-    void DispatchBuildMatrices()
-    {
-        if (_compute == null || _instanceCount == 0)
-            return;
-
-        _compute.SetFloat(TimeSecondsId, Time.time);
-        int groups = Mathf.CeilToInt(_instanceCount / (float)ThreadGroupSize);
-        _compute.Dispatch(_kernelBuild, groups, 1, 1);
-    }
-
     void OnBeginContextRendering(ScriptableRenderContext _, List<Camera> cameras)
     {
-        if (!_active || _mesh == null || _material == null || _argsBuffer == null)
+        if (!_active || _mesh == null || _material == null || _instanceMatrices == null)
             return;
 
-        if (_perFrameCompute)
-            DispatchBuildMatrices();
+        if (_perFrameMatrices)
+            RebuildMatrices(Time.time);
 
         for (int i = 0; i < cameras.Count; i++)
         {
@@ -150,11 +111,10 @@ public class RockIndirectRenderer : MonoBehaviour
                 worldBounds = _worldBounds,
                 shadowCastingMode = _config != null ? _config.ShadowCastingMode : ShadowCastingMode.On,
                 receiveShadows = _config == null || _config.ReceiveShadows,
-                lightProbeUsage = _config != null ? _config.LightProbeUsage : LightProbeUsage.Off,
-                matProps = _mpb
+                lightProbeUsage = _config != null ? _config.LightProbeUsage : LightProbeUsage.Off
             };
 
-            Graphics.RenderMeshIndirect(rp, _mesh, _argsBuffer);
+            Graphics.RenderMeshInstanced(in rp, _mesh, 0, _instanceMatrices, _instanceCount);
         }
     }
 
@@ -167,26 +127,8 @@ public class RockIndirectRenderer : MonoBehaviour
         _config = null;
         _mesh = null;
         _material = null;
-        _compute = null;
         _instanceCount = 0;
-        _mpb = null;
-
-        if (_seedsBuffer != null)
-        {
-            _seedsBuffer.Release();
-            _seedsBuffer = null;
-        }
-
-        if (_matricesBuffer != null)
-        {
-            _matricesBuffer.Release();
-            _matricesBuffer = null;
-        }
-
-        if (_argsBuffer != null)
-        {
-            _argsBuffer.Release();
-            _argsBuffer = null;
-        }
+        _instanceMatrices = null;
+        _seedSnapshot = null;
     }
 }

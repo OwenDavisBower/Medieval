@@ -63,8 +63,7 @@ public class SpawningCoordinator : MonoBehaviour
         _banditCampSpawning.SpawnCamps(banditCampSpawn);
         _treeSpawning.TrySpawnTrees(treeSpawn, treeSpawnParent);
 
-        if (rockSpawn != null && rockSpawn.RockMesh != null && rockSpawn.RockMaterial != null &&
-            rockSpawn.RocksInstanceCompute != null)
+        if (rockSpawn != null && rockSpawn.RockMesh != null && rockSpawn.RockMaterial != null)
         {
             var rockRenderer = GetComponent<RockIndirectRenderer>();
             if (rockRenderer == null)

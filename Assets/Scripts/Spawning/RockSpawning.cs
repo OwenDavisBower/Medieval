@@ -9,7 +9,7 @@ public class RockSpawning
     {
         if (_spawned || config == null || renderer == null)
             return;
-        if (config.RockMesh == null || config.RockMaterial == null || config.RocksInstanceCompute == null)
+        if (config.RockMesh == null || config.RockMaterial == null)
             return;
 
         var gen = TerrainGenerator.GetActiveOrFind();

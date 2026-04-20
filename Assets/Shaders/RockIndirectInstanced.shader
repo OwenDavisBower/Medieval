@@ -23,15 +23,14 @@ Shader "Universal Render Pipeline/RockIndirectInstanced"
             Cull Back
 
             HLSLPROGRAM
-            #pragma target 3.5
+            #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_instancing
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-
-            StructuredBuffer<float4x4> _RockObjectToWorld;
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor;
@@ -41,6 +40,7 @@ Shader "Universal Render Pipeline/RockIndirectInstanced"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS : NORMAL;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct Varyings
@@ -49,16 +49,15 @@ Shader "Universal Render Pipeline/RockIndirectInstanced"
                 float3 normalWS : TEXCOORD0;
             };
 
-            Varyings vert(Attributes v, uint instanceID : SV_InstanceID)
+            Varyings vert(Attributes input)
             {
-                float4x4 otw = _RockObjectToWorld[instanceID];
-                float3 posWS = mul(otw, float4(v.positionOS.xyz, 1.0)).xyz;
-                float3x3 rot = (float3x3)otw;
-                float3 nWS = normalize(mul(rot, v.normalOS));
+                UNITY_SETUP_INSTANCE_ID(input);
+                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                float3 normalWS = TransformObjectToWorldDir(input.normalOS, true);
 
                 Varyings o;
-                o.positionCS = TransformWorldToHClip(posWS);
-                o.normalWS = nWS;
+                o.positionCS = TransformWorldToHClip(positionWS);
+                o.normalWS = normalWS;
                 return o;
             }
 
@@ -83,17 +82,17 @@ Shader "Universal Render Pipeline/RockIndirectInstanced"
             Cull Back
 
             HLSLPROGRAM
-            #pragma target 3.5
+            #pragma target 4.5
             #pragma vertex vertShadow
             #pragma fragment fragShadow
+            #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-
-            StructuredBuffer<float4x4> _RockObjectToWorld;
 
             struct Attributes
             {
                 float4 positionOS : POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct Varyings
@@ -101,10 +100,10 @@ Shader "Universal Render Pipeline/RockIndirectInstanced"
                 float4 positionCS : SV_POSITION;
             };
 
-            Varyings vertShadow(Attributes v, uint instanceID : SV_InstanceID)
+            Varyings vertShadow(Attributes input)
             {
-                float4x4 otw = _RockObjectToWorld[instanceID];
-                float3 positionWS = mul(otw, float4(v.positionOS.xyz, 1.0)).xyz;
+                UNITY_SETUP_INSTANCE_ID(input);
+                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
                 Varyings o;
                 o.positionCS = TransformWorldToHClip(positionWS);
                 return o;

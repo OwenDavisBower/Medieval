@@ -10,7 +10,7 @@ public class RockSpawnConfig : ScriptableObject
     const string DefaultComputePath = "Assets/Shaders/RocksInstance.compute";
 
     [SerializeField] Mesh rockMesh;
-    [Tooltip("Must use shader Universal Render Pipeline/RockIndirectInstanced (StructuredBuffer _RockObjectToWorld).")]
+    [Tooltip("Must use shader Universal Render Pipeline/RockIndirectInstanced (GPU instancing + RenderMeshInstanced).")]
     [SerializeField] Material rockMaterial;
     [SerializeField] ComputeShader rocksInstanceCompute;
     [SerializeField] int rockCount = 64;

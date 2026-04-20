@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using UnityEngine;
 
-/// <summary>GPU-packed seed for one rock instance (matches <c>RocksInstance.compute</c>).</summary>
+/// <summary>Seed for one rock instance (layout still matches <c>RocksInstance.compute</c> if used elsewhere).</summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct RockInstanceSeed
 {
