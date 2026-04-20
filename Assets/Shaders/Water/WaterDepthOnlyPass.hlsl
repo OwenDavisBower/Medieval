@@ -34,10 +34,7 @@ Varyings DepthOnlyVertex(Attributes input)
         output.uv = TRANSFORM_TEX(input.texcoord, _BaseMap);
         ApplyWaterScrollY(output.uv);
     #endif
-    float3 positionWS = TransformObjectToWorld(input.position.xyz);
-    float3 waveN;
-    ApplyWaterWavesWorldSpace(positionWS, waveN);
-    output.positionCS = TransformWorldToHClip(positionWS);
+    output.positionCS = TransformObjectToHClip(input.position.xyz);
     return output;
 }
 

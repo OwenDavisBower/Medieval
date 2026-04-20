@@ -32,10 +32,6 @@ half _DetailAlbedoMapScale;
 half _DetailNormalMapScale;
 half _Surface;
 half _ScrollSpeedY;
-half _WaveAmplitude;
-half _WaveFrequency;
-half _WaveSpeed;
-half _WaveSecondaryAmp;
 UNITY_TEXTURE_STREAMING_DEBUG_VARS;
 CBUFFER_END
 
@@ -297,7 +293,5 @@ void ApplyWaterScrollY(inout float2 uv)
 {
     uv.y += _Time.y * _ScrollSpeedY;
 }
-
-#include "WaterWaves.hlsl"
 
 #endif // WATER_LIT_INPUT_INCLUDED

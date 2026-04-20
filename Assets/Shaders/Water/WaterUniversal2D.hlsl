@@ -22,8 +22,7 @@ Varyings vert(Attributes input)
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_TRANSFER_INSTANCE_ID(input, output);
 
-    float3 positionOS = ApplyWaterWavesObjectSpace(input.positionOS.xyz);
-    VertexPositionInputs vertexInput = GetVertexPositionInputs(positionOS);
+    VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS.xyz);
     output.vertex = vertexInput.positionCS;
     output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
     ApplyWaterScrollY(output.uv);

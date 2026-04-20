@@ -36,15 +36,6 @@ namespace Medieval.Editor
         static readonly GUIContent s_ScrollSpeedY = EditorGUIUtility.TrTextContent("Scroll Speed Y",
             "Scrolling speed for the base UV (V direction). Multiplied by shader time.");
 
-        static readonly GUIContent s_WaveAmplitude = EditorGUIUtility.TrTextContent("Wave Amplitude",
-            "Vertical displacement strength for procedural vertex waves.");
-        static readonly GUIContent s_WaveFrequency = EditorGUIUtility.TrTextContent("Wave Frequency",
-            "Spatial frequency of the wave pattern (world-space XZ).");
-        static readonly GUIContent s_WaveSpeed = EditorGUIUtility.TrTextContent("Wave Speed",
-            "Animation speed multiplier for waves.");
-        static readonly GUIContent s_WaveSecondaryAmp = EditorGUIUtility.TrTextContent("Secondary Wave",
-            "Relative strength of the second cross-direction wave for variation.");
-
         LitGUI.LitProperties m_LitProperties;
 
         MaterialProperty m_DetailMask;
@@ -54,10 +45,6 @@ namespace Medieval.Editor
         MaterialProperty m_DetailNormalMap;
 
         MaterialProperty m_ScrollSpeedY;
-        MaterialProperty m_WaveAmplitude;
-        MaterialProperty m_WaveFrequency;
-        MaterialProperty m_WaveSpeed;
-        MaterialProperty m_WaveSecondaryAmp;
 
         public override void FindProperties(MaterialProperty[] properties)
         {
@@ -69,10 +56,6 @@ namespace Medieval.Editor
             m_DetailNormalMapScale = FindProperty("_DetailNormalMapScale", properties, false);
             m_DetailNormalMap = FindProperty("_DetailNormalMap", properties, false);
             m_ScrollSpeedY = FindProperty("_ScrollSpeedY", properties, false);
-            m_WaveAmplitude = FindProperty("_WaveAmplitude", properties, false);
-            m_WaveFrequency = FindProperty("_WaveFrequency", properties, false);
-            m_WaveSpeed = FindProperty("_WaveSpeed", properties, false);
-            m_WaveSecondaryAmp = FindProperty("_WaveSecondaryAmp", properties, false);
         }
 
         public override void FillAdditionalFoldouts(MaterialHeaderScopeList materialScopesList)
@@ -136,14 +119,6 @@ namespace Medieval.Editor
             DrawTileOffset(materialEditor, baseMapProp);
             if (m_ScrollSpeedY != null)
                 materialEditor.ShaderProperty(m_ScrollSpeedY, s_ScrollSpeedY);
-            if (m_WaveAmplitude != null)
-                materialEditor.ShaderProperty(m_WaveAmplitude, s_WaveAmplitude);
-            if (m_WaveFrequency != null)
-                materialEditor.ShaderProperty(m_WaveFrequency, s_WaveFrequency);
-            if (m_WaveSpeed != null)
-                materialEditor.ShaderProperty(m_WaveSpeed, s_WaveSpeed);
-            if (m_WaveSecondaryAmp != null)
-                materialEditor.ShaderProperty(m_WaveSecondaryAmp, s_WaveSecondaryAmp);
         }
 
         public override void DrawAdvancedOptions(Material material)

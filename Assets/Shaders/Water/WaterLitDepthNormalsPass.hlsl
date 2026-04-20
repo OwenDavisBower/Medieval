@@ -65,37 +65,25 @@ Varyings DepthNormalsVertex(Attributes input)
         output.uv = TRANSFORM_TEX(input.texcoord, _BaseMap);
         ApplyWaterScrollY(output.uv);
     #endif
+    output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
 
-    float3 positionOS = input.positionOS.xyz;
+    VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS.xyz);
     VertexNormalInputs normalInput = GetVertexNormalInputs(input.normal, input.tangentOS);
-    float3 positionWS = TransformObjectToWorld(positionOS);
-    float3 waveNormalWS;
-    ApplyWaterWavesWorldSpace(positionWS, waveNormalWS);
-    positionOS = TransformWorldToObject(positionWS);
 
-#if defined(REQUIRES_WORLD_SPACE_TANGENT_INTERPOLATOR) || defined(REQUIRES_TANGENT_SPACE_VIEW_DIR_INTERPOLATOR)
-    float sign = input.tangentOS.w * float(GetOddNegativeScale());
-    float3 tWS = normalInput.tangentWS;
-    float3 tCorr = normalize(tWS - dot(tWS, waveNormalWS) * waveNormalWS);
-    half4 tangentWS = half4(tCorr, sign);
-#endif
+    output.normalWS = half3(normalInput.normalWS);
+    #if defined(REQUIRES_WORLD_SPACE_TANGENT_INTERPOLATOR) || defined(REQUIRES_TANGENT_SPACE_VIEW_DIR_INTERPOLATOR)
+        float sign = input.tangentOS.w * float(GetOddNegativeScale());
+        half4 tangentWS = half4(normalInput.tangentWS.xyz, sign);
+    #endif
 
-    output.positionCS = TransformObjectToHClip(positionOS.xyz);
-
-    VertexPositionInputs vertexInput = GetVertexPositionInputs(positionOS);
-
-    output.normalWS = half3(waveNormalWS);
     #if defined(REQUIRES_WORLD_SPACE_TANGENT_INTERPOLATOR)
         output.tangentWS = tangentWS;
     #endif
 
     #if defined(REQUIRES_TANGENT_SPACE_VIEW_DIR_INTERPOLATOR)
         half3 viewDirWS = GetWorldSpaceNormalizeViewDir(vertexInput.positionWS);
-        half3 viewDirTS = GetViewDirectionTangentSpace(tangentWS, waveNormalWS, viewDirWS);
+        half3 viewDirTS = GetViewDirectionTangentSpace(tangentWS, output.normalWS, viewDirWS);
         output.viewDirTS = viewDirTS;
-        output.viewDirWS = viewDirWS;
-    #else
-        output.viewDirWS = half3(GetWorldSpaceNormalizeViewDir(vertexInput.positionWS));
     #endif
 
     return output;

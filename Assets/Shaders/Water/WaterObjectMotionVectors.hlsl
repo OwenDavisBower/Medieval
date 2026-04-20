@@ -63,15 +63,7 @@ Varyings vert(Attributes input)
     UNITY_TRANSFER_INSTANCE_ID(input, output);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-    float3 baseOS = input.position.xyz;
-    float3 baseWS = TransformObjectToWorld(baseOS);
-    float3 waveN;
-
-    float3 curWS = baseWS;
-    ApplyWaterWavesWorldSpaceAtTime(curWS, waveN, _Time.y);
-    float3 positionOS = TransformWorldToObject(curWS);
-
-    const VertexPositionInputs vertexInput = GetVertexPositionInputs(positionOS);
+    const VertexPositionInputs vertexInput = GetVertexPositionInputs(input.position.xyz);
 
     #if defined(_ALPHATEST_ON)
         output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
@@ -80,18 +72,15 @@ Varyings vert(Attributes input)
 
 #if defined(APPLICATION_SPACE_WARP_MOTION)
     // We do not need jittered position in ASW
-    output.positionCSNoJitter = mul(_NonJitteredViewProjMatrix, mul(UNITY_MATRIX_M, float4(positionOS, 1.0)));
+    output.positionCSNoJitter = mul(_NonJitteredViewProjMatrix, mul(UNITY_MATRIX_M, input.position));;
     output.positionCS = output.positionCSNoJitter;
 #else
     // Jittered. Match the frame.
     output.positionCS = vertexInput.positionCS;
-    output.positionCSNoJitter = mul(_NonJitteredViewProjMatrix, mul(UNITY_MATRIX_M, float4(positionOS, 1.0)));
+    output.positionCSNoJitter = mul(_NonJitteredViewProjMatrix, mul(UNITY_MATRIX_M, input.position));
 #endif
 
-    float4 prevPos = (unity_MotionVectorsParams.x == 1) ? float4(input.positionOld, 1) : float4(baseOS, 1);
-    float3 prevBaseWS = TransformObjectToWorld(prevPos.xyz);
-    ApplyWaterWavesWorldSpaceAtTime(prevBaseWS, waveN, _Time.y - unity_DeltaTime.x);
-    prevPos = float4(TransformWorldToObject(prevBaseWS), 1.0);
+    float4 prevPos = (unity_MotionVectorsParams.x == 1) ? float4(input.positionOld, 1) : input.position;
 
 #if _ADD_PRECOMPUTED_VELOCITY
     prevPos = prevPos - float4(input.alembicMotionVector, 0);
