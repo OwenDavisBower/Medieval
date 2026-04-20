@@ -40,7 +40,11 @@ public class FollowCam : MonoBehaviour
 
         Vector3 desired = target.position + offset;
         float t = 1f - Mathf.Exp(-smooth * Time.deltaTime);
-        transform.position = Vector3.Lerp(transform.position, desired, t);
+        Vector3 pos = transform.position;
+        pos.x = desired.x;
+        pos.y = Mathf.Lerp(pos.y, desired.y, t);
+        pos.z = Mathf.Lerp(pos.z, desired.z, t);
+        transform.position = pos;
 
         Vector3 look = target.position + Vector3.up * lookAtHeight;
         transform.LookAt(look);
