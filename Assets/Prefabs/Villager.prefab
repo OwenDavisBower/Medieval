@@ -139,6 +139,7 @@ GameObject:
   - component: {fileID: 8820116209973403167}
   - component: {fileID: 991191335029085902}
   - component: {fileID: 8499884164486643627}
+  - component: {fileID: 557766021}
   m_Layer: 0
   m_Name: Villager
   m_TagString: Untagged
@@ -319,6 +320,19 @@ MonoBehaviour:
   m_IgnoreFromBuild: 1
   m_ApplyToChildren: 1
   m_AffectedAgents: ffffffff
+--- !u!114 &557766021
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3b4a5968778695a4b3c2d1e0f1a2b3c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Affiliation
+  faction: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770003, type: 2}
 --- !u!1001 &4665535235119326348
 PrefabInstance:
   m_ObjectHideFlags: 0

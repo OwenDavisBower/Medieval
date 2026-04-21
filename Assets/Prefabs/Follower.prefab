@@ -253,6 +253,8 @@ GameObject:
   - component: {fileID: 881191335029085900}
   - component: {fileID: 991191335029085903}
   - component: {fileID: 5555830013420853836}
+  - component: {fileID: 557766011}
+  - component: {fileID: 557766012}
   m_Layer: 0
   m_Name: Follower
   m_TagString: Untagged
@@ -480,6 +482,38 @@ MonoBehaviour:
   m_IgnoreFromBuild: 1
   m_ApplyToChildren: 1
   m_AffectedAgents: ffffffff
+--- !u!114 &557766011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3b4a5968778695a4b3c2d1e0f1a2b3c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Affiliation
+  faction: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770001, type: 2}
+--- !u!114 &557766012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4a5968778695a4b3c2d1e0f1a2b3c4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetFinder
+  targetLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  scanRadius: 50
+  scanInterval: 0.2
+  overlapBufferSize: 48
+  periodicScanInUpdate: 0
 --- !u!1001 &864812465427588103
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -11,6 +11,8 @@ public sealed class TargetFinder : MonoBehaviour
     [SerializeField] float scanRadius = 12f;
     [SerializeField, Min(0.02f)] float scanInterval = 0.2f;
     [SerializeField, Min(1)] int overlapBufferSize = 32;
+    [Tooltip("When false, only ScanNow() runs scans (e.g. combat FixedUpdate or tower fire tick).")]
+    [SerializeField] bool periodicScanInUpdate = true;
 
     Affiliation _selfAffiliation;
     Collider[] _overlapBuffer;
@@ -29,6 +31,9 @@ public sealed class TargetFinder : MonoBehaviour
 
     void Update()
     {
+        if (!periodicScanInUpdate)
+            return;
+
         if (Time.time < _nextScanTime)
             return;
 

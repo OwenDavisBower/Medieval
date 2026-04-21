@@ -34,6 +34,7 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
     protected bool IsRanged { get; private set; } = true;
 
     Rigidbody _rigidbody;
+    TargetFinder _targetFinder;
 
     protected virtual void Awake()
     {
@@ -55,6 +56,34 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
         Ranged = GetComponent<RangedCombat>();
         Melee = GetComponent<MeleeCombat>();
         Character = GetComponent<Character>();
+        _targetFinder = GetComponent<TargetFinder>();
+    }
+
+    /// <summary>
+    /// When a <see cref="TargetFinder"/> is present, runs a faction scan and returns the closest enemy
+    /// within aggro radius with line of sight. Otherwise returns null.
+    /// </summary>
+    protected Transform TrySelectEnemyViaFactionFinder()
+    {
+        if (_targetFinder == null)
+            return null;
+
+        _targetFinder.ScanNow();
+        Transform candidate = _targetFinder.CurrentEnemyTarget;
+        if (candidate == null)
+            return null;
+
+        Character other = candidate.GetComponentInParent<Character>();
+        if (other != null && other.IsDead)
+            return null;
+
+        if (SpatialMath.FlatSqrDistance(transform.position, candidate.position) > AggroRadiusSqr)
+            return null;
+
+        if (!HasLineOfSightTo(candidate))
+            return null;
+
+        return candidate;
     }
 
     /// <summary>Call once after spawn: ranged (bow) or melee, never both.</summary>

@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Fires physics arrows at the nearest bandit in range with clear line of sight (same projectile flow as <see cref="RangedCombat"/>).
+/// Fires physics arrows at the nearest faction enemy in range with clear line of sight (same projectile flow as <see cref="RangedCombat"/>).
+/// Uses <see cref="TargetFinder"/> when present; otherwise falls back to <see cref="BanditController"/> registry.
 /// </summary>
 public class WatchTowerArrowDefense : MonoBehaviour
 {
@@ -22,10 +23,12 @@ public class WatchTowerArrowDefense : MonoBehaviour
 
     Collider _ownerCollider;
     float _nextFireTime;
+    TargetFinder _targetFinder;
 
     void Awake()
     {
         _ownerCollider = GetComponent<Collider>();
+        _targetFinder = GetComponent<TargetFinder>();
     }
 
     void Update()
@@ -33,7 +36,7 @@ public class WatchTowerArrowDefense : MonoBehaviour
         if (arrowPrefab == null || Time.time < _nextFireTime)
             return;
 
-        BanditController target = FindBanditToShoot();
+        Transform target = FindEnemyToShoot();
         if (target == null)
             return;
 
@@ -45,10 +48,29 @@ public class WatchTowerArrowDefense : MonoBehaviour
         }
     }
 
-    BanditController FindBanditToShoot()
+    Transform FindEnemyToShoot()
     {
         float rangeSq = combatRange * combatRange;
-        BanditController best = null;
+
+        if (_targetFinder != null)
+        {
+            _targetFinder.ScanNow();
+            Transform candidate = _targetFinder.CurrentEnemyTarget;
+            if (candidate != null)
+            {
+                Character ch = candidate.GetComponentInParent<Character>();
+                if (ch == null || !ch.IsDead)
+                {
+                    float sq = SpatialMath.FlatSqrDistance(transform.position, candidate.position);
+                    if (sq <= rangeSq &&
+                        LineOfSightUtility.HasClearLineOfSight(transform.position, candidate, eyeHeight, targetAimHeight,
+                            obstacleLayers, transform.root))
+                        return candidate;
+                }
+            }
+        }
+
+        BanditController bestBandit = null;
         float bestSq = float.MaxValue;
 
         BanditController[] bandits = CombatUnitRegistry.GetBandits();
@@ -70,20 +92,20 @@ public class WatchTowerArrowDefense : MonoBehaviour
                     obstacleLayers, transform.root))
                 continue;
 
-            best = b;
+            bestBandit = b;
             bestSq = sq;
         }
 
-        return best;
+        return bestBandit != null ? bestBandit.transform : null;
     }
 
-    bool TryFireAt(BanditController target)
+    bool TryFireAt(Transform target)
     {
         Vector2 spawnXz = spawnRadius > 0f ? Random.insideUnitCircle * spawnRadius : Vector2.zero;
         Vector3 towerBase = transform.position;
         Vector3 origin = towerBase + new Vector3(spawnXz.x, launchHeight, spawnXz.y);
 
-        Vector3 aimBase = target.transform.position + Vector3.up * targetAimHeight;
+        Vector3 aimBase = target.position + Vector3.up * targetAimHeight;
         Vector3 vH = HorizontalVelocity(target);
 
         Vector3 aim = aimBase;
@@ -122,11 +144,11 @@ public class WatchTowerArrowDefense : MonoBehaviour
         return true;
     }
 
-    static Vector3 HorizontalVelocity(BanditController bandit)
+    static Vector3 HorizontalVelocity(Transform target)
     {
-        if (bandit == null)
+        if (target == null)
             return Vector3.zero;
-        var rb = bandit.GetComponent<Rigidbody>();
+        var rb = target.GetComponentInParent<Rigidbody>();
         if (rb == null)
             return Vector3.zero;
         Vector3 v = rb.linearVelocity;

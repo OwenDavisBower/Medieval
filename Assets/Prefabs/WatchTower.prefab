@@ -12,6 +12,8 @@ GameObject:
   - component: {fileID: 4758664575857978111}
   - component: {fileID: 882233445566778899}
   - component: {fileID: -282048062374667439}
+  - component: {fileID: 557766031}
+  - component: {fileID: 557766032}
   m_Layer: 0
   m_Name: WatchTower
   m_TagString: Untagged
@@ -81,6 +83,38 @@ MonoBehaviour:
   obstacleLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &557766031
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2811835333203006354}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3b4a5968778695a4b3c2d1e0f1a2b3c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Affiliation
+  faction: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770003, type: 2}
+--- !u!114 &557766032
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2811835333203006354}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4a5968778695a4b3c2d1e0f1a2b3c4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetFinder
+  targetLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  scanRadius: 20
+  scanInterval: 0.2
+  overlapBufferSize: 32
+  periodicScanInUpdate: 0
 --- !u!208 &-282048062374667439
 NavMeshObstacle:
   m_ObjectHideFlags: 0

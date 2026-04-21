@@ -26,6 +26,10 @@ public class BanditController : CombatSeekControllerBase
 
     protected override Transform FindCombatTarget()
     {
+        Transform viaFaction = TrySelectEnemyViaFactionFinder();
+        if (viaFaction != null)
+            return viaFaction;
+
         float aggroSq = AggroRadiusSqr;
         Transform best = null;
         float bestSq = float.MaxValue;
