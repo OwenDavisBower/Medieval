@@ -13,7 +13,9 @@ Usage:
   If output is omitted, writes alongside the input as <name>_<target>poly<.ext>
   (e.g. pine01.fbx 500 → pine01_500poly.fbx).
 
-Static meshes are the intended use case; rigged setups are not specially handled.
+Rigged FBX: armatures are not edited. The join step uses a mesh that already has an
+Armature modifier (or is parented to an armature) as the active object so the merged
+mesh keeps skinning; all armatures in the file are re-exported with unchanged data.
 """
 
 from __future__ import annotations
@@ -59,6 +61,42 @@ def _add_apply_decimate(bpy, obj, ratio: float) -> None:
     bpy.ops.object.modifier_apply(modifier=mod.name)
 
 
+def _find_target_armature(meshes: list) -> object | None:
+    """Armature used for skinning, if any (join keeps Armature modifier only from the active mesh)."""
+    for m in meshes:
+        for mod in m.modifiers:
+            if mod.type == "ARMATURE" and getattr(mod, "object", None):
+                return mod.object
+    for m in meshes:
+        if m.parent and m.parent.type == "ARMATURE":
+            return m.parent
+    return None
+
+
+def _mesh_for_join_active(meshes: list, target_armature: object | None):
+    """Pick active mesh for join() so Armature modifier survives when possible."""
+    if target_armature is None:
+        return meshes[0]
+    for m in meshes:
+        for mod in m.modifiers:
+            if mod.type == "ARMATURE" and getattr(mod, "object", None) == target_armature:
+                return m
+    for m in meshes:
+        if m.parent == target_armature:
+            return m
+    return meshes[0]
+
+
+def _ensure_armature_modifier(merged, target_armature) -> None:
+    if target_armature is None:
+        return
+    for mod in merged.modifiers:
+        if mod.type == "ARMATURE" and mod.object == target_armature:
+            return
+    mod = merged.modifiers.new(name="Armature", type="ARMATURE")
+    mod.object = target_armature
+
+
 def main() -> None:
     try:
         import bpy  # type: ignore[import-untyped]
@@ -95,17 +133,23 @@ def main() -> None:
 
     meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
     if not meshes:
-        raise SystemExit(f"No mesh objects found in: {input_path}")
+        raise SystemExit(f"No mesh objects found in {input_path}")
+
+    armatures = [o for o in bpy.context.scene.objects if o.type == "ARMATURE"]
+    target_armature = _find_target_armature(meshes)
+    join_active = _mesh_for_join_active(meshes, target_armature)
 
     bpy.ops.object.select_all(action="DESELECT")
     for obj in meshes:
         obj.select_set(True)
-    bpy.context.view_layer.objects.active = meshes[0]
+    bpy.context.view_layer.objects.active = join_active
     bpy.ops.object.join()
 
     merged = bpy.context.view_layer.objects.active
     if merged is None or merged.type != "MESH":
         raise SystemExit("Join failed: no active mesh object.")
+
+    _ensure_armature_modifier(merged, target_armature)
 
     current = _face_count(merged)
     if current == 0:
@@ -114,14 +158,20 @@ def main() -> None:
     ratio = min(1.0, max(1e-6, float(target_faces) / float(current)))
     _add_apply_decimate(bpy, merged, ratio)
 
+    _ensure_armature_modifier(merged, target_armature)
+
     bpy.ops.object.select_all(action="DESELECT")
     merged.select_set(True)
+    scene_objs = set(bpy.context.scene.objects)
+    for arm in armatures:
+        if arm in scene_objs:
+            arm.select_set(True)
     bpy.context.view_layer.objects.active = merged
 
     bpy.ops.export_scene.fbx(
         filepath=output_fbx,
         use_selection=True,
-        object_types={"MESH"},
+        object_types={"MESH", "ARMATURE"},
         apply_scale_options="FBX_SCALE_ALL",
         add_leaf_bones=False,
         primary_bone_axis="Y",
