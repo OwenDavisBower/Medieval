@@ -339,6 +339,132 @@ public sealed class TerrainGenerator : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Blends village footpaths into splat R (same 8 m falloff as <see cref="SplatmapPainter"/>). Only updates splat texels inside the path bounds.
+    /// Call after structures are placed; safe to call multiple times (max-combines with existing path).
+    /// </summary>
+    public void ApplySettlementPathSplatOverlay(
+        IReadOnlyList<Vector2> ringCentersWorldXz,
+        IReadOnlyList<float> ringRadiiWorld,
+        IReadOnlyList<List<Vector2>> corridorPolylinesWorldXz)
+    {
+        if (!_splatmapRgba.IsCreated || _splatmapRgba.Length < SplatmapResolution * SplatmapResolution * 4)
+            return;
+        if (ringCentersWorldXz.Count != ringRadiiWorld.Count)
+            return;
+
+        const float pathFalloffWorld = 8f;
+        const float splatPathSmoothLow = 8f;
+        const float splatPathSmoothHigh = 0f;
+
+        var ox = transform.position.x;
+        var oz = transform.position.z;
+        var ws = worldSize;
+        var res = SplatmapResolution;
+
+        float wxMin = float.PositiveInfinity, wxMax = float.NegativeInfinity;
+        float wzMin = float.PositiveInfinity, wzMax = float.NegativeInfinity;
+
+        void GrowBounds(float x, float z, float pad)
+        {
+            wxMin = Mathf.Min(wxMin, x - pad);
+            wxMax = Mathf.Max(wxMax, x + pad);
+            wzMin = Mathf.Min(wzMin, z - pad);
+            wzMax = Mathf.Max(wzMax, z + pad);
+        }
+
+        for (var i = 0; i < ringCentersWorldXz.Count; i++)
+        {
+            var c = ringCentersWorldXz[i];
+            var r = ringRadiiWorld[i];
+            GrowBounds(c.x, c.y, r + pathFalloffWorld);
+        }
+
+        for (var p = 0; p < corridorPolylinesWorldXz.Count; p++)
+        {
+            var chain = corridorPolylinesWorldXz[p];
+            if (chain == null)
+                continue;
+            for (var k = 0; k < chain.Count; k++)
+                GrowBounds(chain[k].x, chain[k].y, pathFalloffWorld);
+        }
+
+        if (float.IsInfinity(wxMin))
+            return;
+
+        float half = ws * 0.5f;
+        wxMin = Mathf.Clamp(wxMin, ox - half, ox + half);
+        wxMax = Mathf.Clamp(wxMax, ox - half, ox + half);
+        wzMin = Mathf.Clamp(wzMin, oz - half, oz + half);
+        wzMax = Mathf.Clamp(wzMax, oz - half, oz + half);
+
+        float ToIx(float wx) => res * ((wx - ox) / ws + 0.5f) - 0.5f;
+        float ToIz(float wz) => res * ((wz - oz) / ws + 0.5f) - 0.5f;
+
+        var ix0 = Mathf.Clamp((int)Mathf.Floor(Mathf.Min(ToIx(wxMin), ToIx(wxMax))), 0, res - 1);
+        var ix1 = Mathf.Clamp((int)Mathf.Ceil(Mathf.Max(ToIx(wxMin), ToIx(wxMax))), 0, res - 1);
+        var iz0 = Mathf.Clamp((int)Mathf.Floor(Mathf.Min(ToIz(wzMin), ToIz(wzMax))), 0, res - 1);
+        var iz1 = Mathf.Clamp((int)Mathf.Ceil(Mathf.Max(ToIz(wzMin), ToIz(wzMax))), 0, res - 1);
+
+        for (var iz = iz0; iz <= iz1; iz++)
+        {
+            var wz = oz + ((iz + 0.5f) / res - 0.5f) * ws;
+            for (var ix = ix0; ix <= ix1; ix++)
+            {
+                var wx = ox + ((ix + 0.5f) / res - 0.5f) * ws;
+                var p = new Vector2(wx, wz);
+
+                var minD = float.PositiveInfinity;
+
+                for (var r = 0; r < ringCentersWorldXz.Count; r++)
+                {
+                    var c = ringCentersWorldXz[r];
+                    var rad = ringRadiiWorld[r];
+                    var ringD = Mathf.Abs(Vector2.Distance(p, c) - rad);
+                    minD = Mathf.Min(minD, ringD);
+                }
+
+                for (var cIdx = 0; cIdx < corridorPolylinesWorldXz.Count; cIdx++)
+                {
+                    var chain = corridorPolylinesWorldXz[cIdx];
+                    if (chain == null || chain.Count < 2)
+                        continue;
+                    for (var j = 0; j < chain.Count - 1; j++)
+                        minD = Mathf.Min(minD, DistancePointSegmentXz(p, chain[j], chain[j + 1]));
+                }
+
+                if (float.IsInfinity(minD))
+                    continue;
+
+                var w = Mathf.SmoothStep(splatPathSmoothLow, splatPathSmoothHigh, minD);
+                if (w <= 1e-5f)
+                    continue;
+
+                var baseIndex = (iz * res + ix) * 4;
+                var prev = _splatmapRgba[baseIndex];
+                _splatmapRgba[baseIndex] = Mathf.Max(prev, w);
+            }
+        }
+
+        if (_splatmapTexture != null)
+        {
+            _splatmapTexture.SetPixelData(_splatmapRgba, 0);
+            _splatmapTexture.Apply(false, false);
+        }
+
+        if (terrainMaterial != null && _splatmapTexture != null)
+            terrainMaterial.SetTexture("_SplatmapTex", _splatmapTexture);
+    }
+
+    static float DistancePointSegmentXz(Vector2 p, Vector2 a, Vector2 b)
+    {
+        var ab = b - a;
+        var denom = ab.sqrMagnitude;
+        var t = denom > 1e-8f ? Mathf.Clamp01(Vector2.Dot(p - a, ab) / denom) : 0f;
+        var closest = a + ab * t;
+        return Vector2.Distance(p, closest);
+    }
+
     void OnEnable()
     {
         Instance = this;
