@@ -18,7 +18,7 @@ public struct FactionRelationshipEntry
 [CreateAssetMenu(fileName = "FactionRelationshipTable", menuName = "Medieval/Factions/Faction Relationship Table")]
 public class FactionRelationshipTable : ScriptableObject
 {
-    [Tooltip("Used when rebuilding the matrix if a pair is not covered by explicit entries or bootstrap rules.")]
+    [Tooltip("Used when rebuilding the matrix if a pair is not covered by explicit entries.")]
     [SerializeField] Relationship defaultBetweenUnlisted = Relationship.Neutral;
 
     [Tooltip("Optional fixed capacity for the runtime matrix (max exclusive index). If 0, capacity is inferred from IDs.")]

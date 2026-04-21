@@ -3,7 +3,8 @@ using UnityEngine;
 
 /// <summary>
 /// Global faction relationship service. Builds a dense symmetric matrix from a <see cref="FactionRelationshipTable"/>
-/// and optional bootstrap assignments so <see cref="GetRelationship"/> is O(1). Runtime edits apply immediately.
+/// plus registered factions so their ids are included in capacity; <see cref="GetRelationship"/> is O(1).
+/// Runtime edits apply immediately.
 /// </summary>
 public sealed class FactionManager : MonoBehaviour
 {
@@ -11,10 +12,8 @@ public sealed class FactionManager : MonoBehaviour
 
     [Header("Data")]
     [SerializeField] FactionRelationshipTable relationshipTable;
-    [Tooltip("If null, bootstrap rules below are skipped (table-only init).")]
-    [SerializeField] FactionDefinition playerFaction;
-    [SerializeField] FactionDefinition banditFaction;
-    [SerializeField] FactionDefinition villagerFaction;
+    [Tooltip("Factions to include in matrix sizing (e.g. all factions used in the scene). Null entries are ignored.")]
+    [SerializeField] List<FactionDefinition> registeredFactions = new List<FactionDefinition>();
 
     [Header("Lifecycle")]
     [SerializeField] bool dontDestroyOnLoad = true;
@@ -23,9 +22,7 @@ public sealed class FactionManager : MonoBehaviour
     int _size;
     Relationship _defaultNeutral;
 
-    public FactionDefinition PlayerFaction => playerFaction;
-    public FactionDefinition BanditFaction => banditFaction;
-    public FactionDefinition VillagerFaction => villagerFaction;
+    public IReadOnlyList<FactionDefinition> RegisteredFactions => registeredFactions;
 
     void OnEnable()
     {
@@ -40,7 +37,7 @@ public sealed class FactionManager : MonoBehaviour
         if (dontDestroyOnLoad)
             DontDestroyOnLoad(gameObject);
 
-        RebuildMatrixFromTableAndBootstrap();
+        RebuildRelationshipMatrix();
     }
 
     void OnDisable()
@@ -49,16 +46,18 @@ public sealed class FactionManager : MonoBehaviour
             Instance = null;
     }
 
-    /// <summary>Rebuilds the internal matrix from the serialized table and default faction bootstrap.</summary>
-    public void RebuildMatrixFromTableAndBootstrap()
+    /// <summary>Rebuilds the internal matrix from the relationship table and the inspector faction list.</summary>
+    public void RebuildRelationshipMatrix()
     {
-        var extras = new List<FactionDefinition>(3);
-        if (playerFaction != null)
-            extras.Add(playerFaction);
-        if (banditFaction != null)
-            extras.Add(banditFaction);
-        if (villagerFaction != null)
-            extras.Add(villagerFaction);
+        var extras = new List<FactionDefinition>();
+        if (registeredFactions != null)
+        {
+            for (int i = 0; i < registeredFactions.Count; i++)
+            {
+                if (registeredFactions[i] != null)
+                    extras.Add(registeredFactions[i]);
+            }
+        }
 
         _defaultNeutral = relationshipTable != null
             ? relationshipTable.DefaultBetweenUnlisted
@@ -89,23 +88,6 @@ public sealed class FactionManager : MonoBehaviour
                 WriteSymmetric(e.FactionA.FactionID, e.FactionB.FactionID, e.Relationship);
             }
         }
-
-        ApplyBootstrapDefaults();
-    }
-
-    void ApplyBootstrapDefaults()
-    {
-        if (playerFaction == null || banditFaction == null || villagerFaction == null)
-            return;
-
-        int p = playerFaction.FactionID;
-        int b = banditFaction.FactionID;
-        int v = villagerFaction.FactionID;
-
-        // Spec: player ↔ villager neutral; bandit enemy to both.
-        WriteSymmetric(p, v, Relationship.Neutral);
-        WriteSymmetric(p, b, Relationship.Enemy);
-        WriteSymmetric(v, b, Relationship.Enemy);
     }
 
     static int ComputeMaxId(List<FactionDefinition> defs)
@@ -169,7 +151,7 @@ public sealed class FactionManager : MonoBehaviour
     void EnsureCapacity(int requiredSize)
     {
         if (_matrix == null)
-            RebuildMatrixFromTableAndBootstrap();
+            RebuildRelationshipMatrix();
         if (requiredSize <= _size)
             return;
 
