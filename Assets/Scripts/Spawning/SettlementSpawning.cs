@@ -55,6 +55,14 @@ public class SettlementSpawning
             if (placementMask != null && !placementMask.IsDiskFreeWorldXZ(candidate.x, candidate.z, centerR))
                 continue;
 
+            float pathDist = gen.SamplePathDistanceWorldXZ(candidate.x, candidate.z);
+            float pathMin = config.MinDistanceFromPathMeters;
+            float pathMax = config.MaxDistanceFromPathMeters;
+            if (pathMax <= pathMin)
+                pathMax = pathMin + 20f;
+            if (pathDist < pathMin || pathDist > pathMax)
+                continue;
+
             if (SpawnPlacementUtility.IsFarEnoughFromAllXZ(candidate, placedCenters, minSepSq))
             {
                 pos = candidate;

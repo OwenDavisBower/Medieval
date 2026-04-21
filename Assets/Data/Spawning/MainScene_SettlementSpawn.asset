@@ -21,3 +21,6 @@ MonoBehaviour:
   terrainEdgeMargin: 64
   minSettlementSeparation: 30
   maxSpawnAttemptsPerSettlement: 120
+  settlementCenterFootprintRadius: 14
+  minDistanceFromPathMeters: 12
+  maxDistanceFromPathMeters: 56
