@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 9100000000000000003}
   - component: {fileID: 6947795797200106646}
   - component: {fileID: 2759642568978267268}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: BanditCamp
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -97,7 +97,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4331268944500833040}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Graphics
   m_TagString: Untagged
   m_Icon: {fileID: 0}

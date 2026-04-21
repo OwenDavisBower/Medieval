@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 7017228211072359263}
   - component: {fileID: 4451857655352608230}
   - component: {fileID: 2383485419195746494}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Cottage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -83,7 +83,7 @@ GameObject:
   - component: {fileID: 4560233283051649967}
   - component: {fileID: 6167077107310048422}
   - component: {fileID: 3258199252219207039}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Cube (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -195,7 +195,7 @@ GameObject:
   - component: {fileID: 5591432045565458567}
   - component: {fileID: 4348424958200512161}
   - component: {fileID: 7991115945638905542}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -307,7 +307,7 @@ GameObject:
   - component: {fileID: 1160492688578804775}
   - component: {fileID: 7432010417788974624}
   - component: {fileID: 8116111344134434355}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Cube (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -416,7 +416,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6745190178619791861}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Graphics
   m_TagString: Untagged
   m_Icon: {fileID: 0}

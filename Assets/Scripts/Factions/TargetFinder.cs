@@ -1,13 +1,16 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
-/// Periodically scans a sphere for colliders on <see cref="targetLayer"/> and returns the closest
+/// Periodically scans a sphere for colliders on <see cref="targetLayerMask"/> and returns the closest
 /// entity whose <see cref="Affiliation"/> is <see cref="Relationship.Enemy"/> relative to this object.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class TargetFinder : MonoBehaviour
 {
-    [SerializeField] LayerMask targetLayer = ~0;
+    [FormerlySerializedAs("targetLayer")]
+    [Tooltip("Physics layers scanned for enemy colliders (defaults to Character + Building).")]
+    [SerializeField] LayerMask targetLayerMask;
     [SerializeField] float scanRadius = 12f;
     [SerializeField, Min(0.02f)] float scanInterval = 0.2f;
     [SerializeField, Min(1)] int overlapBufferSize = 32;
@@ -27,6 +30,21 @@ public sealed class TargetFinder : MonoBehaviour
         _cachedTransform = transform;
         _selfAffiliation = GetComponent<Affiliation>();
         _overlapBuffer = new Collider[Mathf.Max(1, overlapBufferSize)];
+        EnsureTargetLayerMask();
+    }
+
+#if UNITY_EDITOR
+    void OnValidate() => EnsureTargetLayerMask();
+#endif
+
+    void EnsureTargetLayerMask()
+    {
+        int v = targetLayerMask.value;
+        if (v != 0 && v != -1)
+            return;
+        int m = LayerMask.GetMask("Character", "Building");
+        if (m != 0)
+            targetLayerMask = m;
     }
 
     void Update()
@@ -60,7 +78,7 @@ public sealed class TargetFinder : MonoBehaviour
             return;
 
         Vector3 origin = _cachedTransform.position;
-        int hitCount = Physics.OverlapSphereNonAlloc(origin, scanRadius, _overlapBuffer, targetLayer,
+        int hitCount = Physics.OverlapSphereNonAlloc(origin, scanRadius, _overlapBuffer, targetLayerMask,
             QueryTriggerInteraction.Ignore);
 
         float bestSq = float.MaxValue;

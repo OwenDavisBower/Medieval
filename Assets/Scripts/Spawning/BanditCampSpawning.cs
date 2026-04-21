@@ -30,6 +30,7 @@ public class BanditCampSpawning
 
             placedCamps.Add(pos);
             var campGo = Object.Instantiate(config.BanditCampPrefab, pos, Quaternion.identity);
+            HierarchyLayers.SetRecursiveByLayerName(campGo.transform, "Building");
             placementMask.BurnFromRendererBoundsXZ(CombineRendererBounds(campGo.gameObject), config.OccupationBurnPadding);
         }
     }

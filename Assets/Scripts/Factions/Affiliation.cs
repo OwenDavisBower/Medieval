@@ -25,6 +25,9 @@ public sealed class Affiliation : MonoBehaviour
 
     void OnEnable()
     {
+        if (GetComponent<Character>() == null)
+            HierarchyLayers.SetRecursiveByLayerName(transform, "Building");
+
         RegisterCollidersUnderThisHierarchy();
     }
 

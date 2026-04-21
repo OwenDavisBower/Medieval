@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: -282048062374667439}
   - component: {fileID: 557766031}
   - component: {fileID: 557766032}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: WatchTower
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -110,7 +110,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TargetFinder
   targetLayer:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 384
   scanRadius: 20
   scanInterval: 0.2
   overlapBufferSize: 32

@@ -87,6 +87,8 @@ public class Character : MonoBehaviour
 
     void Awake()
     {
+        HierarchyLayers.SetRecursiveByLayerName(transform, "Character");
+
         RollStats();
         _meleeDamageMultiplier = StatMultiplier(_strength, minStrength, maxStrength, 0.78f, 1.22f);
         _movementSpeedMultiplier = StatMultiplier(_dexterity, minDexterity, maxDexterity, 0.86f, 1.14f);
@@ -203,15 +205,7 @@ public class Character : MonoBehaviour
 
         int hb = LayerMask.NameToLayer(_healthBarLayer);
         if (hb >= 0)
-            SetLayerRecursively(barRoot, hb);
-    }
-
-    static void SetLayerRecursively(GameObject go, int layer)
-    {
-        go.layer = layer;
-        var t = go.transform;
-        for (int i = 0; i < t.childCount; i++)
-            SetLayerRecursively(t.GetChild(i).gameObject, layer);
+            HierarchyLayers.SetRecursive(barRoot.transform, hb);
     }
 
     static Sprite WhiteSprite()

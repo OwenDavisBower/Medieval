@@ -367,7 +367,9 @@ public class SettlementBuilder : MonoBehaviour
     {
         float yaw = Random.Range(0f, 360f);
         Quaternion rot = Quaternion.Euler(0f, yaw, 0f);
-        return Instantiate(prefab, worldPos, rot, transform);
+        GameObject instance = Instantiate(prefab, worldPos, rot, transform);
+        HierarchyLayers.SetRecursiveByLayerName(instance.transform, "Building");
+        return instance;
     }
 
     static Bounds CombineRendererBounds(GameObject root)

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 6740560314919606309}
   - component: {fileID: 2888614301826048202}
   - component: {fileID: 3334834603089556090}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -121,7 +121,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8620116209973403166}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Graphics
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -157,7 +157,7 @@ GameObject:
   - component: {fileID: 533097883717268143}
   - component: {fileID: 2187809221805124287}
   - component: {fileID: 7369052983760870216}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -255,7 +255,7 @@ GameObject:
   - component: {fileID: 5555830013420853836}
   - component: {fileID: 557766011}
   - component: {fileID: 557766012}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Follower
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -509,7 +509,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TargetFinder
   targetLayer:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 384
   scanRadius: 50
   scanInterval: 0.2
   overlapBufferSize: 48

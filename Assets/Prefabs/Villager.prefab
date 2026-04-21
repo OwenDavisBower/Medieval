@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8620116209973403166}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Graphics
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -45,7 +45,7 @@ GameObject:
   - component: {fileID: 533097883717268143}
   - component: {fileID: 2187809221805124287}
   - component: {fileID: 7369052983760870216}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -140,7 +140,7 @@ GameObject:
   - component: {fileID: 991191335029085902}
   - component: {fileID: 8499884164486643627}
   - component: {fileID: 557766021}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Villager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
