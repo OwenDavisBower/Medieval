@@ -49,9 +49,16 @@ MonoBehaviour:
   worldSize: 1024
   baseHeight: 0
   waterHeightAdjustmentAmount: 20
-  maxHeightVariation: 40
+  maxHeightVariation: 25
   flatRadius: 20
   falloffDistance: 35
+  proceduralCliffsEnabled: 1
+  cliffThreshold: 0.4
+  cliffSteepPower: 6.33
+  ridgeNoiseFrequencyScale: 0.91
+  ridgeSharpness: 5.69
+  ridgeBlendBillowLow: 0.22
+  ridgeBlendBillowHigh: 0.92
   chunkCount: 8
   splineSampleCount: 400
   authoringPathSplines: []
@@ -74,7 +81,7 @@ MonoBehaviour:
   lod1Distance: 180
   lod2Distance: 360
   lodCameraMoveEpsilonSqr: 0.25
-  rockSlopeBlendStart: 1.34
+  rockSlopeBlendStart: 0.7
   rockSlopeBlendEnd: 2.23
   navMeshSurface: {fileID: 8922804896616379102}
   navMeshCameraRegionHalfExtentXZ: 100
