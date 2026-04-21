@@ -2,12 +2,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Places cabins and farms on flat terrain (near <see cref="TerrainGenerator.baseHeight"/>), with farms on the outer ring.
+/// Places configured building prefabs on flat terrain (near <see cref="TerrainGenerator.baseHeight"/>).
 /// </summary>
 public class SettlementBuilder : MonoBehaviour
 {
-    [SerializeField] GameObject cabinPrefab;
-    [SerializeField] GameObject farmPrefab;
+    [SerializeField] SettlementBuildingSpawnEntry[] buildingEntries;
     [SerializeField] GameObject villagerPrefab;
 
     [Header("Water")]
@@ -20,12 +19,6 @@ public class SettlementBuilder : MonoBehaviour
     [SerializeField] float slopeSampleOffset = 2.5f;
 
     [Header("Layout")]
-    [Tooltip("Cabins spawn between these radii from the settlement center.")]
-    [SerializeField] float cabinRadiusMin = 0f;
-    [SerializeField] float cabinRadiusMax = 14f;
-    [Tooltip("Farms spawn between these radii (should be outside cabin ring).")]
-    [SerializeField] float farmRadiusMin = 15f;
-    [SerializeField] float farmRadiusMax = 20f;
     [SerializeField] float minSeparation = 6f;
     [SerializeField] int maxAttemptsPerStructure = 120;
     [Tooltip("Search this radius (XZ) around this transform for a flat settlement center.")]
@@ -34,8 +27,6 @@ public class SettlementBuilder : MonoBehaviour
 
     [Header("Procedural placement mask")]
     [SerializeField] float centerFootprintRadius = 10f;
-    [SerializeField] float cabinPlacementRadius = 5f;
-    [SerializeField] float farmPlacementRadius = 7f;
     [SerializeField] float burnBoundsPadding = 0.75f;
 
     [Header("Settlement paths (splat R)")]
@@ -48,6 +39,7 @@ public class SettlementBuilder : MonoBehaviour
 
     ProceduralPlacementMask _placementMask;
     bool _built;
+    SettlementBuildingSpawnEntry[] _runtimeBuildingEntries;
 
     void OnEnable()
     {
@@ -64,10 +56,17 @@ public class SettlementBuilder : MonoBehaviour
     void OnTerrainGenerated(TerrainGenerator _) => TryBuildSettlement();
 
     /// <summary>Used when prefabs are assigned at runtime (e.g. from <see cref="SettlementSpawning"/>).</summary>
-    public void InitializeAndBuild(GameObject cabin, GameObject farm, GameObject villager = null, ProceduralPlacementMask placementMask = null)
+    public void InitializeAndBuild(IReadOnlyList<SettlementBuildingSpawnEntry> buildings, GameObject villager = null, ProceduralPlacementMask placementMask = null)
     {
-        cabinPrefab = cabin;
-        farmPrefab = farm;
+        if (buildings == null || buildings.Count == 0)
+            _runtimeBuildingEntries = null;
+        else
+        {
+            _runtimeBuildingEntries = new SettlementBuildingSpawnEntry[buildings.Count];
+            for (int i = 0; i < buildings.Count; i++)
+                _runtimeBuildingEntries[i] = buildings[i];
+        }
+
         villagerPrefab = villager;
         _placementMask = placementMask;
         TryBuildSettlement();
@@ -75,7 +74,8 @@ public class SettlementBuilder : MonoBehaviour
 
     void TryBuildSettlement()
     {
-        if (_built || cabinPrefab == null || farmPrefab == null)
+        var entries = ActiveBuildingEntries();
+        if (_built || entries == null || !HasAnyPrefab(entries))
             return;
 
         var gen = TerrainGenerator.GetActiveOrFind();
@@ -87,45 +87,70 @@ public class SettlementBuilder : MonoBehaviour
 
         transform.position = new Vector3(centerWorld.x, transform.position.y, centerWorld.z);
 
-        int cabinCount = Random.Range(2, 6);
-        int farmCount = Random.Range(1, 7);
+        int capacity = 0;
+        for (int e = 0; e < entries.Length; e++)
+        {
+            if (entries[e].prefab == null)
+                continue;
+            int hi = Mathf.Max(entries[e].minCount, entries[e].maxCount);
+            if (hi > 0)
+                capacity += hi;
+        }
 
-        var placed = new List<Vector3>(cabinCount + farmCount);
-        var structureRoots = new List<GameObject>(cabinCount + farmCount);
+        var placed = new List<Vector3>(capacity);
+        var structureRoots = new List<GameObject>(capacity);
         float minSepSq = minSeparation * minSeparation;
         float baseH = gen.baseHeight;
 
-        for (int i = 0; i < cabinCount; i++)
+        for (int e = 0; e < entries.Length; e++)
         {
-            if (!TryPlaceStructure(gen, baseH, placed, minSepSq, cabinRadiusMin, cabinRadiusMax, isFarm: false, out Vector3 pos))
+            var entry = entries[e];
+            if (entry.prefab == null)
                 continue;
 
-            placed.Add(pos);
-            float yaw = Random.Range(0f, 360f);
-            Quaternion rot = Quaternion.Euler(0f, yaw, 0f);
-            GameObject cabin = Instantiate(cabinPrefab, pos, rot, transform);
-            structureRoots.Add(cabin);
-            if (_placementMask != null)
-                _placementMask.BurnFromRendererBoundsXZ(CombineRendererBounds(cabin), burnBoundsPadding);
-            SpawnVillagersForCabin(cabin.transform, pos);
+            int lo = Mathf.Min(entry.minCount, entry.maxCount);
+            int hi = Mathf.Max(entry.minCount, entry.maxCount);
+            int count = Random.Range(lo, hi + 1);
+            float rMin = Mathf.Min(entry.radiusMin, entry.radiusMax);
+            float rMax = Mathf.Max(entry.radiusMin, entry.radiusMax);
+
+            for (int i = 0; i < count; i++)
+            {
+                if (!TryPlaceStructure(gen, baseH, placed, minSepSq, rMin, rMax, entry.placementRadius, out Vector3 pos))
+                    continue;
+
+                placed.Add(pos);
+                GameObject structure = SpawnPrefab(entry.prefab, pos);
+                if (structure == null)
+                    continue;
+
+                structureRoots.Add(structure);
+                if (_placementMask != null)
+                    _placementMask.BurnFromRendererBoundsXZ(CombineRendererBounds(structure), burnBoundsPadding);
+
+                if (entry.spawnVillagersHere)
+                    SpawnVillagersNearBuilding(structure.transform, pos);
+            }
         }
 
-        for (int i = 0; i < farmCount; i++)
-        {
-            if (!TryPlaceStructure(gen, baseH, placed, minSepSq, farmRadiusMin, farmRadiusMax, isFarm: true, out Vector3 pos))
-                continue;
-
-            placed.Add(pos);
-            GameObject farmGo = SpawnPrefab(farmPrefab, pos);
-            if (farmGo != null)
-                structureRoots.Add(farmGo);
-            if (_placementMask != null && farmGo != null)
-                _placementMask.BurnFromRendererBoundsXZ(CombineRendererBounds(farmGo), burnBoundsPadding);
-        }
-
-        PaintSettlementPathsToSplatmap(gen, structureRoots);
+        if (structureRoots.Count > 0)
+            PaintSettlementPathsToSplatmap(gen, structureRoots);
 
         _built = true;
+    }
+
+    SettlementBuildingSpawnEntry[] ActiveBuildingEntries() => _runtimeBuildingEntries ?? buildingEntries;
+
+    static bool HasAnyPrefab(SettlementBuildingSpawnEntry[] entries)
+    {
+        if (entries == null)
+            return false;
+        for (int i = 0; i < entries.Length; i++)
+        {
+            if (entries[i].prefab != null)
+                return true;
+        }
+        return false;
     }
 
     void PaintSettlementPathsToSplatmap(TerrainGenerator gen, List<GameObject> structureRoots)
@@ -288,7 +313,7 @@ public class SettlementBuilder : MonoBehaviour
         float minSepSq,
         float rMin,
         float rMax,
-        bool isFarm,
+        float placementMaskRadius,
         out Vector3 worldPos)
     {
         worldPos = default;
@@ -310,8 +335,7 @@ public class SettlementBuilder : MonoBehaviour
             if (!SpawnPlacementUtility.IsFarEnoughFromAllXZ(candidate, placed, minSepSq))
                 continue;
 
-            float maskR = isFarm ? farmPlacementRadius : cabinPlacementRadius;
-            if (_placementMask != null && !_placementMask.IsDiskFreeWorldXZ(x, z, maskR))
+            if (_placementMask != null && !_placementMask.IsDiskFreeWorldXZ(x, z, placementMaskRadius))
                 continue;
 
             worldPos = TerrainSpawnUtility.GetWorldPositionOnTerrain(candidate);
@@ -358,7 +382,7 @@ public class SettlementBuilder : MonoBehaviour
         return b;
     }
 
-    void SpawnVillagersForCabin(Transform cabinAnchor, Vector3 cabinWorldPos)
+    void SpawnVillagersNearBuilding(Transform anchor, Vector3 worldPos)
     {
         if (villagerPrefab == null)
             return;
@@ -367,7 +391,7 @@ public class SettlementBuilder : MonoBehaviour
         for (int v = 0; v < count; v++)
         {
             Vector3 offset = SpawnPlacementUtility.RandomAnnulusOffsetXZ(0.8f, 4f);
-            Vector3 vpos = cabinWorldPos + offset;
+            Vector3 vpos = worldPos + offset;
             vpos = TerrainSpawnUtility.GetWorldPositionOnTerrain(vpos);
             if (vpos.y < minSurfaceY)
                 continue;
@@ -376,7 +400,7 @@ public class SettlementBuilder : MonoBehaviour
             GameObject villagerGo = Instantiate(villagerPrefab, vpos, Quaternion.Euler(0f, vyaw, 0f), transform);
             var villager = villagerGo.GetComponent<VillagerController>();
             if (villager != null)
-                villager.Initialize(cabinAnchor);
+                villager.Initialize(anchor);
         }
     }
 }

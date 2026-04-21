@@ -10,7 +10,7 @@ public class SettlementSpawning
 
     public void TrySpawnSettlements(SettlementSpawnConfig config, ProceduralPlacementMask placementMask)
     {
-        if (config == null || _spawned || config.CabinPrefab == null || config.FarmPrefab == null)
+        if (config == null || _spawned || !HasAnyBuildingPrefab(config))
             return;
 
         var gen = TerrainGenerator.GetActiveOrFind();
@@ -34,8 +34,21 @@ public class SettlementSpawning
             spawned++;
             go.transform.position = pos;
             var builder = go.AddComponent<SettlementBuilder>();
-            builder.InitializeAndBuild(config.CabinPrefab, config.FarmPrefab, config.VillagerPrefab, placementMask);
+            builder.InitializeAndBuild(config.Buildings, config.VillagerPrefab, placementMask);
         }
+    }
+
+    static bool HasAnyBuildingPrefab(SettlementSpawnConfig config)
+    {
+        var list = config.Buildings;
+        if (list == null)
+            return false;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i].prefab != null)
+                return true;
+        }
+        return false;
     }
 
     static bool TryPickSettlementPosition(

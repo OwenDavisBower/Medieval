@@ -12,8 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4d5e6f708192a3b4c5d6e7f8091a2b3, type: 3}
   m_Name: SettlementSpawn
   m_EditorClassIdentifier: 
-  cabinPrefab: {fileID: 4024279981392801517, guid: 284265d63fd9f40ca9d4b61e8258310b, type: 3}
-  farmPrefab: {fileID: 768077572983244432, guid: 81bdeb8f223c04a289af54e1dda4ba69, type: 3}
+  buildings:
+  - prefab: {fileID: 4024279981392801517, guid: 284265d63fd9f40ca9d4b61e8258310b, type: 3}
+    minCount: 2
+    maxCount: 5
+    radiusMin: 0
+    radiusMax: 14
+    placementRadius: 5
+    spawnVillagersHere: 1
+  - prefab: {fileID: 768077572983244432, guid: 81bdeb8f223c04a289af54e1dda4ba69, type: 3}
+    minCount: 1
+    maxCount: 6
+    radiusMin: 15
+    radiusMax: 20
+    placementRadius: 7
+    spawnVillagersHere: 0
   villagerPrefab: {fileID: 8980714304071168946, guid: f1e2d3c4b5a697887766554433221100, type: 3}
   settlementCount: 3
   spawnRadius: 200
