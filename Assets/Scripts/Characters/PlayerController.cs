@@ -1,9 +1,12 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
+    /// <summary>Fired once after the player has been snapped onto terrain at the starting path position.</summary>
+    public static event Action? PlayerStartPositionApplied;
     [SerializeField] float moveSpeed = 6f;
     [SerializeField] float terrainSnapHeightOffset = 0.05f;
     [Tooltip("Max degrees per second when rotating to face movement input.")]
@@ -59,6 +62,7 @@ public class PlayerController : MonoBehaviour
         Vector3 v = _rb.linearVelocity;
         v.y = 0f;
         _rb.linearVelocity = v;
+        PlayerStartPositionApplied?.Invoke();
     }
 
     void FixedUpdate()

@@ -11,20 +11,15 @@ public class FollowerSpawner : MonoBehaviour
 
     void OnEnable()
     {
-        TerrainGenerator.TerrainGenerated += OnTerrainGenerated;
+        PlayerController.PlayerStartPositionApplied += OnPlayerStartPositionApplied;
     }
 
     void OnDisable()
     {
-        TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
+        PlayerController.PlayerStartPositionApplied -= OnPlayerStartPositionApplied;
     }
 
-    void Start()
-    {
-        SpawnFollowers();
-    }
-
-    void OnTerrainGenerated(TerrainGenerator _) => SpawnFollowers();
+    void OnPlayerStartPositionApplied() => SpawnFollowers();
 
     void SpawnFollowers()
     {
