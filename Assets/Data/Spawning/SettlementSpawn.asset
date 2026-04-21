@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c4d5e6f708192a3b4c5d6e7f8091a2b3, type: 3}
-  m_Name: MainScene_SettlementSpawn
+  m_Name: SettlementSpawn
   m_EditorClassIdentifier: 
   cabinPrefab: {fileID: 4024279981392801517, guid: 284265d63fd9f40ca9d4b61e8258310b, type: 3}
   farmPrefab: {fileID: 768077572983244432, guid: 81bdeb8f223c04a289af54e1dda4ba69, type: 3}

@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6c70aeb97e75d248c5180a32f35eb433, type: 3}
-  m_Name: MainScene_MeshSpawn
+  m_Name: MeshSpawn
   m_EditorClassIdentifier: 
   meshVariants:
   - mesh: {fileID: 4199401309831131938, guid: 0a99d2c7b45da014a9006fc6863e6471, type: 3}

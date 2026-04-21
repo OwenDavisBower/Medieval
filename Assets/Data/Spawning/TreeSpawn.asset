@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5e6f708192a3b4c5d6e7f8091a2b3c4, type: 3}
-  m_Name: MainScene_TreeSpawn
+  m_Name: TreeSpawn
   m_EditorClassIdentifier: 
   treePrefab: {fileID: 343138504714799944, guid: 92daf5674a7784361899e62590c7b70d, type: 3}
   treeCount: 200
