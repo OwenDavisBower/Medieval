@@ -523,11 +523,16 @@ public class TargetSteeringMotor : MonoBehaviour
         if (col == null)
             return false;
 
-        // Other steered agents are handled by NavMesh + physics; treating them as "walls" here causes
-        // opposing tangent escapes and jams at corners (notably villagers with separationGroup None).
         var otherMotor = col.GetComponentInParent<TargetSteeringMotor>();
         if (otherMotor != null && otherMotor != this)
-            return true;
+        {
+            if (separationGroup == TargetSteeringSeparationGroup.Followers &&
+                otherMotor.SeparationGroup == TargetSteeringSeparationGroup.Followers)
+                return true;
+            if (separationGroup == TargetSteeringSeparationGroup.Bandits &&
+                otherMotor.SeparationGroup == TargetSteeringSeparationGroup.Bandits)
+                return true;
+        }
 
         if (ignoreFollowerCollidersForObstacles && col.GetComponentInParent<FollowerController>() != null)
             return true;
