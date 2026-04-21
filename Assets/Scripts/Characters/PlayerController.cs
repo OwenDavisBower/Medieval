@@ -50,8 +50,12 @@ public class PlayerController : MonoBehaviour
             return;
 
         _snappedToTerrain = true;
-        Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(transform.position, terrainSnapHeightOffset);
-        transform.position = p;
+        Vector3 p;
+        var spawnXz = new Vector2(transform.position.x, transform.position.z);
+        if (!gen.TryGetClosestPathPointWorldXZ(spawnXz, terrainSnapHeightOffset, out p))
+            p = TerrainSpawnUtility.GetWorldPositionOnTerrain(transform.position, terrainSnapHeightOffset);
+        // Dynamic Rigidbodies: set Rigidbody.position so PhysX state matches (transform-only snaps often appear ignored).
+        _rb.position = p;
         Vector3 v = _rb.linearVelocity;
         v.y = 0f;
         _rb.linearVelocity = v;

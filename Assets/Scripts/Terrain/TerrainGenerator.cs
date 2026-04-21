@@ -259,6 +259,41 @@ public sealed class TerrainGenerator : MonoBehaviour
     }
 
     /// <summary>
+    /// World position on the path spline sample closest to <paramref name="targetWorldXz"/> in the horizontal plane
+    /// (<c>x</c> = world X, <c>y</c> = world Z). Height uses <see cref="SampleHeightWorldXZ"/> plus <paramref name="heightOffset"/>.
+    /// </summary>
+    public bool TryGetClosestPathPointWorldXZ(Vector2 targetWorldXz, float heightOffset, out Vector3 worldPosition)
+    {
+        worldPosition = default;
+        if (!_pathSamples.IsCreated || _pathSamples.Length == 0)
+            return false;
+
+        float tx = targetWorldXz.x;
+        float tz = targetWorldXz.y;
+        float bestSq = float.MaxValue;
+        float bestX = 0f;
+        float bestZ = 0f;
+
+        for (int i = 0; i < _pathSamples.Length; i++)
+        {
+            float2 p = _pathSamples[i];
+            float dx = p.x - tx;
+            float dz = p.y - tz;
+            float sq = dx * dx + dz * dz;
+            if (sq < bestSq)
+            {
+                bestSq = sq;
+                bestX = p.x;
+                bestZ = p.y;
+            }
+        }
+
+        float y = SampleHeightWorldXZ(bestX, bestZ) + heightOffset;
+        worldPosition = new Vector3(bestX, y, bestZ);
+        return true;
+    }
+
+    /// <summary>
     /// Writes one byte per heightmap cell: 1 when path distance is under <paramref name="clearanceWorldMeters"/>, else 0.
     /// <paramref name="blocked"/> length must be at least <c>worldResolution * worldResolution</c>.
     /// </summary>
