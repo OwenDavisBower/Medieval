@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 4451857655352608230}
   - component: {fileID: 2383485419195746494}
   m_Layer: 0
-  m_Name: Cabin
+  m_Name: Cottage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
