@@ -19,9 +19,9 @@ public class FollowerSpawner : MonoBehaviour
         PlayerController.PlayerStartPositionApplied -= OnPlayerStartPositionApplied;
     }
 
-    void OnPlayerStartPositionApplied() => SpawnFollowers();
+    void OnPlayerStartPositionApplied(Vector3 leaderWorldPosition) => SpawnFollowers(leaderWorldPosition);
 
-    void SpawnFollowers()
+    void SpawnFollowers(Vector3 leaderWorldPosition)
     {
         if (_spawned || followerPrefab == null)
             return;
@@ -37,7 +37,7 @@ public class FollowerSpawner : MonoBehaviour
             float angle = Random.Range(0f, Mathf.PI * 2f);
             float rad = Random.Range(spawnRadiusMin, spawnRadiusMax);
             Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * rad;
-            Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(transform.position + offset);
+            Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(leaderWorldPosition + offset);
 
             FollowerController follower = Instantiate(followerPrefab, pos, Quaternion.identity);
             follower.ApplyCombatRole(Random.value < 0.5f);

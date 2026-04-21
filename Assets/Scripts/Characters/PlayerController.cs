@@ -5,8 +5,8 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
-    /// <summary>Fired once after the player has been snapped onto terrain at the starting path position.</summary>
-    public static event Action? PlayerStartPositionApplied;
+    /// <summary>Fired once after the player has been snapped onto terrain; argument is the applied world position (use this instead of <see cref="Transform.position"/>—RB teleport may not sync the transform yet this frame).</summary>
+    public static event Action<Vector3>? PlayerStartPositionApplied;
     [SerializeField] float moveSpeed = 6f;
     [SerializeField] float terrainSnapHeightOffset = 0.05f;
     [Tooltip("Max degrees per second when rotating to face movement input.")]
@@ -62,7 +62,7 @@ public class PlayerController : MonoBehaviour
         Vector3 v = _rb.linearVelocity;
         v.y = 0f;
         _rb.linearVelocity = v;
-        PlayerStartPositionApplied?.Invoke();
+        PlayerStartPositionApplied?.Invoke(p);
     }
 
     void FixedUpdate()
