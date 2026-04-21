@@ -10,7 +10,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
         _PathColorA("Path Color A", Color) = (0.45, 0.38, 0.28, 1)
         _PathColorB("Path Color B", Color) = (0.26, 0.21, 0.15, 1)
         [NoScaleOffset] _RockTex("Rock", 2D) = "white" {}
-        [NoScaleOffset] _SplatmapTex("Splat (R = path, G = rock, linear float)", 2D) = "black" {}
+        [NoScaleOffset] _SplatmapTex("Splat (R=path, G=rock, B=slope mag, linear float)", 2D) = "black" {}
         _GrassTiling("Grass Tiling", Float) = 1
         _PathTiling("Path Tiling", Float) = 1
         _RockTiling("Rock Tiling", Float) = 1
@@ -263,7 +263,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 float2 grassUV = float2(input.positionWS.x, input.positionWS.z) * (float)_GrassTiling;
                 float2 pathUV = float2(input.positionWS.x, input.positionWS.z) * (float)_PathTiling;
                 float2 rockUV = float2(input.positionWS.x, input.positionWS.z) * (float)_RockTiling;
-                // Splat RGBAFloat: R = path, G = rock (linear weights).
+                // Splat RGBAFloat: R = path, G = rock blend (from slope), B = raw slope for custom blends.
                 float4 splat = SAMPLE_TEXTURE2D(_SplatmapTex, sampler_SplatmapTex, input.splatUV);
                 float pathMask = saturate(splat.r);
                 float rockMask = saturate(splat.g);

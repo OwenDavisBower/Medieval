@@ -70,6 +70,22 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Distance over which noise fades in after the flat radius.</summary>
     public float falloffDistance = 35f;
 
+    [Header("Cliffs / height noise")]
+    [Tooltip("When false, height noise uses billow only (no ridge blend or cliff steepening).")]
+    public bool proceduralCliffsEnabled = true;
+    [Tooltip("Billow noise above this value (0–1) is remapped toward 1 for sheer faces.")]
+    public float cliffThreshold = 0.6f;
+    [Tooltip("Cliff remap exponent on the normalized tail above the threshold. Larger = steeper cliffs.")]
+    public float cliffSteepPower = 2.5f;
+    [Tooltip("Frequency multiplier for ridge simplex relative to billow coordinates.")]
+    public float ridgeNoiseFrequencyScale = 1.12f;
+    [Tooltip("Ridge channel is saturate(abs(snoise) * this). Higher = sharper ridge peaks.")]
+    public float ridgeSharpness = 2f;
+    [Tooltip("smoothstep low edge: billow below this stays mostly billowy.")]
+    public float ridgeBlendBillowLow = 0.22f;
+    [Tooltip("smoothstep high edge: billow above this is mostly ridge-shaped.")]
+    public float ridgeBlendBillowHigh = 0.92f;
+
     /// <summary>Number of chunks along each axis (chunkCount × chunkCount).</summary>
     public int chunkCount = 8;
 
@@ -152,6 +168,8 @@ public sealed class TerrainGenerator : MonoBehaviour
     NativeArray<float> _pathDistanceField;
     NativeArray<float> _riverDistanceField;
     NativeArray<float> _heightmap;
+    /// <summary>Per heightmap texel: horizontal slope magnitude (dh/d_horizontal, ~1 m basis) for splat / shader.</summary>
+    NativeArray<float> _heightmapSlope;
     NativeArray<float> _splatmapRgba;
     NativeArray<float2> _pathSamples;
     NativeArray<float2> _riverSamples;
@@ -198,7 +216,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Sets the deterministic seed used for height noise and worm splines on the next <see cref="RunPipeline"/> / <see cref="Regenerate"/>.</summary>
     public void SetProceduralSeed(int value) => _proceduralSeed = value;
 
-    /// <summary>Splat mask (R = path, G = rock, BA unused); null until <see cref="Regenerate"/> completes successfully.</summary>
+    /// <summary>Splat mask (R = path, G = rock weight, B = linear slope magnitude, A unused); null until <see cref="Regenerate"/> completes successfully.</summary>
     public Texture2D? SplatmapTexture => _splatmapTexture;
 
     /// <summary>Bilinear sample of procedural height at world XZ (same space as chunk meshes).</summary>
@@ -590,6 +608,7 @@ public sealed class TerrainGenerator : MonoBehaviour
         EnsurePersistentFloatBuffer(ref _pathDistanceField, count);
         EnsurePersistentFloatBuffer(ref _riverDistanceField, count);
         EnsurePersistentFloatBuffer(ref _heightmap, count);
+        EnsurePersistentFloatBuffer(ref _heightmapSlope, count);
         EnsurePersistentFloatBuffer(ref _splatmapRgba, splatFloatCount);
 
         _distanceFieldBaker.Bake(
@@ -601,6 +620,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             _pathDistanceField,
             _riverDistanceField);
 
+        RidgeBlendClamped(ridgeBlendBillowLow, ridgeBlendBillowHigh, out var ridgeBlendLow, out var ridgeBlendHigh);
         _heightmapGenerator.Generate(
             _pathDistanceField,
             _riverDistanceField,
@@ -616,11 +636,19 @@ public sealed class TerrainGenerator : MonoBehaviour
             math.max(1e-4f, riverBedDepth),
             math.max(1e-4f, riverChannelHalfWidth),
             math.max(1e-4f, riverCarveBlendDistance),
-            _heightmap);
+            proceduralCliffsEnabled,
+            math.clamp(cliffThreshold, 0.05f, 0.95f),
+            math.max(1.01f, cliffSteepPower),
+            math.max(0.01f, ridgeNoiseFrequencyScale),
+            math.max(0.01f, ridgeSharpness),
+            ridgeBlendLow,
+            ridgeBlendHigh,
+            _heightmap,
+            _heightmapSlope);
 
         _splatmapPainter.Paint(
             _pathDistanceField,
-            _heightmap,
+            _heightmapSlope,
             worldResolution,
             worldSize,
             SplatmapResolution,
@@ -715,6 +743,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             _riverDistanceField.Dispose();
         if (_heightmap.IsCreated)
             _heightmap.Dispose();
+        if (_heightmapSlope.IsCreated)
+            _heightmapSlope.Dispose();
         if (_splatmapRgba.IsCreated)
             _splatmapRgba.Dispose();
         if (_pathSamples.IsCreated)
@@ -731,6 +761,12 @@ public sealed class TerrainGenerator : MonoBehaviour
         if (buffer.IsCreated)
             buffer.Dispose();
         buffer = new NativeArray<float>(length, Allocator.Persistent);
+    }
+
+    static void RidgeBlendClamped(float billowLow, float billowHigh, out float clampedLow, out float clampedHigh)
+    {
+        clampedHigh = math.clamp(billowHigh, 0.02f, 1f);
+        clampedLow = math.clamp(billowLow, 0f, clampedHigh - 0.01f);
     }
 
     static void EnsureSplatmapTexture(ref Texture2D? texture, NativeArray<float> rgbaData)
@@ -1136,9 +1172,17 @@ public sealed class TerrainGenerator : MonoBehaviour
             float riverBedDepth,
             float riverChannelHalfWidth,
             float riverCarveBlendDistance,
-            NativeArray<float> heightOut)
+            bool cliffsEnabled,
+            float cliffTh,
+            float cliffPower,
+            float ridgeFreqScale,
+            float ridgeSharp,
+            float ridgeBlendLow,
+            float ridgeBlendHigh,
+            NativeArray<float> heightOut,
+            NativeArray<float> slopeOut)
         {
-            new HeightmapJob
+            var heightHandle = new HeightmapJob
             {
                 PathDf = pathDf,
                 RiverDf = riverDf,
@@ -1154,8 +1198,23 @@ public sealed class TerrainGenerator : MonoBehaviour
                 RiverBedDepth = riverBedDepth,
                 RiverChannelHalfWidth = riverChannelHalfWidth,
                 RiverCarveBlendDistance = riverCarveBlendDistance,
+                CliffsEnabled = cliffsEnabled,
+                CliffThreshold = cliffTh,
+                CliffSteepPower = cliffPower,
+                RidgeFrequencyScale = ridgeFreqScale,
+                RidgeSharpness = ridgeSharp,
+                RidgeBlendBillowLow = ridgeBlendLow,
+                RidgeBlendBillowHigh = ridgeBlendHigh,
                 HeightOut = heightOut
-            }.Schedule(heightOut.Length, 64).Complete();
+            }.Schedule(heightOut.Length, 64);
+
+            new HeightmapSlopeJob
+            {
+                Heights = heightOut,
+                Resolution = resolution,
+                WorldSize = worldSize,
+                SlopeOut = slopeOut
+            }.Schedule(heightOut.Length, 64, heightHandle).Complete();
         }
 
         [BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
@@ -1175,6 +1234,13 @@ public sealed class TerrainGenerator : MonoBehaviour
             public float RiverBedDepth;
             public float RiverChannelHalfWidth;
             public float RiverCarveBlendDistance;
+            public bool CliffsEnabled;
+            public float CliffThreshold;
+            public float CliffSteepPower;
+            public float RidgeFrequencyScale;
+            public float RidgeSharpness;
+            public float RidgeBlendBillowLow;
+            public float RidgeBlendBillowHigh;
             public NativeArray<float> HeightOut;
 
             public void Execute(int index)
@@ -1201,7 +1267,26 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var warpedZ = wz + warpOffset.y;
 
                 var noiseCoord = new float2(warpedX, warpedZ) * 0.0042f + new float2(Seed * 0.031f, Seed * 0.017f);
-                var n = FbmBillow2(noiseCoord);
+                var billow = FbmBillow2(noiseCoord);
+                float n;
+                if (CliffsEnabled)
+                {
+                    var ridgeCoord = noiseCoord * RidgeFrequencyScale + new float2(Seed * 0.073f, -Seed * 0.051f);
+                    var ridgeRaw = noise.snoise(ridgeCoord);
+                    var ridge = math.saturate(math.abs(ridgeRaw) * RidgeSharpness);
+                    var peakBlend = math.smoothstep(RidgeBlendBillowLow, RidgeBlendBillowHigh, billow);
+                    n = math.lerp(billow, ridge, peakBlend);
+                    var th = CliffThreshold;
+                    if (n > th)
+                    {
+                        var u = math.saturate((n - th) / math.max(1e-5f, 1f - th));
+                        u = math.pow(u, 1f / CliffSteepPower);
+                        n = th + u * (1f - th);
+                    }
+                }
+                else
+                    n = billow;
+
                 var shaped = math.smoothstep(0.1f, 0.9f, math.saturate(n));
 
                 var t = (distToAny - FlatRadius) / math.max(1e-4f, FalloffDistance);
@@ -1252,6 +1337,39 @@ public sealed class TerrainGenerator : MonoBehaviour
                 return sum / math.max(1e-5f, weight);
             }
         }
+
+        /// <summary>
+        /// Horizontal slope magnitude from finalized heightmap texels (central differences); runs after <see cref="HeightmapJob"/>.
+        /// </summary>
+        [BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+        struct HeightmapSlopeJob : IJobParallelFor
+        {
+            [ReadOnly] public NativeArray<float> Heights;
+            public int Resolution;
+            public float WorldSize;
+            public NativeArray<float> SlopeOut;
+
+            public void Execute(int index)
+            {
+                var res = Resolution;
+                var ix = index % res;
+                var iz = index / res;
+                var ix0 = math.max(0, ix - 1);
+                var ix1 = math.min(res - 1, ix + 1);
+                var iz0 = math.max(0, iz - 1);
+                var iz1 = math.min(res - 1, iz + 1);
+                var hL = Heights[iz * res + ix0];
+                var hR = Heights[iz * res + ix1];
+                var hD = Heights[iz0 * res + ix];
+                var hU = Heights[iz1 * res + ix];
+                var cell = WorldSize / res;
+                var dxWorld = (ix1 - ix0) * cell;
+                var dzWorld = (iz1 - iz0) * cell;
+                var dhdx = (hR - hL) / math.max(1e-4f, dxWorld);
+                var dhdz = (hU - hD) / math.max(1e-4f, dzWorld);
+                SlopeOut[index] = math.length(new float2(dhdx, dhdz));
+            }
+        }
     }
 
     #endregion
@@ -1259,7 +1377,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     #region SplatmapPainter
 
     /// <summary>
-    /// Paints splat weights: R = path from distance field, G = rock from terrain slope.
+    /// Paints splat weights: R = path from distance field; G = rock blend from <see cref="HeightmapSlopeJob"/> slope; B = raw slope for shaders.
     /// </summary>
     public sealed class SplatmapPainter
     {
@@ -1268,7 +1386,7 @@ public sealed class TerrainGenerator : MonoBehaviour
         /// </summary>
         public void Paint(
             NativeArray<float> pathDf,
-            NativeArray<float> heightmap,
+            NativeArray<float> heightSlope,
             int dfResolution,
             float worldSize,
             int splatResolution,
@@ -1280,7 +1398,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             new SplatmapJob
             {
                 PathDf = pathDf,
-                Heightmap = heightmap,
+                HeightSlope = heightSlope,
                 DfResolution = dfResolution,
                 WorldSize = worldSize,
                 SplatResolution = splatResolution,
@@ -1295,7 +1413,7 @@ public sealed class TerrainGenerator : MonoBehaviour
         struct SplatmapJob : IJobParallelFor
         {
             [ReadOnly, NativeDisableParallelForRestriction] public NativeArray<float> PathDf;
-            [ReadOnly, NativeDisableParallelForRestriction] public NativeArray<float> Heightmap;
+            [ReadOnly, NativeDisableParallelForRestriction] public NativeArray<float> HeightSlope;
             public int DfResolution;
             public float WorldSize;
             public int SplatResolution;
@@ -1315,11 +1433,7 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var pathDist = SampleDfWorld(PathDf, DfResolution, WorldSize, WorldOrigin, wx, wz);
                 var pathWeight = math.smoothstep(8f, 0f, pathDist);
 
-                var dhdx = SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx + 0.5f, wz)
-                    - SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx - 0.5f, wz);
-                var dhdz = SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx, wz + 0.5f)
-                    - SampleHeightWorld(Heightmap, DfResolution, WorldSize, WorldOrigin, wx, wz - 0.5f);
-                var slope = math.length(new float2(dhdx, dhdz));
+                var slope = SampleSlopeWorld(HeightSlope, DfResolution, WorldSize, WorldOrigin, wx, wz);
                 var s0 = math.max(1e-4f, RockSlopeBlendStart);
                 var s1 = math.max(s0 + 1e-4f, RockSlopeBlendEnd);
                 var rockWeight = math.saturate(math.smoothstep(s0, s1, slope));
@@ -1327,12 +1441,12 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var baseIndex = index * 4;
                 RgbaOut[baseIndex + 0] = pathWeight;
                 RgbaOut[baseIndex + 1] = rockWeight;
-                RgbaOut[baseIndex + 2] = 0f;
+                RgbaOut[baseIndex + 2] = slope;
                 RgbaOut[baseIndex + 3] = 0f;
             }
 
-            static float SampleHeightWorld(
-                NativeArray<float> heightmap,
+            static float SampleSlopeWorld(
+                NativeArray<float> slope,
                 int resolution,
                 float worldSize,
                 float3 worldOrigin,
@@ -1347,10 +1461,10 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var tx = fx - ix;
                 var tz = fz - iz;
 
-                var v00 = heightmap[iz * hr + ix];
-                var v10 = heightmap[iz * hr + ix + 1];
-                var v01 = heightmap[(iz + 1) * hr + ix];
-                var v11 = heightmap[(iz + 1) * hr + ix + 1];
+                var v00 = slope[iz * hr + ix];
+                var v10 = slope[iz * hr + ix + 1];
+                var v01 = slope[(iz + 1) * hr + ix];
+                var v11 = slope[(iz + 1) * hr + ix + 1];
                 return math.lerp(math.lerp(v00, v10, tx), math.lerp(v01, v11, tx), tz);
             }
 
