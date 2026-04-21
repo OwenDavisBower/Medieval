@@ -6,7 +6,8 @@ using UnityEngine;
 public class WatchTowerArrowDefense : MonoBehaviour
 {
     [SerializeField] Rigidbody arrowPrefab;
-    [SerializeField] float fireInterval = 1.05f;
+    [SerializeField] float fireIntervalMin = 0.85f;
+    [SerializeField] float fireIntervalMax = 1.25f;
     [SerializeField] float combatRange = 40f;
     [SerializeField] float launchHeight = 8.5f;
     [Tooltip("Arrows spawn at this height with XZ offset randomized inside spawnRadius.")]
@@ -37,7 +38,11 @@ public class WatchTowerArrowDefense : MonoBehaviour
             return;
 
         if (TryFireAt(target))
-            _nextFireTime = Time.time + fireInterval;
+        {
+            float min = Mathf.Min(fireIntervalMin, fireIntervalMax);
+            float max = Mathf.Max(fireIntervalMin, fireIntervalMax);
+            _nextFireTime = Time.time + Random.Range(min, max);
+        }
     }
 
     BanditController FindBanditToShoot()
