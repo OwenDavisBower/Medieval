@@ -10,11 +10,6 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
         [IntRange] _StepCount("Cel Step Count", Range(1, 16)) = 4
         _StepSmoothness("Step Edge Softness", Range(0.001, 0.5)) = 0.08
 
-        [HDR] _SpecularColor("Specular Color", Color) = (1, 1, 1, 1)
-        _Glossiness("Glossiness", Range(0.0, 1.0)) = 0.65
-        _SpecularSize("Specular Threshold", Range(0.0, 1.0)) = 0.85
-
-        [ToggleOff] _SpecularHighlights("Specular Highlights", Float) = 1.0
         [ToggleUI] _ReceiveShadows("Receive Shadows", Float) = 1.0
 
         _Surface("__surface", Float) = 0.0
@@ -46,9 +41,6 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
             half4 _ShadowColor;
             half _StepCount;
             half _StepSmoothness;
-            half4 _SpecularColor;
-            half _Glossiness;
-            half _SpecularSize;
         CBUFFER_END
 
         TEXTURE2D(_BaseMap);
@@ -83,7 +75,6 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
             #pragma fragment StylizedToonPassFragment
 
             #pragma shader_feature_local _RECEIVE_SHADOWS_OFF
-            #pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
@@ -168,17 +159,6 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
                 half high = (idx + 1.0h) / steps;
                 half ramp = smoothstep(1.0h - edgeSoft, 1.0h, f);
                 return lerp(low, high, ramp);
-            }
-
-            half StylizedHardSpecularBlinnPhong(half3 normalWS, half3 lightDirWS, half3 viewDirWS, half glossiness01, half specThreshold01)
-            {
-                half3 halfDir = normalize(lightDirWS + viewDirWS);
-                half nh = saturate(dot(normalWS, halfDir));
-                half power = exp2(lerp(4.0h, 12.0h, glossiness01));
-                half specTerm = pow(nh, power);
-                half edge = max(specThreshold01, 1.0e-4h);
-                half aa = 0.02h;
-                return smoothstep(edge - aa, edge + aa, specTerm);
             }
 
             half3 SampleStylizedGI(StylizedVaryings input, half3 normalWS, half3 viewDirWS, float4 shadowMask)
@@ -329,12 +309,6 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
 
                 half3 diffuseMain = lerp(albedo * _ShadowColor.rgb, albedo, toonTerm) * mainLight.color * mainAtten;
 
-                half3 specularAccum = half3(0, 0, 0);
-#ifndef _SPECULARHIGHLIGHTS_OFF
-                half specMask = StylizedHardSpecularBlinnPhong(normalWS, mainLight.direction, viewDirWS, _Glossiness, _SpecularSize);
-                specularAccum += specMask * _SpecularColor.rgb * mainLight.color * mainAtten;
-#endif
-
 #if defined(_ADDITIONAL_LIGHTS)
                 uint pixelLightCount = GetAdditionalLightsCount();
 
@@ -353,10 +327,6 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
                     half toonAdd = StylizedToonDiffuseTerm(ndotlAdd, steps, edge);
                     half atten = half(light.distanceAttenuation) * light.shadowAttenuation;
                     diffuseMain += lerp(albedo * _ShadowColor.rgb, albedo, toonAdd) * light.color * atten;
-#ifndef _SPECULARHIGHLIGHTS_OFF
-                    half specAdd = StylizedHardSpecularBlinnPhong(normalWS, light.direction, viewDirWS, _Glossiness, _SpecularSize);
-                    specularAccum += specAdd * _SpecularColor.rgb * light.color * atten;
-#endif
                 }
 #endif
 
@@ -371,10 +341,6 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
                         half toonAdd = StylizedToonDiffuseTerm(ndotlAdd, steps, edge);
                         half atten = half(light.distanceAttenuation) * light.shadowAttenuation;
                         diffuseMain += lerp(albedo * _ShadowColor.rgb, albedo, toonAdd) * light.color * atten;
-#ifndef _SPECULARHIGHLIGHTS_OFF
-                        half specAdd = StylizedHardSpecularBlinnPhong(normalWS, light.direction, viewDirWS, _Glossiness, _SpecularSize);
-                        specularAccum += specAdd * _SpecularColor.rgb * light.color * atten;
-#endif
                     }
                 LIGHT_LOOP_END
 #endif
@@ -385,7 +351,7 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
                 half3 vertexLighting = half3(0, 0, 0);
 #endif
 
-                half3 finalColor = bakedGI * albedo + diffuseMain + specularAccum + vertexLighting * albedo;
+                half3 finalColor = bakedGI * albedo + diffuseMain + vertexLighting * albedo;
 
 #if defined(_ADDITIONAL_LIGHTS_VERTEX)
                 half fogCoord = InitializeInputDataFog(float4(input.positionWS, 1.0), input.fogFactorAndVertexLight.x);
