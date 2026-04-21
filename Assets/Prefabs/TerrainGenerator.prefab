@@ -53,10 +53,10 @@ MonoBehaviour:
   flatRadius: 20
   falloffDistance: 35
   proceduralCliffsEnabled: 1
-  cliffThreshold: 0.4
+  cliffThreshold: 0.6
   cliffSteepPower: 6.33
   ridgeNoiseFrequencyScale: 0.91
-  ridgeSharpness: 5.69
+  ridgeSharpness: 4.48
   ridgeBlendBillowLow: 0.22
   ridgeBlendBillowHigh: 0.92
   chunkCount: 8
