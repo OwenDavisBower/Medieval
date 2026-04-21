@@ -112,7 +112,6 @@ public class WorldGenerationCoordinator : MonoBehaviour
             var rockRenderer = GetComponent<RockIndirectRenderer>();
             if (rockRenderer == null)
                 rockRenderer = gameObject.AddComponent<RockIndirectRenderer>();
-            _placementMask.SyncToTexture();
             _meshSpawning.TrySpawnMeshes(meshSpawn, rockRenderer, gen, _placementMask);
         }
     }

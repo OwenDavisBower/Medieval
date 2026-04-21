@@ -46,7 +46,8 @@ public class TreeSpawning
             float yaw = Random.Range(0f, 360f);
             Quaternion rot = Quaternion.Euler(0f, yaw, 0f);
             Object.Instantiate(config.TreePrefab, accepted[i], rot, parent);
-            placementMask.BurnDiskWorldXZ(accepted[i].x, accepted[i].z, treeBurnR);
         }
+
+        placementMask.BurnDisksWorldXZ(accepted, treeBurnR);
     }
 }

@@ -257,6 +257,35 @@ public sealed class TerrainGenerator : MonoBehaviour
             blocked[i] = (byte)(_pathDistanceField[i] < clearanceWorldMeters ? 1 : 0);
     }
 
+    /// <summary>
+    /// Sets occupancy bits where path distance is under clearance. Packs one bit per heightmap cell into <paramref name="words"/> (32 cells per <see cref="uint"/>).
+    /// <paramref name="words"/> length must be at least <c>(worldResolution * worldResolution + 31) / 32</c>; <paramref name="resolution"/> must match <see cref="worldResolution"/>.
+    /// </summary>
+    public bool TryStampPathOccupancyBits(NativeArray<uint> words, int resolution, float clearanceWorldMeters)
+    {
+        if (!words.IsCreated || !_pathDistanceField.IsCreated)
+            return false;
+        if (resolution != worldResolution)
+            return false;
+
+        int n = worldResolution * worldResolution;
+        int expectedWords = (n + 31) / 32;
+        if (words.Length < expectedWords)
+            return false;
+
+        for (int i = 0; i < n; i++)
+        {
+            if (_pathDistanceField[i] < clearanceWorldMeters)
+            {
+                int w = i >> 5;
+                int b = i & 31;
+                words[w] |= 1u << b;
+            }
+        }
+
+        return true;
+    }
+
     void OnEnable()
     {
         Instance = this;
@@ -1160,13 +1189,24 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var riverDist = RiverDf[index];
                 var distToAny = math.min(pathDist, riverDist);
 
+                // Domain warp: low-frequency simplex offsets world XZ before main height sampling.
+                const float warpScale = 0.001f;
+                const float warpStrength = 15f;
+                var warpPhase = new float2(Seed * 0.023f, Seed * 0.041f);
+                var warpCoord = new float2(wx, wz) * warpScale + warpPhase;
+                var warpOffset = new float2(
+                    noise.snoise(warpCoord),
+                    noise.snoise(warpCoord + new float2(17.3f, 29.1f))) * warpStrength;
+                var warpedX = wx + warpOffset.x;
+                var warpedZ = wz + warpOffset.y;
+
+                var noiseCoord = new float2(warpedX, warpedZ) * 0.0042f + new float2(Seed * 0.031f, Seed * 0.017f);
+                var n = FbmBillow2(noiseCoord);
+                var shaped = math.smoothstep(0.1f, 0.9f, math.saturate(n));
+
                 var t = (distToAny - FlatRadius) / math.max(1e-4f, FalloffDistance);
                 var variationMask = math.smoothstep(0f, 1f, math.saturate(t));
-
-                var noiseCoord = new float2(wx, wz) * 0.0042f + new float2(Seed * 0.031f, Seed * 0.017f);
-                var n = Fbm3(noiseCoord);
-                var biased = math.pow(math.abs(n), 1.8f) * math.sign(n);
-                var noiseTerm = biased * MaxVariation * variationMask;
+                var noiseTerm = shaped * MaxVariation * variationMask;
 
                 var baseNoiseH = BaseHeight + noiseTerm;
 
@@ -1193,19 +1233,23 @@ public sealed class TerrainGenerator : MonoBehaviour
                 HeightOut[index] = h;
             }
 
-            static float Fbm3(float2 p)
+            /// <summary>Two octaves of billow (1 - |snoise|) fBm; normalized to ~[0,1] for shaping.</summary>
+            static float FbmBillow2(float2 p)
             {
                 var sum = 0f;
                 var amp = 0.5f;
                 var freq = 1f;
-                for (var o = 0; o < 3; o++)
+                var weight = 0f;
+                for (var o = 0; o < 2; o++)
                 {
-                    sum += amp * noise.snoise(p * freq);
+                    var billow = 1f - math.abs(noise.snoise(p * freq));
+                    sum += amp * billow;
+                    weight += amp;
                     freq *= 2.02f;
                     amp *= 0.5f;
                 }
 
-                return sum;
+                return sum / math.max(1e-5f, weight);
             }
         }
     }
