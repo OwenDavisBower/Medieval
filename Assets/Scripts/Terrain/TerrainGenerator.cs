@@ -1,16 +1,13 @@
 #nullable enable
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using Unity.AI.Navigation;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.AI;
 using UnityEngine.Rendering;
 using UnityEngine.Splines;
 #if UNITY_EDITOR
@@ -41,6 +38,7 @@ public struct TerrainMeshVertex
 /// </summary>
 [ExecuteAlways]
 [DisallowMultipleComponent]
+[RequireComponent(typeof(TerrainNavMeshBuilder))]
 public sealed class TerrainGenerator : MonoBehaviour
 {
     #region TerrainGenerator
@@ -145,16 +143,8 @@ public sealed class TerrainGenerator : MonoBehaviour
     [SerializeField] float rockSlopeBlendEnd = 1.4f;
 
     [Header("Navigation")]
-    [Tooltip("Optional; if unset, a NavMeshSurface is added to this GameObject at runtime.")]
-    [SerializeField] NavMeshSurface? navMeshSurface;
-    [Tooltip("Half-width of the bake region on X/Z around the camera (world units). Only colliders overlapping this box are sent to the NavMesh builder.")]
-    [SerializeField] float navMeshCameraRegionHalfExtentXZ = 100f;
-    [Tooltip("Extra vertical padding below/above the expected terrain height band when fitting the bake volume.")]
-    [SerializeField] float navMeshCameraVerticalPadding = 12f;
-    [Tooltip("When the camera moves this far in XZ from the last bake focus, schedule a NavMesh rebuild (even if chunk LOD did not change).")]
-    [SerializeField] float navMeshCameraRefocusMoveDistance = 42f;
-    [Tooltip("Delay before rebuilding the NavMesh after chunk LOD mesh changes (coalesces rapid camera moves). Set to 0 to rebuild immediately.")]
-    [SerializeField] float navMeshRebuildDebounceSeconds = 0.35f;
+    [Tooltip("Optional; drives camera-follow NavMesh bakes. If unset, resolved via GetComponent at runtime.")]
+    [SerializeField] TerrainNavMeshBuilder? terrainNavMeshBuilder;
 
     const int SplatmapResolution = 512;
     const string TerrainChunkGameObjectPrefix = "TerrainChunk";
@@ -178,13 +168,6 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     bool _chunksBuilt;
     Vector3 _lastCameraPos = new(float.NaN, float.NaN, float.NaN);
-    bool _navMeshRebuildPending;
-    double _navMeshRebuildDueTime;
-    Vector2 _lastNavMeshFocusXz = new(float.NaN, float.NaN);
-
-    AsyncOperation? _navMeshUpdateOp;
-    bool _navMeshRebuildQueuedAfterAsync;
-    Coroutine? _navMeshUpdateCoroutine;
 
     /// <summary>When set before <see cref="Start"/>, automatic <see cref="RunPipeline"/> is skipped (e.g. <c>WorldGenerationCoordinator</c> calls <see cref="Regenerate"/>).</summary>
     bool _deferInitialPipeline;
@@ -209,6 +192,9 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     /// <summary>True after a successful <see cref="RunPipeline"/> run with a valid heightmap.</summary>
     public bool IsTerrainReady => _chunksBuilt && _heightmap.IsCreated;
+
+    /// <summary>Camera used for chunk LOD and shared with <see cref="TerrainNavMeshBuilder"/> for bake volume placement.</summary>
+    public Transform? CameraTransform => cameraTransform;
 
     /// <summary>Call from <see cref="MonoBehaviour.Awake"/> before this component's <see cref="Start"/> so initial generation can be driven by <see cref="WorldGenerationCoordinator"/>.</summary>
     public void DeferInitialPipeline() => _deferInitialPipeline = true;
@@ -468,6 +454,8 @@ public sealed class TerrainGenerator : MonoBehaviour
     void OnEnable()
     {
         Instance = this;
+        if (terrainNavMeshBuilder == null)
+            terrainNavMeshBuilder = GetComponent<TerrainNavMeshBuilder>();
         RenderPipelineManager.beginContextRendering += OnBeginContextRendering;
     }
 
@@ -500,12 +488,6 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     void OnDestroy()
     {
-        if (_navMeshUpdateCoroutine != null)
-        {
-            StopCoroutine(_navMeshUpdateCoroutine);
-            _navMeshUpdateCoroutine = null;
-        }
-
         DisposeNativeBuffers();
         _chunkManager.Dispose();
         if (_splatmapTexture != null)
@@ -543,164 +525,7 @@ public sealed class TerrainGenerator : MonoBehaviour
             transform,
             chunkCount,
             chunkVertexDensity);
-        if (lodDirty || ShouldRefocusNavMeshAroundCamera(p))
-            RequestNavMeshRebuild();
-    }
-
-    bool ShouldRefocusNavMeshAroundCamera(Vector3 camWorld)
-    {
-        if (float.IsNaN(_lastNavMeshFocusXz.x))
-            return false;
-
-        var xz = new Vector2(camWorld.x, camWorld.z);
-        var d = navMeshCameraRefocusMoveDistance;
-        return (xz - _lastNavMeshFocusXz).sqrMagnitude >= d * d;
-    }
-
-    void LateUpdate()
-    {
-        if (!_navMeshRebuildPending || !_chunksBuilt)
-            return;
-
-        if (EditorOrRuntimeTime() < _navMeshRebuildDueTime)
-            return;
-
-        _navMeshRebuildPending = false;
-        RebuildNavMesh();
-    }
-
-    static double EditorOrRuntimeTime()
-    {
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
-            return EditorApplication.timeSinceStartup;
-#endif
-        return Time.unscaledTimeAsDouble;
-    }
-
-    void EnsureNavMeshSurface()
-    {
-        if (navMeshSurface == null)
-            navMeshSurface = GetComponent<NavMeshSurface>();
-        if (navMeshSurface == null)
-        {
-            navMeshSurface = gameObject.AddComponent<NavMeshSurface>();
-            navMeshSurface.collectObjects = CollectObjects.Volume;
-            navMeshSurface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
-        }
-    }
-
-    void ApplyNavMeshCameraVolume()
-    {
-        if (navMeshSurface == null)
-            return;
-
-        navMeshSurface.collectObjects = CollectObjects.Volume;
-        navMeshSurface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
-
-        var half = math.max(4f, navMeshCameraRegionHalfExtentXZ);
-        var pad = math.max(0f, navMeshCameraVerticalPadding);
-        var yMin = transform.position.y + baseHeight - pad;
-        var yMax = transform.position.y + baseHeight + maxHeightVariation + pad;
-        var yMid = 0.5f * (yMin + yMax);
-        var ySize = math.max(8f, yMax - yMin);
-
-        Vector3 worldCenter;
-        if (cameraTransform != null)
-        {
-            var c = cameraTransform.position;
-            worldCenter = new Vector3(c.x, yMid, c.z);
-        }
-        else
-        {
-            worldCenter = transform.TransformPoint(Vector3.zero);
-            worldCenter.y = yMid;
-        }
-
-        navMeshSurface.center = navMeshSurface.transform.InverseTransformPoint(worldCenter);
-        navMeshSurface.size = new Vector3(half * 2f, ySize, half * 2f);
-    }
-
-    void RebuildNavMesh()
-    {
-        if (!_chunksBuilt)
-            return;
-
-        EnsureNavMeshSurface();
-        ApplyNavMeshCameraVolume();
-        var surface = navMeshSurface!;
-
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
-        {
-            surface.BuildNavMesh();
-            if (cameraTransform != null)
-                _lastNavMeshFocusXz = new Vector2(cameraTransform.position.x, cameraTransform.position.z);
-            return;
-        }
-#endif
-
-        if (surface.navMeshData == null)
-        {
-            surface.BuildNavMesh();
-            if (cameraTransform != null)
-                _lastNavMeshFocusXz = new Vector2(cameraTransform.position.x, cameraTransform.position.z);
-            return;
-        }
-
-        if (_navMeshUpdateOp != null && !_navMeshUpdateOp.isDone)
-        {
-            _navMeshRebuildQueuedAfterAsync = true;
-            return;
-        }
-
-        _navMeshUpdateOp = surface.UpdateNavMesh(surface.navMeshData);
-        if (_navMeshUpdateCoroutine != null)
-            StopCoroutine(_navMeshUpdateCoroutine);
-        _navMeshUpdateCoroutine = StartCoroutine(WaitForNavMeshUpdateCoroutine());
-    }
-
-    IEnumerator WaitForNavMeshUpdateCoroutine()
-    {
-        if (_navMeshUpdateOp == null)
-            yield break;
-
-        yield return _navMeshUpdateOp;
-        _navMeshUpdateOp = null;
-        _navMeshUpdateCoroutine = null;
-
-        if (cameraTransform != null)
-            _lastNavMeshFocusXz = new Vector2(cameraTransform.position.x, cameraTransform.position.z);
-
-        if (_navMeshRebuildQueuedAfterAsync)
-        {
-            _navMeshRebuildQueuedAfterAsync = false;
-            RebuildNavMesh();
-        }
-    }
-
-    void RequestNavMeshRebuild()
-    {
-        if (!_chunksBuilt)
-            return;
-
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
-        {
-            RebuildNavMesh();
-            return;
-        }
-#endif
-
-        var debounce = System.Math.Max(0.0, navMeshRebuildDebounceSeconds);
-        if (debounce <= 0.0)
-        {
-            RebuildNavMesh();
-            return;
-        }
-
-        _navMeshRebuildPending = true;
-        _navMeshRebuildDueTime = EditorOrRuntimeTime() + debounce;
+        terrainNavMeshBuilder?.NotifyCameraOrLodChange(p, lodDirty);
     }
 
     /// <summary>
@@ -843,8 +668,7 @@ public sealed class TerrainGenerator : MonoBehaviour
         if (cameraTransform != null)
             _lastCameraPos = cameraTransform.position;
 
-        _navMeshRebuildPending = false;
-        RebuildNavMesh();
+        terrainNavMeshBuilder?.RebuildImmediatelyAfterTerrainPipeline();
 
         if (Application.isPlaying)
             TerrainGenerated?.Invoke(this);
