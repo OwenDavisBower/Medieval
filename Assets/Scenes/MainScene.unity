@@ -723,6 +723,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: TerrainGenerator
       objectReference: {fileID: 0}
+    - target: {fileID: 8749668901560032296, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
+      propertyPath: navMeshWaterLevelY
+      value: -0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8749668901560032296, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
+      propertyPath: navMeshWaterVolumeXzExtraHalfExtent
+      value: 32
+      objectReference: {fileID: 0}
     - target: {fileID: 9137311620483086410, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

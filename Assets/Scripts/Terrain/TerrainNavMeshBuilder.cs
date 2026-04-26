@@ -36,7 +36,7 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
     [Tooltip("Delay after chunk LOD mesh changes before rebuilding (coalesces rapid camera moves). 0 = immediate.")]
     [SerializeField] float navMeshRebuildDebounceSeconds = 0.35f;
     [Tooltip("World Y for sea level; NavMesh below this in the volume uses the 'Water' area.")]
-    [SerializeField] float navMeshWaterLevelY = 0f;
+    [SerializeField] float navMeshWaterLevelY = -0.1f;
     [Tooltip("Depth of the under-water tag volume in world Y.")]
     [SerializeField] float navMeshWaterVolumeDepth = 20000f;
     [Tooltip("Extra XZ half-extent beyond procedural worldSize so the Water volume covers baked colliders.")]
