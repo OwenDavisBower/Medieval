@@ -13,6 +13,13 @@ MonoBehaviour:
   m_Name: SettlementSpawn
   m_EditorClassIdentifier: 
   buildings:
+  - prefab: {fileID: 2690999678113556293, guid: 60d8a08a66da64082b31caa9eb5ec78e, type: 3}
+    minCount: 1
+    maxCount: 1
+    radiusMin: 0
+    radiusMax: 4
+    placementRadius: 2
+    spawnVillagersHere: 0
   - prefab: {fileID: 4024279981392801517, guid: 284265d63fd9f40ca9d4b61e8258310b, type: 3}
     minCount: 2
     maxCount: 5
