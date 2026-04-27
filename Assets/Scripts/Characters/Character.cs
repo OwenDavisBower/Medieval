@@ -22,7 +22,7 @@ public class Character : MonoBehaviour
 
     [SerializeField] float healthBarHeightOffset = 2.15f;
     [SerializeField] float healthBarScale = 0.011f;
-    [SerializeField] [Tooltip("Use the same name as a user layer in Project Settings; assigned to the health bar so it can render on the URP overlay and skip pixelation.")] string _healthBarLayer = "HealthBar";
+    [SerializeField] [Tooltip("Use the same name as a user layer in Project Settings; assigned to the health bar so it can render on the URP overlay camera.")] string _healthBarLayer = "HealthBar";
 
     float _current;
     float _rolledMaxHealth;
