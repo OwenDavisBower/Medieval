@@ -72,7 +72,7 @@ MonoBehaviour:
   m_Shader: {fileID: 4800000, guid: 6d8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c, type: 3}
   m_PixelWidth: 256
   m_PixelHeight: 144
-  m_DefaultPalette: {fileID: 0}
+  m_DefaultPalette: {fileID: 11400000, guid: 9d7c371a46acb4497ad2abd91492dc41, type: 2}
   m_RuntimePalette: {fileID: 0}
 --- !u!114 &7833122117494664109
 MonoBehaviour:

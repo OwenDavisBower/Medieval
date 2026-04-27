@@ -56,6 +56,24 @@ MonoBehaviour:
   m_DepthTextureFormat: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 0
+--- !u!114 &1833122117494664108
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c7e8f2a1b0d4e3c9a8b7c6d5e4f3a2b, type: 3}
+  m_Name: Pixel Art
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  m_Shader: {fileID: 4800000, guid: 6d8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c, type: 3}
+  m_PixelWidth: 256
+  m_PixelHeight: 144
+  m_DefaultPalette: {fileID: 11400000, guid: 9d7c371a46acb4497ad2abd91492dc41, type: 2}
+  m_RuntimePalette: {fileID: 0}
 --- !u!114 &7833122117494664109
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -82,21 +100,3 @@ MonoBehaviour:
     BlurQuality: 0
     Falloff: 100
     SampleCount: -1
---- !u!114 &1833122117494664108
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c7e8f2a1b0d4e3c9a8b7c6d5e4f3a2b, type: 3}
-  m_Name: Pixel Art
-  m_EditorClassIdentifier: 
-  m_Active: 1
-  m_Shader: {fileID: 4800000, guid: 6d8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c, type: 3}
-  m_PixelWidth: 256
-  m_PixelHeight: 144
-  m_DefaultPalette: {fileID: 0}
-  m_RuntimePalette: {fileID: 0}
