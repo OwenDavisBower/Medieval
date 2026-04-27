@@ -275,10 +275,6 @@ MonoBehaviour:
   offset: {x: 0, y: 35, z: -5}
   smooth: 8
   lookAtHeight: 1
-  pixelGridSnapEnabled: 1
-  pixelGridSnapReferenceDistance: 10
-  pixelGridSnapPivotOverride: {fileID: 0}
-  pixelGridSnapOnlyInPlayGameCamera: 1
 --- !u!114 &330585549
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -307,7 +303,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   worldCamera: {fileID: 330585545}
   internalBufferOverride: {fileID: 0}
-  bufferSize: {x: 320, y: 180}
+  bufferSize: {x: 160, y: 90}
   pixelsPerUnit: 16
   applyOrthoSizeFromPpu: 1
   letterboxToBufferAspect: 1

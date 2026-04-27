@@ -34,6 +34,14 @@ public sealed class PixelRtPresentationBootstrap : MonoBehaviour
 
         worldCamera.enabled = true;
         worldCamera.forceIntoRenderTexture = true;
+        worldCamera.allowMSAA = false;
+        worldCamera.allowHDR = false;
+        worldCamera.allowDynamicResolution = false;
+
+        var worldUrp = worldCamera.GetUniversalAdditionalCameraData();
+        worldUrp.renderPostProcessing = false;
+        worldUrp.antialiasing = AntialiasingMode.None;
+        worldUrp.dithering = false;
 
         if (applyOrthoSizeFromPpu && worldCamera.orthographic)
             worldCamera.orthographicSize = bufferSize.y / (2f * pixelsPerUnit);
@@ -41,6 +49,21 @@ public sealed class PixelRtPresentationBootstrap : MonoBehaviour
         RenderTexture rt = internalBufferOverride != null
             ? internalBufferOverride
             : CreateOwnedRt();
+
+        // For an override RT, we can safely enforce sampling params, but not creation-time flags
+        // (Unity throws if you try to change mipmap/MSAA settings after the RT is created).
+        rt.filterMode = FilterMode.Point;
+        rt.wrapMode = TextureWrapMode.Clamp;
+        if (internalBufferOverride != null)
+        {
+            if (rt.useMipMap || rt.autoGenerateMips || rt.antiAliasing != 1)
+            {
+                Debug.LogWarning(
+                    "PixelRtPresentationBootstrap: internalBufferOverride RenderTexture should be configured with " +
+                    "useMipMap=false, autoGenerateMips=false, antiAliasing=1 (set these in the asset/creator; they can't be changed at runtime once created).",
+                    this);
+            }
+        }
 
         bufferSize = new Vector2Int(rt.width, rt.height);
 
@@ -55,9 +78,6 @@ public sealed class PixelRtPresentationBootstrap : MonoBehaviour
     {
         if (_rawImage == null || !letterboxToBufferAspect)
             return;
-
-        if (worldCamera != null && worldCamera.targetTexture != null)
-            worldCamera.Render();
 
         // Integer scaling prevents uneven pixel sizes / blur from fractional UI scaling.
         int w = Mathf.Max(1, bufferSize.x);
@@ -148,6 +168,7 @@ public sealed class PixelRtPresentationBootstrap : MonoBehaviour
         _canvas = canvasGo.AddComponent<Canvas>();
         // Overlay is the most robust: it can't be culled by camera masks and avoids camera-space scaling issues.
         _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        _canvas.pixelPerfect = true;
         _canvas.overrideSorting = true;
         _canvas.sortingOrder = 32767;
 
