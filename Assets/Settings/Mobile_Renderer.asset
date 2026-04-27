@@ -27,7 +27,8 @@ MonoBehaviour:
   m_RendererFeatures:
   - {fileID: 7833122117494664109}
   - {fileID: 1833122117494664108}
-  m_RendererFeatureMap: ad6b866f10d7b46c
+  - {fileID: 6933122117494664110}
+  m_RendererFeatureMap: ad6b866f10d7b46cac6b2e83da8e7019ae6bac25d5653760
   m_UseNativeRenderPass: 1
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
@@ -74,6 +75,33 @@ MonoBehaviour:
   m_PixelHeight: 324
   m_DefaultPalette: {fileID: 11400000, guid: 9d7c371a46acb4497ad2abd91492dc41, type: 2}
   m_RuntimePalette: {fileID: 0}
+--- !u!114 &6933122117494664110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3d4e5f6a7b8490123456789abcdef01, type: 3}
+  m_Name: Pixel Perfect Outline
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  m_CompositeShader: {fileID: 4800000, guid: 4a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d, type: 3}
+  m_MaskShader: {fileID: 4800000, guid: 3d7a9e1f2b4c5d6e7f8a9b0c1d2e3f4a, type: 3}
+  m_OutlineLayers:
+    serializedVersion: 2
+    m_Bits: 896
+  m_MaskChannels: 2
+  m_DepthThreshold: 0.13
+  m_NormalThreshold: 0.313
+  m_FillNeighbor: 1
+  m_OutlineSilhouetteColor: {r: 0, g: 0, b: 0, a: 1}
+  m_OutlineCreaseColor: {r: 0, g: 0, b: 0, a: 1}
+  m_UsePixelArtGrid: 1
+  m_PixelWidthOverride: 512
+  m_PixelHeightOverride: 324
 --- !u!114 &7833122117494664109
 MonoBehaviour:
   m_ObjectHideFlags: 0
