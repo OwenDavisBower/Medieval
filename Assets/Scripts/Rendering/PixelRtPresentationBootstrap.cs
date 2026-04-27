@@ -6,7 +6,7 @@ using UnityEngine.UI;
 /// <summary>
 /// Renders the world <see cref="Camera"/> into a low-resolution <see cref="RenderTexture"/> (point filtered),
 /// then presents it fullscreen via a second camera + UI canvas (letterboxed to the buffer aspect).
-/// Orthographic size on the world camera should follow: bufferHeight / (2 × PPU); this script can apply it at runtime.
+/// The world camera's orthographic size is respected; buffer resolution is derived from the chosen pixel height.
 /// </summary>
 [DefaultExecutionOrder(-500)]
 public sealed class PixelRtPresentationBootstrap : MonoBehaviour
@@ -15,9 +15,10 @@ public sealed class PixelRtPresentationBootstrap : MonoBehaviour
     [Tooltip("If set, this texture is used; otherwise a runtime RT is created from Buffer Size.")]
     [SerializeField] RenderTexture? internalBufferOverride;
 
+    [Header("Buffer Resolution")]
+    [Tooltip("Target number of pixels in the buffer height. Width is derived from the current Game View aspect.")]
+    [SerializeField] [Min(1)] int bufferPixelHeight = 180;
     [SerializeField] Vector2Int bufferSize = new(320, 180);
-    [SerializeField] [Min(1)] int pixelsPerUnit = 16;
-    [SerializeField] bool applyOrthoSizeFromPpu = true;
     [SerializeField] bool letterboxToBufferAspect = true;
     [SerializeField] int presentationCameraDepth = 10;
     [SerializeField] Color presentationClear = Color.black;
@@ -42,9 +43,6 @@ public sealed class PixelRtPresentationBootstrap : MonoBehaviour
         worldUrp.renderPostProcessing = false;
         worldUrp.antialiasing = AntialiasingMode.None;
         worldUrp.dithering = false;
-
-        if (applyOrthoSizeFromPpu && worldCamera.orthographic)
-            worldCamera.orthographicSize = bufferSize.y / (2f * pixelsPerUnit);
 
         RenderTexture rt = internalBufferOverride != null
             ? internalBufferOverride
@@ -116,6 +114,12 @@ public sealed class PixelRtPresentationBootstrap : MonoBehaviour
 
     RenderTexture CreateOwnedRt()
     {
+        // Match the backbuffer aspect so the presented view fills the Game View.
+        float screenAspect = Screen.height > 0 ? (Screen.width / (float)Screen.height) : (16f / 9f);
+        int h = Mathf.Max(1, bufferPixelHeight);
+        int w = Mathf.Max(1, Mathf.RoundToInt(h * screenAspect));
+        bufferSize = new Vector2Int(w, h);
+
         var rt = new RenderTexture(bufferSize.x, bufferSize.y, 24, RenderTextureFormat.ARGB32)
         {
             name = "PixelGameBuffer_Runtime",
