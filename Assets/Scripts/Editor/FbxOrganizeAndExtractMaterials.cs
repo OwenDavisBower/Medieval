@@ -129,14 +129,14 @@ public static class FbxOrganizeAndExtractMaterials
         foreach (var mat in embeddedMaterials)
         {
             var dest = AssetDatabase.GenerateUniqueAssetPath($"{targetFolder}/{SanitizeFileName(mat.name)}.mat");
-            var resultPath = AssetDatabase.ExtractAsset(mat, dest);
-            if (string.IsNullOrEmpty(resultPath))
+            var extractErr = AssetDatabase.ExtractAsset(mat, dest);
+            if (!string.IsNullOrEmpty(extractErr))
             {
-                error = $"Failed to extract material '{mat.name}'.";
+                error = $"Failed to extract material '{mat.name}': {extractErr}";
                 return false;
             }
 
-            extractedMaterialPaths.Add(resultPath);
+            extractedMaterialPaths.Add(dest.Replace('\\', '/'));
         }
 
         try
