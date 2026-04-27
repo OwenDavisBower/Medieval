@@ -183,8 +183,8 @@ Camera:
   near clip plane: 0.3
   far clip plane: 1000
   field of view: 60
-  orthographic: 1
-  orthographic size: 5.625
+  orthographic: 0
+  orthographic size: 20
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -303,9 +303,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   worldCamera: {fileID: 330585545}
   internalBufferOverride: {fileID: 0}
+  bufferPixelHeight: 320
   bufferSize: {x: 160, y: 90}
-  pixelsPerUnit: 16
-  applyOrthoSizeFromPpu: 1
   letterboxToBufferAspect: 1
   presentationCameraDepth: 10
   presentationClear: {r: 0, g: 0, b: 0, a: 1}
