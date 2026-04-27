@@ -11,7 +11,7 @@ Shader "Medieval/Rendering/PixelArtComposite"
 
     float2 _PixelGrid; // (width, height) of the low-res buffer
 
-    #define MAX_PALETTE 32
+    #define MAX_PALETTE 48
     float4 _Palette[MAX_PALETTE];
     int _PaletteCount;
     float3 _PaletteLab[MAX_PALETTE];

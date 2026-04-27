@@ -12,7 +12,7 @@ namespace Medieval.Rendering.PixelArt
     /// </summary>
     public class PixelArtPass : ScriptableRenderPass
     {
-        const int k_MaxPalette = 32;
+        const int k_MaxPalette = 48;
         const string k_PassDown = "PixelArt Downsample";
         const string k_PassUp = "PixelArt Lab & Upsample";
         const string k_LowTexName = "_PixelArt_LowRes";
