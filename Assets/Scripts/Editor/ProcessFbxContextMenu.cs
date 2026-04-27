@@ -247,6 +247,9 @@ public static class ProcessFbxContextMenu
 
         AssetDatabase.Refresh();
 
+        keepTexturePaths = RenameKeptTexturesToFbxStem(folder, fbxStem, keepTexturePaths);
+        AssetDatabase.Refresh();
+
         foreach (var tp in keepTexturePaths)
             ApplyBaseMapImportSettings(tp);
 
@@ -363,6 +366,47 @@ public static class ProcessFbxContextMenu
         }
 
         return set;
+    }
+
+    /// <summary>
+    /// Renames kept textures to <c>{fbxStem}Texture</c> (+ extension), e.g. House.fbx → HouseTexture.png.
+    /// Additional kept textures use <c>{fbxStem}Texture_2</c>, etc., with <see cref="AssetDatabase.GenerateUniqueAssetPath"/> for collisions.
+    /// </summary>
+    static HashSet<string> RenameKeptTexturesToFbxStem(
+        string folder,
+        string fbxStem,
+        HashSet<string> keepTexturePaths)
+    {
+        if (keepTexturePaths.Count == 0)
+            return keepTexturePaths;
+
+        folder = folder.Replace('\\', '/').TrimEnd('/');
+        var ordered = keepTexturePaths.OrderBy(p => p, System.StringComparer.Ordinal).ToList();
+        var result = new HashSet<string>(System.StringComparer.Ordinal);
+
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var tp = ordered[i].Replace('\\', '/');
+            var ext = Path.GetExtension(tp);
+            var nameStem = i == 0 ? $"{fbxStem}Texture" : $"{fbxStem}Texture_{i + 1}";
+            var dest = $"{folder}/{SanitizeFileName(nameStem)}{ext}".Replace('\\', '/');
+            dest = AssetDatabase.GenerateUniqueAssetPath(dest).Replace('\\', '/');
+
+            if (!string.Equals(tp, dest, System.StringComparison.OrdinalIgnoreCase))
+            {
+                var err = AssetDatabase.MoveAsset(tp, dest);
+                if (!string.IsNullOrEmpty(err))
+                {
+                    Debug.LogWarning($"ProcessFBX: could not rename texture '{tp}' → '{dest}': {err}");
+                    result.Add(tp);
+                    continue;
+                }
+            }
+
+            result.Add(dest);
+        }
+
+        return result;
     }
 
     static bool AssetPathIsUnderFolder(string assetPath, string folder)
