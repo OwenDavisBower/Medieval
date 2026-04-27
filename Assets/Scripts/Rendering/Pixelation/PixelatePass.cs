@@ -12,6 +12,7 @@ public sealed class PixelatePass : ScriptableRenderPass
     static readonly ProfilingSampler s_Profiler = new ProfilingSampler(nameof(PixelatePass));
     static readonly int s_PixelGridId = Shader.PropertyToID("_PixelGrid");
     static readonly int s_PosterizeId = Shader.PropertyToID("_Posterize");
+    static readonly int s_PosterizeDitherStrengthId = Shader.PropertyToID("_PosterizeDitherStrength");
     static readonly int s_CameraOpaqueTextureId = Shader.PropertyToID("_CameraOpaqueTexture");
 
     readonly Material m_Material;
@@ -51,7 +52,11 @@ public sealed class PixelatePass : ScriptableRenderPass
             ? Mathf.Max(2f, volume.colorDepth.value)
             : 0f;
 
-        return new PixelateRuntimeSettings(w, h, posterize);
+        float dither = posterize > 0.001f && volume.posterizeDitherStrength.value > 0.001f
+            ? Mathf.Clamp01(volume.posterizeDitherStrength.value)
+            : 0f;
+
+        return new PixelateRuntimeSettings(w, h, posterize, dither);
     }
 
     void PushBlockConstants(in PixelateRuntimeSettings settings)
@@ -59,6 +64,7 @@ public sealed class PixelatePass : ScriptableRenderPass
         m_Block.Clear();
         m_Block.SetVector(s_PixelGridId, new Vector4(settings.PixelWidth, settings.PixelHeight, 0f, 0f));
         m_Block.SetFloat(s_PosterizeId, settings.Posterize);
+        m_Block.SetFloat(s_PosterizeDitherStrengthId, settings.PosterizeDitherStrength);
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -103,15 +109,17 @@ public sealed class PixelatePass : ScriptableRenderPass
 
     readonly struct PixelateRuntimeSettings
     {
-        public PixelateRuntimeSettings(int pixelWidth, int pixelHeight, float posterize)
+        public PixelateRuntimeSettings(int pixelWidth, int pixelHeight, float posterize, float posterizeDitherStrength)
         {
             PixelWidth = pixelWidth;
             PixelHeight = pixelHeight;
             Posterize = posterize;
+            PosterizeDitherStrength = posterizeDitherStrength;
         }
 
         public int PixelWidth { get; }
         public int PixelHeight { get; }
         public float Posterize { get; }
+        public float PosterizeDitherStrength { get; }
     }
 }

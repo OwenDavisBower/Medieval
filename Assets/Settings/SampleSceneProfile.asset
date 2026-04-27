@@ -96,13 +96,16 @@ MonoBehaviour:
     m_Value: 1
   screenHeight:
     m_OverrideState: 1
-    m_Value: 361
+    m_Value: 240
   matchAspectRatio:
     m_OverrideState: 1
     m_Value: 1
   colorDepth:
     m_OverrideState: 1
-    m_Value: 256
+    m_Value: 32
+  posterizeDitherStrength:
+    m_OverrideState: 1
+    m_Value: 0.2
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0

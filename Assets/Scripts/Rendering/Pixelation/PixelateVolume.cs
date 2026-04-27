@@ -21,6 +21,9 @@ public sealed class PixelateVolume : VolumeComponent
     [Tooltip("Per-channel posterization steps. 0 disables posterization; higher values keep more shades.")]
     public ClampedFloatParameter colorDepth = new ClampedFloatParameter(0f, 0f, 256f);
 
+    [Tooltip("Ordered 4×4 Bayer dither before posterize quantization. 0 = off (default); higher breaks banding but adds grain.")]
+    public ClampedFloatParameter posterizeDitherStrength = new ClampedFloatParameter(0f, 0f, 1f);
+
     /// <summary>
     /// True when the volume override is enabled and parameters request a valid pixel grid.
     /// Uses the base <see cref="VolumeComponent.active"/> toggle plus <see cref="isActive"/>.

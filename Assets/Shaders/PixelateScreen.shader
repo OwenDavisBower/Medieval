@@ -23,6 +23,23 @@ Shader "Hidden/URP/PixelateScreen"
 
             float4 _PixelGrid; // xy = horizontal/vertical cell counts, zw unused
             float _Posterize; // 0 = off, else per-channel steps (>= 2)
+            float _PosterizeDitherStrength; // 0 = off; scales Bayer offset before quantize
+
+            // Classic 4×4 Bayer (row-major 0..15); Bayer4x4 returns approximately [-0.5, 0.5).
+            static const uint k_Bayer4x4[16] =
+            {
+                0u, 8u, 2u, 10u,
+                12u, 4u, 14u, 6u,
+                3u, 11u, 1u, 9u,
+                15u, 7u, 13u, 5u
+            };
+
+            float Bayer4x4(uint2 p)
+            {
+                uint i = (p.x & 3u) + ((p.y & 3u) << 2u);
+                uint v = k_Bayer4x4[i];
+                return (v + 0.5) / 16.0 - 0.5;
+            }
 
             half4 frag(Varyings input) : SV_Target
             {
@@ -45,7 +62,15 @@ Shader "Hidden/URP/PixelateScreen"
                 if (_Posterize > 0.001h)
                 {
                     float levels = max(_Posterize, 2.0);
-                    color.rgb = floor(color.rgb * levels) / (levels - 1.0);
+                    float3 c = color.rgb;
+                    if (_PosterizeDitherStrength > 0.001)
+                    {
+                        uint2 pix = (uint2)input.positionCS.xy;
+                        float b = Bayer4x4(pix);
+                        // ~one quantization step at strength 1; scale for look.
+                        c += b * _PosterizeDitherStrength / levels;
+                    }
+                    color.rgb = half3(floor(c * levels) / (levels - 1.0));
                 }
 
                 return color;
