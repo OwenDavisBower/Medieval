@@ -7,7 +7,7 @@ public class TreeSpawning
 
     public void TrySpawnTrees(TreeSpawnConfig config, Transform parent, TerrainGenerator gen, ProceduralPlacementMask placementMask)
     {
-        if (config == null || _spawned || config.TreePrefab == null)
+        if (config == null || _spawned || !config.HasSpawnableTreePrefab())
             return;
 
         if (gen == null || !gen.IsTerrainReady || placementMask == null)
@@ -43,9 +43,13 @@ public class TreeSpawning
 
         for (int i = 0; i < accepted.Count; i++)
         {
+            GameObject prefab = config.PickTreePrefab();
+            if (prefab == null)
+                continue;
+
             float yaw = Random.Range(0f, 360f);
             Quaternion rot = Quaternion.Euler(0f, yaw, 0f);
-            Object.Instantiate(config.TreePrefab, accepted[i], rot, parent);
+            Object.Instantiate(prefab, accepted[i], rot, parent);
         }
 
         placementMask.BurnDisksWorldXZ(accepted, treeBurnR);
