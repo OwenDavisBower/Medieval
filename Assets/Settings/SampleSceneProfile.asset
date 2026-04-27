@@ -90,10 +90,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6196dc10c19c146a8847ba0f48362536, type: 3}
   m_Name: Pixelate
   m_EditorClassIdentifier: 
-  active: 1
+  active: 0
   isActive:
     m_OverrideState: 1
-    m_Value: 1
+    m_Value: 0
   screenHeight:
     m_OverrideState: 1
     m_Value: 240

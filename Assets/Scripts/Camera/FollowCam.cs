@@ -64,10 +64,21 @@ public class FollowCam : MonoBehaviour
         PixelateGrid.GetScaledRenderSize(_camera, out int scaledW, out int scaledH);
         PixelateGrid.GetLogicalPixelCounts(volume, scaledW, scaledH, out int logicalW, out int logicalH);
 
-        float depth = Mathf.Max(0.01f, pixelGridSnapReferenceDistance);
-        float frustumHeight = 2f * depth * Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+        float frustumHeight;
+        float frustumWidth;
         float aspect = scaledW / (float)scaledH;
-        float frustumWidth = frustumHeight * aspect;
+
+        if (_camera.orthographic)
+        {
+            frustumHeight = 2f * _camera.orthographicSize;
+            frustumWidth = frustumHeight * aspect;
+        }
+        else
+        {
+            float depth = Mathf.Max(0.01f, pixelGridSnapReferenceDistance);
+            frustumHeight = 2f * depth * Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            frustumWidth = frustumHeight * aspect;
+        }
 
         float cellH = frustumHeight / logicalH;
         float cellW = frustumWidth / logicalW;
