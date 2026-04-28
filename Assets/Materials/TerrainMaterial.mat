@@ -45,6 +45,9 @@ Material:
     - _HexSize: 0.2
     - _PathEdgeDarkenIntensity: 0.265
     - _PathEdgeDarkenWidth: 0.62
+    - _PathGrassBlendNoiseScale: 2
+    - _PathGrassBlendNoiseStrength: 0.163
+    - _PathGrassBlendWidth: 0.064
     - _PathTiling: 0.11
     - _RockTiling: 1.05
     m_Colors:

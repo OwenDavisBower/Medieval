@@ -17,6 +17,9 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
         _HexSize("Hex Cell Size (UV)", Float) = 1
         _HexBlend("Hex Blend Sharpness", Float) = 10
         _EdgeNoiseScale("Path Edge Noise Scale (world)", Float) = 4
+        _PathGrassBlendWidth("Path↔Grass Blend Width", Range(0, 0.5)) = 0.06
+        _PathGrassBlendNoiseStrength("Path↔Grass Blend Noise Strength", Range(0, 1)) = 0.35
+        _PathGrassBlendNoiseScale("Path↔Grass Blend Noise Scale (world)", Float) = 2
         _PathEdgeDarkenIntensity("Path Edge Darken Intensity", Range(0, 1)) = 0
         _PathEdgeDarkenWidth("Path Edge Darken Width (mask margin)", Float) = 0.2
     }
@@ -73,6 +76,9 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 half _HexSize;
                 half _HexBlend;
                 half _EdgeNoiseScale;
+                half _PathGrassBlendWidth;
+                half _PathGrassBlendNoiseStrength;
+                half _PathGrassBlendNoiseScale;
                 half _PathEdgeDarkenIntensity;
                 half _PathEdgeDarkenWidth;
             CBUFFER_END
@@ -294,11 +300,15 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 pathCol *= 1.0h - darken;
                 const half3 rockCol = SampleTextureHex(rockUV, _RockTex, sampler_RockTex);
                 float rockEdgeN = TerrainEdgeNoise(wXZ + float2(31.7, 12.4), (float)_EdgeNoiseScale);
-                // Stochastic blend: P(layer) = mask; path wins over grass/rock.
+                // Stochastic blend: P(layer) = mask; rock stays binary, but path↔grass is softened with noise.
                 half rockPick = (half)step(rockEdgeN, rockMask);
-                half pathPick = (half)step(edgeN, pathMask);
+
+                float blendNoise = TerrainEdgeNoise(wXZ + float2(91.3, 17.1), (float)_PathGrassBlendNoiseScale);
+                float maskJitter = ((blendNoise * 2.0) - 1.0) * (float)_PathGrassBlendNoiseStrength;
+                float w = max((float)_PathGrassBlendWidth, 1e-5);
+                half pathBlend = (half)smoothstep(edgeN - w, edgeN + w, pathMask + maskJitter);
                 const half3 baseCol = lerp(grassCol, rockCol, rockPick);
-                const half3 albedo = lerp(baseCol, pathCol, pathPick);
+                const half3 albedo = lerp(baseCol, pathCol, pathBlend);
                 const half3 n = normalize(input.normalWS);
 
                 const float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
