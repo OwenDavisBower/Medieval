@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 9137311620483086410}
   - component: {fileID: 5991984832860559313}
   - component: {fileID: 8922804896616379102}
+  - component: {fileID: 8749668901560032296}
   m_Layer: 0
   m_Name: TerrainGenerator
   m_TagString: Untagged
@@ -48,7 +49,7 @@ MonoBehaviour:
   worldResolution: 512
   worldSize: 1024
   baseHeight: 0
-  waterHeightAdjustmentAmount: 20
+  waterHeightAdjustmentAmount: 10
   maxHeightVariation: 25
   flatRadius: 20
   falloffDistance: 35
@@ -72,9 +73,9 @@ MonoBehaviour:
   wormNoiseScale: 0.015
   wormMaxTurnRadians: 0.45
   wormBoundaryMargin: 24
-  riverBedDepth: 10
-  riverChannelHalfWidth: 1
-  riverCarveBlendDistance: 10
+  riverBedDepth: 20
+  riverChannelHalfWidth: 0.5
+  riverCarveBlendDistance: 7.5
   cameraTransform: {fileID: 0}
   terrainMaterial: {fileID: 2100000, guid: ce161d6f295cc4485a1fb30129cf8277, type: 2}
   chunkVertexDensity: 32
@@ -83,11 +84,7 @@ MonoBehaviour:
   lodCameraMoveEpsilonSqr: 0.25
   rockSlopeBlendStart: 0.7
   rockSlopeBlendEnd: 2.23
-  navMeshSurface: {fileID: 8922804896616379102}
-  navMeshCameraRegionHalfExtentXZ: 100
-  navMeshCameraVerticalPadding: 12
-  navMeshCameraRefocusMoveDistance: 42
-  navMeshRebuildDebounceSeconds: 0.35
+  terrainNavMeshBuilder: {fileID: 8749668901560032296}
 --- !u!114 &8922804896616379102
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -120,3 +117,24 @@ MonoBehaviour:
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
+--- !u!114 &8749668901560032296
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8160483859847513919}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d3e112c4f4cd46d9b424a8668a6e708, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainNavMeshBuilder
+  terrainGenerator: {fileID: 5991984832860559313}
+  navMeshSurface: {fileID: 0}
+  navMeshCameraRegionHalfExtentXZ: 100
+  navMeshCameraVerticalPadding: 12
+  navMeshCameraRefocusMoveDistance: 42
+  navMeshRebuildDebounceSeconds: 0.35
+  navMeshWaterLevelY: -0.1
+  navMeshWaterVolumeDepth: 20000
+  navMeshWaterVolumeXzExtraHalfExtent: 32
