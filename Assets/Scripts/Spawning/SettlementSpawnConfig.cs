@@ -39,6 +39,14 @@ public class SettlementSpawnConfig : ScriptableObject
     [Tooltip("Maximum horizontal distance from the nearest path (meters). Settlements must lie within this radius to count as near a path.")]
     [SerializeField] float maxDistanceFromPathMeters = 56f;
 
+    [Header("Settlement paths (splat R)")]
+    [Tooltip("Path ring runs this far outside each structure's horizontal bounds (world meters).")]
+    [SerializeField] float pathRingOutsideFootprint = 1.25f;
+    [Tooltip("Approximate spacing between samples along connecting paths (world meters).")]
+    [SerializeField] float pathSegmentStepMeters = 1.4f;
+    [Tooltip("Max lateral wobble for organic corridors (world meters).")]
+    [SerializeField] float pathWobbleAmplitude = 1.1f;
+
     public IReadOnlyList<SettlementBuildingSpawnEntry> Buildings => buildings;
     public GameObject VillagerPrefab => villagerPrefab;
     public int SettlementCount => settlementCount;
@@ -52,4 +60,8 @@ public class SettlementSpawnConfig : ScriptableObject
     public float MinDistanceFromPathMeters => minDistanceFromPathMeters > 0f ? minDistanceFromPathMeters : 12f;
     /// <summary>Upper bound for path-distance ring; falls back if unset in older assets.</summary>
     public float MaxDistanceFromPathMeters => maxDistanceFromPathMeters > 0f ? maxDistanceFromPathMeters : 56f;
+
+    public float PathRingOutsideFootprint => pathRingOutsideFootprint > 0f ? pathRingOutsideFootprint : 1.25f;
+    public float PathSegmentStepMeters => pathSegmentStepMeters > 0f ? pathSegmentStepMeters : 1.4f;
+    public float PathWobbleAmplitude => pathWobbleAmplitude >= 0f ? pathWobbleAmplitude : 1.1f;
 }

@@ -58,3 +58,6 @@ MonoBehaviour:
   settlementCenterFootprintRadius: 14
   minDistanceFromPathMeters: 12
   maxDistanceFromPathMeters: 56
+  pathRingOutsideFootprint: 0
+  pathSegmentStepMeters: 3
+  pathWobbleAmplitude: 1.1

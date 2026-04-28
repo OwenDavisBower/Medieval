@@ -34,6 +34,7 @@ public class SettlementSpawning
             spawned++;
             go.transform.position = pos;
             var builder = go.AddComponent<SettlementBuilder>();
+            builder.ConfigurePathOverlay(config.PathRingOutsideFootprint, config.PathSegmentStepMeters, config.PathWobbleAmplitude);
             builder.InitializeAndBuild(config.Buildings, config.VillagerPrefab, placementMask);
         }
     }

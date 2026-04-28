@@ -72,6 +72,13 @@ public class SettlementBuilder : MonoBehaviour
         TryBuildSettlement();
     }
 
+    public void ConfigurePathOverlay(float ringOutsideFootprintMeters, float segmentStepMeters, float wobbleAmplitudeMeters)
+    {
+        pathRingOutsideFootprint = Mathf.Max(0f, ringOutsideFootprintMeters);
+        pathSegmentStepMeters = Mathf.Max(0.05f, segmentStepMeters);
+        pathWobbleAmplitude = Mathf.Max(0f, wobbleAmplitudeMeters);
+    }
+
     void TryBuildSettlement()
     {
         var entries = ActiveBuildingEntries();
