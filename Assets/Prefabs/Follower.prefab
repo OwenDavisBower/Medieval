@@ -252,6 +252,7 @@ GameObject:
   - component: {fileID: 7720116209973403168}
   - component: {fileID: 881191335029085900}
   - component: {fileID: 991191335029085903}
+  - component: {fileID: 7822334455667788990}
   - component: {fileID: 5555830013420853836}
   - component: {fileID: 557766011}
   - component: {fileID: 557766012}
@@ -459,8 +460,21 @@ MonoBehaviour:
   maxBravery: 15
   fleeHealthFractionAtLowBravery: 0.48
   fleeHealthFractionAtHighBravery: 0.06
+--- !u!114 &7822334455667788990
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 919f450fe62f459493707b93c03becc6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterHealthBar
   healthBarHeightOffset: 2.15
   healthBarScale: 0.011
+  maxHealthBarBillboardTiltDegrees: 15
   _healthBarLayer: HealthBar
 --- !u!114 &5555830013420853836
 MonoBehaviour:

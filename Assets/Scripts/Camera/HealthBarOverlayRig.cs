@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
 /// <summary>
-/// Puts <see cref="Character"/> world-space health bars (layer <c>HealthBar</c>) on a URP overlay
+/// Puts <see cref="CharacterHealthBar"/> world-space UI (layer <c>HealthBar</c>) on a URP overlay
 /// so they are drawn after the base pass post-processing, avoiding other full-screen output effects.
 /// </summary>
 [RequireComponent(typeof(Camera))]
