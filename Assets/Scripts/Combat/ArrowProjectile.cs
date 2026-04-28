@@ -124,20 +124,20 @@ public class ArrowProjectile : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
-        var character = collision.collider.GetComponentInParent<Character>();
-        if (character != null)
+        var victim = collision.collider.GetComponentInParent<IDamageableHealth>();
+        if (victim != null && !victim.IsDead)
         {
             if (_shooterRoot != null)
             {
-                var hitRoot = character.transform.root;
-                if (hitRoot == _shooterRoot)
+                var victimMb = victim as MonoBehaviour;
+                if (victimMb != null && victimMb.transform.root == _shooterRoot)
                 {
                     Destroy(gameObject);
                     return;
                 }
             }
 
-            character.TakeDamage(damage);
+            victim.TakeDamage(damage);
         }
 
         Destroy(gameObject);

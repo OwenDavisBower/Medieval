@@ -1,8 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>World-space health bar for a <see cref="Character"/>; shown after taking damage.</summary>
-[RequireComponent(typeof(Character))]
+/// <summary>World-space health bar for any <see cref="IDamageableHealth"/> on this GameObject (e.g. <see cref="Character"/>, <see cref="Building"/>).</summary>
 public class CharacterHealthBar : MonoBehaviour
 {
     [SerializeField] float healthBarHeightOffset = 2.15f;
@@ -10,7 +9,7 @@ public class CharacterHealthBar : MonoBehaviour
     [SerializeField] [Tooltip("Max degrees from the camera toward a point-at-camera billboard at the viewport left/right edges; 0 at horizontal center (scaled smoothly by screen position).")] float maxHealthBarBillboardTiltDegrees = 15f;
     [SerializeField] [Tooltip("Use the same name as a user layer in Project Settings; assigned to the health bar so it can render on the URP overlay camera.")] string _healthBarLayer = "HealthBar";
 
-    Character _character;
+    IDamageableHealth _health;
     Canvas _canvas;
     RectTransform _fillRect;
     Image _fillImage;
@@ -21,16 +20,16 @@ public class CharacterHealthBar : MonoBehaviour
 
     void Start()
     {
-        _character = GetComponent<Character>();
-        if (_character == null)
+        _health = GetComponent<IDamageableHealth>();
+        if (_health == null)
         {
             enabled = false;
             return;
         }
 
         BuildHealthBar();
-        OnCharacterHealthChanged(_character.CurrentHealth, _character.MaxHealth);
-        if (_canvas != null && _character.CurrentHealth >= _character.MaxHealth - 0.001f)
+        OnHealthChanged(_health.CurrentHealth, _health.MaxHealth);
+        if (_canvas != null && _health.CurrentHealth >= _health.MaxHealth - 0.001f)
             _canvas.gameObject.SetActive(false);
     }
 
@@ -67,8 +66,8 @@ public class CharacterHealthBar : MonoBehaviour
         _billboardRoot.rotation = Quaternion.RotateTowards(relCam, faceCam, maxTilt);
     }
 
-    /// <summary>Call after <see cref="Character"/> health changes (e.g. from <see cref="Character.TakeDamage"/>).</summary>
-    public void OnCharacterHealthChanged(float current, float maxHealth)
+    /// <summary>Call after <see cref="IDamageableHealth"/> health changes (e.g. from <see cref="Character.TakeDamage"/> or <see cref="Building.TakeDamage"/>).</summary>
+    public void OnHealthChanged(float current, float maxHealth)
     {
         RefreshBarVisual(current, maxHealth);
 

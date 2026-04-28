@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>Health for player, bandits, and followers.</summary>
-public class Character : MonoBehaviour
+public class Character : MonoBehaviour, IDamageableHealth
 {
     [Header("Stat rolls (randomized in Awake)")]
     [SerializeField] float minHealth = 70f;
@@ -115,7 +115,7 @@ public class Character : MonoBehaviour
 
         _current = Mathf.Max(0f, _current - amount);
         _healthBar ??= GetComponent<CharacterHealthBar>();
-        _healthBar?.OnCharacterHealthChanged(_current, _rolledMaxHealth);
+        _healthBar?.OnHealthChanged(_current, _rolledMaxHealth);
 
         if (_current <= 0f)
             Destroy(gameObject);

@@ -14,6 +14,8 @@ GameObject:
   - component: {fileID: -282048062374667439}
   - component: {fileID: 557766031}
   - component: {fileID: 557766032}
+  - component: {fileID: 910011223344556621}
+  - component: {fileID: 910011223344556622}
   m_Layer: 8
   m_Name: WatchTower
   m_TagString: Untagged
@@ -131,6 +133,35 @@ MonoBehaviour:
   scanInterval: 0.2
   overlapBufferSize: 32
   periodicScanInUpdate: 0
+--- !u!114 &910011223344556621
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2811835333203006354}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4e5f6a7b8c901234567890abcdef012, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Building
+  maxHealth: 650
+--- !u!114 &910011223344556622
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2811835333203006354}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 919f450fe62f459493707b93c03becc6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterHealthBar
+  healthBarHeightOffset: 11
+  healthBarScale: 0.016
+  maxHealthBarBillboardTiltDegrees: 15
+  _healthBarLayer: HealthBar
 --- !u!1001 &35656797286079379
 PrefabInstance:
   m_ObjectHideFlags: 0

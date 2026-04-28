@@ -43,6 +43,8 @@ GameObject:
   - component: {fileID: 6879172422730078904}
   - component: {fileID: 1913206468669117246}
   - component: {fileID: 2777060490000686983}
+  - component: {fileID: 910011223344556611}
+  - component: {fileID: 910011223344556612}
   m_Layer: 8
   m_Name: Well
   m_TagString: Untagged
@@ -105,6 +107,35 @@ CapsuleCollider:
   m_Height: 5
   m_Direction: 1
   m_Center: {x: 0, y: 2, z: 0}
+--- !u!114 &910011223344556611
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2690999678113556293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4e5f6a7b8c901234567890abcdef012, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Building
+  maxHealth: 280
+--- !u!114 &910011223344556612
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2690999678113556293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 919f450fe62f459493707b93c03becc6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterHealthBar
+  healthBarHeightOffset: 5.2
+  healthBarScale: 0.012
+  maxHealthBarBillboardTiltDegrees: 15
+  _healthBarLayer: HealthBar
 --- !u!1001 &4065271986814693059
 PrefabInstance:
   m_ObjectHideFlags: 0

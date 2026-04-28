@@ -43,14 +43,19 @@ public class MeleeCombat : MonoBehaviour
         Vector3 d = target.position - transform.position;
         d.y = 0f;
 
-        var character = target.GetComponentInParent<Character>();
-        if (character != null && character.transform.root != _selfRoot)
+        var victim = target.GetComponentInParent<IDamageableHealth>();
+        if (victim != null && !victim.IsDead)
         {
-            float dmg = damage;
-            if (_selfCharacter != null)
-                dmg *= _selfCharacter.MeleeDamageMultiplier;
-            character.TakeDamage(dmg);
-            character.ApplyAttackStun(hitMeleeStunDuration);
+            var victimMb = victim as MonoBehaviour;
+            if (victimMb != null && victimMb.transform.root != _selfRoot)
+            {
+                float dmg = damage;
+                if (_selfCharacter != null)
+                    dmg *= _selfCharacter.MeleeDamageMultiplier;
+                victim.TakeDamage(dmg);
+                if (victim is Character victimCharacter)
+                    victimCharacter.ApplyAttackStun(hitMeleeStunDuration);
+            }
         }
 
         var victimRb = target.GetComponentInParent<Rigidbody>();
