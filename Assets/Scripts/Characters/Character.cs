@@ -22,6 +22,7 @@ public class Character : MonoBehaviour
 
     [SerializeField] float healthBarHeightOffset = 2.15f;
     [SerializeField] float healthBarScale = 0.011f;
+    [SerializeField] [Tooltip("Max degrees the bar may rotate from the camera's orientation (view plane) toward a full point-at-camera billboard.")] float maxHealthBarBillboardTiltDegrees = 15f;
     [SerializeField] [Tooltip("Use the same name as a user layer in Project Settings; assigned to the health bar so it can render on the URP overlay camera.")] string _healthBarLayer = "HealthBar";
 
     float _current;
@@ -136,7 +137,9 @@ public class Character : MonoBehaviour
         Vector3 toCam = cam.transform.position - _billboardRoot.position;
         if (toCam.sqrMagnitude < 0.0001f)
             return;
-        _billboardRoot.rotation = Quaternion.LookRotation(-toCam.normalized, Vector3.up);
+        Quaternion relCam = cam.transform.rotation;
+        Quaternion faceCam = Quaternion.LookRotation(-toCam.normalized, Vector3.up);
+        _billboardRoot.rotation = Quaternion.RotateTowards(relCam, faceCam, maxHealthBarBillboardTiltDegrees);
     }
 
     public void TakeDamage(float amount)
