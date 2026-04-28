@@ -31,6 +31,9 @@ Shader "Medieval/Water/PlanarDepthWater"
         [NoScaleOffset]_ReflectionTex("Reflection Texture", 2D) = "black" {}
         _ReflectionStrength("Reflection Strength", Range(0.0, 1.0)) = 0.35
         _FresnelPower("Fresnel Power", Range(0.1, 8.0)) = 3.0
+
+        [Header(Debug)]
+        [Enum(Off,0,DepthFade,1,ShoreFoam,2,FoamCaps,3,DepthDiff,4)] _DebugView("Debug View", Float) = 0
     }
 
     SubShader
@@ -91,6 +94,7 @@ Shader "Medieval/Water/PlanarDepthWater"
 
                 float _ReflectionStrength;
                 float _FresnelPower;
+                float _DebugView;
             CBUFFER_END
 
             struct Attributes
@@ -143,8 +147,9 @@ Shader "Medieval/Water/PlanarDepthWater"
                 // Depth fade (0 = surface, 1 = max depth)
                 float rawSceneDepth = SampleSceneDepth(uvSS);
                 float sceneEyeDepth = LinearEyeDepth(rawSceneDepth, _ZBufferParams);
-                float waterNdcDepth = IN.positionCS.z / IN.positionCS.w;
-                float waterEyeDepth = LinearEyeDepth(waterNdcDepth, _ZBufferParams);
+                // Compute water surface depth in view space to avoid clip/NDC depth conversion pitfalls.
+                float3 waterViewPos = TransformWorldToView(IN.positionWS);
+                float waterEyeDepth = -waterViewPos.z;
                 float depthDiff = max(0.0, sceneEyeDepth - waterEyeDepth);
                 float depthFade = saturate(depthDiff / max(0.0001, _MaxDepth));
                 float depthFadeQ = Quantize01(depthFade, _DepthSteps);
@@ -165,6 +170,12 @@ Shader "Medieval/Water/PlanarDepthWater"
                 float2 foamUv = IN.positionWS.xz * _FoamTiling + (_Time.y * _FoamSpeed);
                 float foamNoise = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, foamUv).r;
                 float foamCaps = step(_FoamThreshold, foamNoise);
+
+                // Debug views
+                if (_DebugView > 0.5 && _DebugView < 1.5) return half4(depthFadeQ.xxx, 1);
+                if (_DebugView > 1.5 && _DebugView < 2.5) return half4(shoreFoam.xxx, 1);
+                if (_DebugView > 2.5 && _DebugView < 3.5) return half4(foamCaps.xxx, 1);
+                if (_DebugView > 3.5 && _DebugView < 4.5) return half4(saturate(depthDiff / max(0.0001, _MaxDepth)).xxx, 1);
 
                 // Planar reflection (optional, driven by script). Fresnel uses flat up normal.
                 float3 viewDirWS = SafeNormalize(_WorldSpaceCameraPos.xyz - IN.positionWS);
