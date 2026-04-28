@@ -26,6 +26,7 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
         Tags
         {
             "RenderType" = "Opaque"
+            "Queue" = "Geometry"
             "RenderPipeline" = "UniversalPipeline"
             "UniversalMaterialType" = "Lit"
         }
@@ -35,6 +36,10 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
         {
             Name "ForwardLit"
             Tags { "LightMode" = "UniversalForward" }
+            
+            ZWrite On
+            ZTest LEqual
+            Cull Back
 
             HLSLPROGRAM
             #pragma target 3.5
@@ -372,6 +377,52 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 UNITY_SETUP_INSTANCE_ID(input);
                 return 0;
             }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "DepthNormals"
+            Tags { "LightMode" = "DepthNormals" }
+
+            ZWrite On
+            ZTest LEqual
+            Cull Back
+
+            HLSLPROGRAM
+            #pragma target 3.5
+
+            #pragma vertex DepthNormalsVertex
+            #pragma fragment DepthNormalsFragment
+
+            #pragma multi_compile_instancing
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+
+            // Uses object-space normal; no normal map/alpha clip for this terrain.
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthNormalsPass.hlsl"
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode" = "DepthOnly" }
+
+            ZWrite On
+            ZTest LEqual
+            ColorMask R
+            Cull Back
+
+            HLSLPROGRAM
+            #pragma target 3.5
+
+            #pragma vertex DepthOnlyVertex
+            #pragma fragment DepthOnlyFragment
+
+            #pragma multi_compile_instancing
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
             ENDHLSL
         }
     }
