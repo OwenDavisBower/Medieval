@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: PixelArtColorSettings
   m_EditorClassIdentifier: Assembly-CSharp::Medieval.Rendering.PixelArt.PixelArtColorSettings
   m_ColorDepth: 48
-  m_PosterizeDitherStrength: 0.35
+  m_PosterizeDitherStrength: 0
