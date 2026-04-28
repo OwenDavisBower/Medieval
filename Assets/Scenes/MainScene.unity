@@ -586,6 +586,7 @@ GameObject:
   - component: {fileID: 1497770488}
   - component: {fileID: 1497770487}
   - component: {fileID: 1497770491}
+  - component: {fileID: 1497770492}
   m_Layer: 0
   m_Name: Water
   m_TagString: Untagged
@@ -699,6 +700,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7e2c9a184b356047a1de8f3c4b5e902, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnableMeshRendererOnAwake
+--- !u!114 &1497770492
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1497770486}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4a1dd9b7e2d4c1f8cf0f9d8d86a6e31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Medieval.Water::PlanarReflectionController
+  waterRenderer: {fileID: 1497770488}
+  reflectionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  textureSize: 512
+  clipPlaneOffset: 0.05
 --- !u!1001 &2037707251
 PrefabInstance:
   m_ObjectHideFlags: 0

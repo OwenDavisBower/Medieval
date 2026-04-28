@@ -34,12 +34,20 @@ Material:
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap:
-    RenderType: Opaque
+    RenderType: Transparent
   disabledShaderPasses: []
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _NoiseTex:
+        m_Texture: {fileID: 2800000, guid: aa701e5be2dbcd24aad4fb9c3ca284da, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ReflectionTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _BaseMap:
         m_Texture: {fileID: 2800000, guid: aa701e5be2dbcd24aad4fb9c3ca284da, type: 3}
         m_Scale: {x: 100, y: 100}
@@ -98,6 +106,20 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _DepthSteps: 5
+    - _DistortionStrength: 0.01
+    - _FoamSpeed: 0.05
+    - _FoamThreshold: 0.78
+    - _FoamTiling: 0.12
+    - _FresnelPower: 3
+    - _MaxDepth: 6
+    - _NoiseSpeed: 0.15
+    - _NoiseTiling: 0.08
+    - _ReflectionStrength: 0.35
+    - _ShoreFoamWidth: 0.08
+    - _WaveAmplitude: 0.08
+    - _WaveFrequency: 0.6
+    - _WaveSpeed: 1.25
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
@@ -138,5 +160,9 @@ Material:
     - _Color: {r: 0.76886797, g: 0.8463651, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
+    - _DeepColor: {r: 0.02, g: 0.15, b: 0.35, a: 0.85}
+    - _FoamColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ShallowColor: {r: 0.25, g: 0.75, b: 1, a: 0.85}
+    - _ShoreFoamColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
