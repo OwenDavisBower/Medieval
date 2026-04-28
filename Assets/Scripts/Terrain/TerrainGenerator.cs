@@ -340,8 +340,6 @@ public sealed class TerrainGenerator : MonoBehaviour
             return;
 
         const float pathFalloffWorld = 8f;
-        const float splatPathSmoothLow = 8f;
-        const float splatPathSmoothHigh = 0f;
 
         var ox = transform.position.x;
         var oz = transform.position.z;
@@ -422,7 +420,9 @@ public sealed class TerrainGenerator : MonoBehaviour
                 if (float.IsInfinity(minD))
                     continue;
 
-                var w = Mathf.SmoothStep(splatPathSmoothLow, splatPathSmoothHigh, minD);
+                // Match SplatmapPainter: pathWeight = smoothstep(8, 0, pathDist)
+                var t = Mathf.InverseLerp(pathFalloffWorld, 0f, minD); // (8 - d) / 8 clamped to [0,1]
+                var w = Mathf.SmoothStep(0f, 1f, t);
                 if (w <= 1e-5f)
                     continue;
 
