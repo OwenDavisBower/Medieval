@@ -34,8 +34,6 @@ public class TargetSteeringMotor : MonoBehaviour
     [SerializeField] Transform seekOverride;
     [Tooltip("When > 0 and seek override is set, horizontal distance at or below this stops closing in (ranged standoff).")]
     [SerializeField] float seekHoldDistance;
-    [Tooltip("Resume closing only when distance exceeds hold × this (reduces orbit/jitter at the standoff ring).")]
-    [SerializeField] float seekHoldResumeScale = 1.12f;
 
     [Header("Motion")]
     [SerializeField] float moveSpeed = 5f;
@@ -87,10 +85,6 @@ public class TargetSteeringMotor : MonoBehaviour
     [Tooltip("Bandits ignore follower colliders for obstacle probes (LOS/aggro stay on BanditController).")]
     [SerializeField] bool ignoreFollowerCollidersForObstacles;
 
-    [Header("Facing")]
-    [Tooltip("Yaw from steering is applied here when set (e.g. child named Graphics). If empty, a child named Graphics is used; otherwise this transform. Keeps the Rigidbody root upright so UI offset stays on the pivot.")]
-    [SerializeField] Transform facingTransform;
-
     static readonly List<TargetSteeringMotor> FollowerMotors = new List<TargetSteeringMotor>();
     static readonly List<TargetSteeringMotor> BanditMotors = new List<TargetSteeringMotor>();
 
@@ -112,7 +106,6 @@ public class TargetSteeringMotor : MonoBehaviour
     float _lastRangedDodgeApplyTime = float.NegativeInfinity;
     bool _dodgeImpulseThisFixed;
     float _effectiveMoveSpeedThisFixed;
-    bool _seekStandoffActive;
 
     /// <summary>Max configured horizontal speed this physics step (move speed × scale × water). Updated in <see cref="FixedUpdate"/>.</summary>
     public float EffectiveMoveSpeed { get; private set; }
@@ -150,9 +143,6 @@ public class TargetSteeringMotor : MonoBehaviour
     }
 
     public TargetSteeringSeparationGroup SeparationGroup => separationGroup;
-
-    /// <summary>Transform that receives yaw from <see cref="ApplyFacingFromHorizontalVelocity"/> / standoff facing.</summary>
-    public Transform FacingTransform => facingTransform != null ? facingTransform : transform;
 
     /// <summary>Whether another ranged dodge can be scheduled (cooldown after the last applied dodge).</summary>
     public bool CanScheduleRangedDodge => Time.time >= _lastRangedDodgeApplyTime + rangedDodgeCooldown;
@@ -234,12 +224,6 @@ public class TargetSteeringMotor : MonoBehaviour
         _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
         _navPath = new NavMeshPath();
         EffectiveMoveSpeed = ComputeEffectiveMoveSpeed();
-        if (facingTransform == null)
-        {
-            var g = transform.Find("Graphics");
-            if (g != null)
-                facingTransform = g;
-        }
     }
 
     void OnEnable()
@@ -257,7 +241,6 @@ public class TargetSteeringMotor : MonoBehaviour
 
     void OnDisable()
     {
-        _seekStandoffActive = false;
         _pendingDodgeReferencePosition = null;
         switch (separationGroup)
         {
@@ -308,30 +291,16 @@ public class TargetSteeringMotor : MonoBehaviour
             {
                 Vector3 flat = goal - transform.position;
                 flat.y = 0f;
-                float holdSq = seekHoldDistance * seekHoldDistance;
-                float resumeScale = Mathf.Max(seekHoldResumeScale, 1.001f);
-                float resumeSq = seekHoldDistance * resumeScale;
-                resumeSq *= resumeSq;
-                float distSq = flat.sqrMagnitude;
-                if (!_seekStandoffActive && distSq <= holdSq)
-                    _seekStandoffActive = true;
-                else if (_seekStandoffActive && distSq > resumeSq)
-                    _seekStandoffActive = false;
-
-                if (_seekStandoffActive)
+                if (flat.sqrMagnitude <= seekHoldDistance * seekHoldDistance)
                 {
-                    ApplyRangedStandoffHold(goal);
+                    ApplySteering(transform.position);
                     return;
                 }
             }
-            else
-                _seekStandoffActive = false;
 
             ApplySteering(goal);
             return;
         }
-
-        _seekStandoffActive = false;
 
         if (anchorTarget == null)
         {
@@ -407,35 +376,6 @@ public class TargetSteeringMotor : MonoBehaviour
         return anchorTarget.position + offset;
     }
 
-    /// <summary>
-    /// Ranged standoff: brake and face the enemy. Avoids SmoothDamp/separation/velocity-facing fighting at the hold radius.
-    /// </summary>
-    void ApplyRangedStandoffHold(Vector3 faceTowardWorld)
-    {
-        _smoothTarget = transform.position;
-        _smoothTargetVel = Vector3.zero;
-
-        Vector3 velocity = _rb.linearVelocity;
-        Vector3 horizontal = new Vector3(velocity.x, 0f, velocity.z);
-        Vector3 newHorizontal = Vector3.MoveTowards(horizontal, Vector3.zero, acceleration * Time.fixedDeltaTime);
-        velocity.x = newHorizontal.x;
-        velocity.z = newHorizontal.z;
-        ClampHorizontalWater(ref velocity);
-        _rb.linearVelocity = velocity;
-
-        Vector3 lookDir = faceTowardWorld - transform.position;
-        lookDir.y = 0f;
-        if (lookDir.sqrMagnitude > 1e-6f)
-        {
-            Quaternion targetRot = Quaternion.LookRotation(lookDir.normalized, Vector3.up);
-            Transform face = FacingTransform;
-            face.rotation = Quaternion.RotateTowards(face.rotation, targetRot,
-                facingTurnSpeedDegreesPerSecond * Time.fixedDeltaTime);
-        }
-
-        _dodgeImpulseThisFixed = false;
-    }
-
     void ApplySteering(Vector3 rawTarget)
     {
         if (!_hasSmoothTarget)
@@ -490,8 +430,7 @@ public class TargetSteeringMotor : MonoBehaviour
         if (h.sqrMagnitude < minSqr)
             return;
         Quaternion targetRot = Quaternion.LookRotation(h.normalized, Vector3.up);
-        Transform face = FacingTransform;
-        face.rotation = Quaternion.RotateTowards(face.rotation, targetRot,
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot,
             facingTurnSpeedDegreesPerSecond * Time.fixedDeltaTime);
     }
 

@@ -74,11 +74,7 @@ public class MeleeCombat : MonoBehaviour
 
     Vector3 FlatForward()
     {
-        Transform t = transform;
-        var motor = GetComponent<TargetSteeringMotor>();
-        if (motor != null)
-            t = motor.FacingTransform;
-        Vector3 f = t.forward;
+        Vector3 f = transform.forward;
         f.y = 0f;
         return f.sqrMagnitude > 1e-4f ? f.normalized : Vector3.forward;
     }
