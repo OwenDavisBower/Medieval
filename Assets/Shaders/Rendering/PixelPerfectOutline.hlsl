@@ -45,21 +45,54 @@ float MaskMaxNeighborhoodR(float2 cuv, float2 du, float2 dv)
     return m;
 }
 
+bool SilhouetteFromMaskEdgeBase(float2 cuv)
+{
+    float2 g = max(_PixelGrid.xy, float2(1, 1));
+    float2 du = float2(1.0 / g.x, 0);
+    float2 dv = float2(0, 1.0 / g.y);
+
+    // Depth-based silhouette, but *restricted to the mask boundary* so it doesn't flood-fill sloped surfaces.
+    // We draw on pixels just outside the mask where a neighbor is inside and the depth discontinuity exceeds threshold.
+    float centerMask = SampleMaskLoRes(cuv).r;
+    if (centerMask > 0.001)
+        return false; // never draw silhouette inside the object
+
+    float d0 = LinearEyeFromDepth(cuv);
+    bool baseEdge = false;
+    bool hasInsideNeighbor = false;
+
+    float mL = SampleMaskLoRes(cuv - du).r;
+    if (mL > 0.001) { hasInsideNeighbor = true; baseEdge = baseEdge || (abs(d0 - LinearEyeFromDepth(cuv - du)) > _DepthThreshold); }
+    float mR = SampleMaskLoRes(cuv + du).r;
+    if (mR > 0.001) { hasInsideNeighbor = true; baseEdge = baseEdge || (abs(d0 - LinearEyeFromDepth(cuv + du)) > _DepthThreshold); }
+    float mU = SampleMaskLoRes(cuv + dv).r;
+    if (mU > 0.001) { hasInsideNeighbor = true; baseEdge = baseEdge || (abs(d0 - LinearEyeFromDepth(cuv + dv)) > _DepthThreshold); }
+    float mD = SampleMaskLoRes(cuv - dv).r;
+    if (mD > 0.001) { hasInsideNeighbor = true; baseEdge = baseEdge || (abs(d0 - LinearEyeFromDepth(cuv - dv)) > _DepthThreshold); }
+
+    // If threshold is effectively zero, treat "boundary present" as enough.
+    if (_DepthThreshold <= 1e-6)
+        baseEdge = hasInsideNeighbor;
+
+    return baseEdge;
+}
+
 bool SilhouetteFromMaskEdge(float2 cuv)
 {
     float2 g = max(_PixelGrid.xy, float2(1, 1));
     float2 du = float2(1.0 / g.x, 0);
     float2 dv = float2(0, 1.0 / g.y);
 
-    // Draw silhouette on pixels just outside the masked object.
-    float center = SampleMaskLoRes(cuv).r;
-    float neighMax = center;
-    if (_FillNeighbor > 0.5)
-        neighMax = MaskMaxNeighborhoodR(cuv, du, dv);
+    bool baseEdge = SilhouetteFromMaskEdgeBase(cuv);
+    if (_FillNeighbor <= 0.5)
+        return baseEdge;
 
-    bool outside = center <= 0.001;
-    bool nearObject = neighMax > 0.001;
-    return outside && nearObject;
+    // Optional 1px dilation outward for thicker outlines.
+    return baseEdge
+        || SilhouetteFromMaskEdgeBase(cuv - du)
+        || SilhouetteFromMaskEdgeBase(cuv + du)
+        || SilhouetteFromMaskEdgeBase(cuv - dv)
+        || SilhouetteFromMaskEdgeBase(cuv + dv);
 }
 
 void EvaluateEdgesAtCell(float2 cuv, out bool rawSil, out bool rawCre)
