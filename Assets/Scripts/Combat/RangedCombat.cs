@@ -3,6 +3,8 @@ using UnityEngine;
 /// <summary>Lobs physics-based arrows toward a target with intentional inaccuracy.</summary>
 public class RangedCombat : MonoBehaviour
 {
+    static readonly int ShootArrowHash = Animator.StringToHash("ShootArrow");
+
     [SerializeField] Rigidbody arrowPrefab;
     [SerializeField] float fireInterval = 1.15f;
     [SerializeField] float launchHeight = 1.45f;
@@ -12,12 +14,14 @@ public class RangedCombat : MonoBehaviour
 
     Collider _ownerCollider;
     Character _selfCharacter;
+    Animator _animator;
     float _nextFireTime;
 
     void Awake()
     {
         _ownerCollider = GetComponentInChildren<Collider>();
         _selfCharacter = GetComponentInParent<Character>();
+        _animator = GetComponentInChildren<Animator>();
     }
 
     /// <returns>True if a shot was fired this call.</returns>
@@ -61,6 +65,9 @@ public class RangedCombat : MonoBehaviour
             if (ac != null)
                 Physics.IgnoreCollision(_ownerCollider, ac, true);
         }
+
+        if (_animator != null)
+            _animator.SetTrigger(ShootArrowHash);
 
         _nextFireTime = Time.time + fireInterval;
         return true;
