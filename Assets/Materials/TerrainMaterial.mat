@@ -40,6 +40,10 @@ Material:
     m_Floats:
     - _EdgeNoiseScale: 0.05
     - _GrassNoiseLinearData: 0
+    - _GrassRockBlendNoiseScale: 1.99
+    - _GrassRockBlendNoiseStrength: 0.33
+    - _GrassRockBlendWidth: 0.057
+    - _GrassRockSoftBlend: 1
     - _GrassTiling: 0.24
     - _HexBlend: 10
     - _HexSize: 0.2

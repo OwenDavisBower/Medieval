@@ -20,6 +20,10 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
         _PathGrassBlendWidth("Path↔Grass Blend Width", Range(0, 0.5)) = 0.06
         _PathGrassBlendNoiseStrength("Path↔Grass Blend Noise Strength", Range(0, 1)) = 0.35
         _PathGrassBlendNoiseScale("Path↔Grass Blend Noise Scale (world)", Float) = 2
+        [ToggleUI] _GrassRockSoftBlend("Grass↔Rock Soft Blend", Float) = 0
+        _GrassRockBlendWidth("Grass↔Rock Blend Width", Range(0, 0.5)) = 0.06
+        _GrassRockBlendNoiseStrength("Grass↔Rock Blend Noise Strength", Range(0, 1)) = 0.35
+        _GrassRockBlendNoiseScale("Grass↔Rock Blend Noise Scale (world)", Float) = 2
         _PathEdgeDarkenIntensity("Path Edge Darken Intensity", Range(0, 1)) = 0
         _PathEdgeDarkenWidth("Path Edge Darken Width (mask margin)", Float) = 0.2
     }
@@ -79,6 +83,10 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 half _PathGrassBlendWidth;
                 half _PathGrassBlendNoiseStrength;
                 half _PathGrassBlendNoiseScale;
+                half _GrassRockSoftBlend;
+                half _GrassRockBlendWidth;
+                half _GrassRockBlendNoiseStrength;
+                half _GrassRockBlendNoiseScale;
                 half _PathEdgeDarkenIntensity;
                 half _PathEdgeDarkenWidth;
             CBUFFER_END
@@ -300,14 +308,27 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 pathCol *= 1.0h - darken;
                 const half3 rockCol = SampleTextureHex(rockUV, _RockTex, sampler_RockTex);
                 float rockEdgeN = TerrainEdgeNoise(wXZ + float2(31.7, 12.4), (float)_EdgeNoiseScale);
-                // Stochastic blend: P(layer) = mask; rock stays binary, but path↔grass is softened with noise.
-                half rockPick = (half)step(rockEdgeN, rockMask);
-
+                // Stochastic blend: P(layer) = mask; path↔grass is softened with noise.
                 float blendNoise = TerrainEdgeNoise(wXZ + float2(91.3, 17.1), (float)_PathGrassBlendNoiseScale);
                 float maskJitter = ((blendNoise * 2.0) - 1.0) * (float)_PathGrassBlendNoiseStrength;
                 float w = max((float)_PathGrassBlendWidth, 1e-5);
                 half pathBlend = (half)smoothstep(edgeN - w, edgeN + w, pathMask + maskJitter);
-                const half3 baseCol = lerp(grassCol, rockCol, rockPick);
+
+                // Optional grass↔rock soft blend mirroring the path↔grass blend.
+                half rockBlend = 0;
+                if (_GrassRockSoftBlend > 0.5h)
+                {
+                    float rockBlendNoise = TerrainEdgeNoise(wXZ + float2(147.9, 63.2), (float)_GrassRockBlendNoiseScale);
+                    float rockMaskJitter = ((rockBlendNoise * 2.0) - 1.0) * (float)_GrassRockBlendNoiseStrength;
+                    float rw = max((float)_GrassRockBlendWidth, 1e-5);
+                    rockBlend = (half)smoothstep(rockEdgeN - rw, rockEdgeN + rw, rockMask + rockMaskJitter);
+                }
+                else
+                {
+                    rockBlend = (half)step(rockEdgeN, rockMask);
+                }
+
+                const half3 baseCol = lerp(grassCol, rockCol, rockBlend);
                 const half3 albedo = lerp(baseCol, pathCol, pathBlend);
                 const half3 n = normalize(input.normalWS);
 
