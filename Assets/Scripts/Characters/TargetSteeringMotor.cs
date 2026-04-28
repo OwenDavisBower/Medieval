@@ -106,9 +106,27 @@ public class TargetSteeringMotor : MonoBehaviour
     float _lastRangedDodgeApplyTime = float.NegativeInfinity;
     bool _dodgeImpulseThisFixed;
     float _effectiveMoveSpeedThisFixed;
+    bool _rangedMovementLock;
+    Vector3? _overrideFacingFlatDirection;
 
     /// <summary>Max configured horizontal speed this physics step (move speed × scale × water). Updated in <see cref="FixedUpdate"/>.</summary>
     public float EffectiveMoveSpeed { get; private set; }
+
+    /// <summary>When true, horizontal velocity is zeroed each step (e.g. ranged draw/release).</summary>
+    public void SetRangedMovementLock(bool locked) => _rangedMovementLock = locked;
+
+    /// <summary>Face this direction on the XZ plane instead of velocity (cleared next frame if not set again).</summary>
+    public void SetOverrideFacingTowardWorldPoint(Vector3 worldPosition)
+    {
+        Vector3 d = worldPosition - transform.position;
+        d.y = 0f;
+        if (d.sqrMagnitude > 1e-6f)
+            _overrideFacingFlatDirection = d.normalized;
+        else
+            _overrideFacingFlatDirection = null;
+    }
+
+    public void ClearOverrideFacing() => _overrideFacingFlatDirection = null;
 
     public Transform AnchorTarget
     {
@@ -241,6 +259,8 @@ public class TargetSteeringMotor : MonoBehaviour
 
     void OnDisable()
     {
+        _rangedMovementLock = false;
+        _overrideFacingFlatDirection = null;
         _pendingDodgeReferencePosition = null;
         switch (separationGroup)
         {
@@ -282,6 +302,17 @@ public class TargetSteeringMotor : MonoBehaviour
             Vector3 dodgeRef = _pendingDodgeReferencePosition.Value;
             _pendingDodgeReferencePosition = null;
             ApplyRangedDodgeImpulse(dodgeRef);
+        }
+
+        if (_rangedMovementLock)
+        {
+            Vector3 vLock = _rb.linearVelocity;
+            vLock.x = 0f;
+            vLock.z = 0f;
+            _rb.linearVelocity = vLock;
+            ApplyFacing();
+            _dodgeImpulseThisFixed = false;
+            return;
         }
 
         if (seekOverride != null)
@@ -420,6 +451,19 @@ public class TargetSteeringMotor : MonoBehaviour
 
         ClampHorizontalWater(ref velocity);
         _rb.linearVelocity = velocity;
+        ApplyFacing();
+    }
+
+    void ApplyFacing()
+    {
+        if (_overrideFacingFlatDirection.HasValue)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(_overrideFacingFlatDirection.Value, Vector3.up);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot,
+                facingTurnSpeedDegreesPerSecond * Time.fixedDeltaTime);
+            return;
+        }
+
         ApplyFacingFromHorizontalVelocity();
     }
 

@@ -11,11 +11,18 @@ public class RangedCombat : MonoBehaviour
     [SerializeField] float targetAimHeight = 1f;
     [SerializeField] float horizontalAimError = 1.8f;
     [SerializeField] float verticalAimError = 0.35f;
+    [Tooltip("No horizontal movement from steering while drawing/releasing (approx. shoot animation length).")]
+    [SerializeField] float movementLockDuration = 0.85f;
 
     Collider _ownerCollider;
     Character _selfCharacter;
     Animator _animator;
     float _nextFireTime;
+    float _movementLockUntilTime;
+
+    public bool IsMovementLocked => Time.time < _movementLockUntilTime;
+
+    public void CancelMovementLock() => _movementLockUntilTime = 0f;
 
     void Awake()
     {
@@ -69,6 +76,7 @@ public class RangedCombat : MonoBehaviour
         if (_animator != null)
             _animator.SetTrigger(ShootArrowHash);
 
+        _movementLockUntilTime = Time.time + movementLockDuration;
         _nextFireTime = Time.time + fireInterval;
         return true;
     }

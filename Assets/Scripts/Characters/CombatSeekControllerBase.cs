@@ -113,12 +113,18 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
         if (Character != null && Character.ShouldFleeFromCombatThreat)
         {
             Motor.SeekOverride = null;
+            Motor.ClearOverrideFacing();
+            Ranged?.CancelMovementLock();
+            Motor.SetRangedMovementLock(false);
             return;
         }
 
         if (!BeforeSeekCombat())
         {
             Motor.SeekOverride = null;
+            Motor.ClearOverrideFacing();
+            Ranged?.CancelMovementLock();
+            Motor.SetRangedMovementLock(false);
             return;
         }
 
@@ -126,7 +132,21 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
         Motor.SeekOverride = target;
 
         if (target == null)
+        {
+            Motor.ClearOverrideFacing();
+            Motor.SetRangedMovementLock(Ranged != null && Ranged.IsMovementLocked);
             return;
+        }
+
+        bool inRangedStandoff = IsRanged && Ranged != null && Ranged.enabled &&
+            SpatialMath.FlatSqrDistance(transform.position, target.position) <= combatRange * combatRange;
+
+        if (inRangedStandoff)
+            Motor.SetOverrideFacingTowardWorldPoint(target.position);
+        else
+            Motor.ClearOverrideFacing();
+
+        Motor.SetRangedMovementLock(Ranged != null && Ranged.IsMovementLocked);
 
         TryExecuteCombatAgainst(target);
     }
