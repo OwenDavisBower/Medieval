@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.Serialization;
 
 namespace Medieval.Rendering.PixelArt
 {
@@ -11,8 +12,12 @@ namespace Medieval.Rendering.PixelArt
         [SerializeField] Shader m_Shader;
         [SerializeField] [Range(8, 512)] int m_PixelWidth = 256;
         [SerializeField] [Range(8, 512)] int m_PixelHeight = 144;
-        [SerializeField] PixelPalette? m_DefaultPalette;
-        [SerializeField] [HideInInspector] PixelPalette? m_RuntimePalette;
+
+        [FormerlySerializedAs("m_DefaultPalette")]
+        [SerializeField] PixelArtColorSettings? m_DefaultColorSettings;
+
+        [FormerlySerializedAs("m_RuntimePalette")]
+        [SerializeField] [HideInInspector] PixelArtColorSettings? m_RuntimeColorSettings;
 
         static PixelArtRenderFeature? s_Instance;
 
@@ -34,7 +39,7 @@ namespace Medieval.Rendering.PixelArt
             m_Material = m_Shader != null ? CoreUtils.CreateEngineMaterial(m_Shader) : null;
             m_Pass = m_Material != null ? new PixelArtPass(m_Material) : null;
             m_Pass?.SetResolution(m_PixelWidth, m_PixelHeight);
-            m_Pass?.SetPaletteData(null, 0);
+            m_Pass?.SetRuntimeQuantizeOverride(null, null);
         }
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
@@ -44,41 +49,39 @@ namespace Medieval.Rendering.PixelArt
             if (renderingData.cameraData.cameraType != CameraType.Game)
                 return;
             m_Pass.SetResolution(m_PixelWidth, m_PixelHeight);
-            m_Pass.ConfigurePaletteFromSo(ActiveRuntimePalette, m_DefaultPalette);
+            m_Pass.ConfigureQuantizeFromSettings(ActiveRuntimeColorSettings, m_DefaultColorSettings);
             renderer.EnqueuePass(m_Pass);
         }
 
-        public PixelPalette? RuntimePalette
+        public PixelArtColorSettings? RuntimeColorSettings
         {
-            get => m_RuntimePalette != null ? m_RuntimePalette : m_DefaultPalette;
+            get => m_RuntimeColorSettings != null ? m_RuntimeColorSettings : m_DefaultColorSettings;
             set
             {
-                m_RuntimePalette = value;
-                m_Pass?.SetRuntimePaletteOverride(null);
+                m_RuntimeColorSettings = value;
+                m_Pass?.SetRuntimeQuantizeOverride(null, null);
             }
         }
 
-        PixelPalette? ActiveRuntimePalette => m_RuntimePalette != null ? m_RuntimePalette : m_DefaultPalette;
+        PixelArtColorSettings? ActiveRuntimeColorSettings => m_RuntimeColorSettings != null ? m_RuntimeColorSettings : null;
 
-        /// <summary>Swap the palette at runtime (biomes, time of day).</summary>
-        public void SetRuntimePalette(PixelPalette? palette)
+        /// <summary>Swap color quantization settings at runtime (biomes, quality presets).</summary>
+        public void SetRuntimeColorSettings(PixelArtColorSettings? settings)
         {
-            m_RuntimePalette = palette;
-            m_Pass?.SetRuntimePaletteOverride(null);
+            m_RuntimeColorSettings = settings;
+            m_Pass?.SetRuntimeQuantizeOverride(null, null);
         }
 
-        /// <summary>Replace palette with raw colors (e.g. generated in code) without a ScriptableObject.</summary>
-        public void SetRuntimeColors(Color[]? colors, int count = -1)
+        /// <summary>Override posterize/dither without a ScriptableObject.</summary>
+        public void SetRuntimeQuantize(float? posterizeLevels, float? ditherStrength)
         {
-            if (count < 0 && colors != null)
-                count = colors.Length;
-            m_Pass?.SetRuntimePaletteOverride(count > 0 ? colors : null);
+            m_Pass?.SetRuntimeQuantizeOverride(posterizeLevels, ditherStrength);
         }
 
         /// <summary>Global shortcut when only one <see cref="PixelArtRenderFeature"/> is active in the project.</summary>
-        public static void SetGlobalRuntimePalette(PixelPalette? palette)
+        public static void SetGlobalRuntimeColorSettings(PixelArtColorSettings? settings)
         {
-            s_Instance?.SetRuntimePalette(palette);
+            s_Instance?.SetRuntimeColorSettings(settings);
         }
 
         protected override void Dispose(bool disposing)

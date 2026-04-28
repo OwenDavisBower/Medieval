@@ -7,14 +7,25 @@ Shader "Medieval/Rendering/PixelArtComposite"
     HLSLINCLUDE
     #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
     #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
-    #include "PixelArtCieLab.hlsl"
 
     float2 _PixelGrid; // (width, height) of the low-res buffer
+    float _Posterize; // 0 = off, else per-channel steps (>= 2)
+    float _PosterizeDitherStrength; // 0 = off; scales Bayer offset before quantize
 
-    #define MAX_PALETTE 48
-    float4 _Palette[MAX_PALETTE];
-    int _PaletteCount;
-    float3 _PaletteLab[MAX_PALETTE];
+    static const uint k_Bayer4x4[16] =
+    {
+        0u, 8u, 2u, 10u,
+        12u, 4u, 14u, 6u,
+        3u, 11u, 1u, 9u,
+        15u, 7u, 13u, 5u
+    };
+
+    float Bayer4x4(uint2 p)
+    {
+        uint i = (p.x & 3u) + ((p.y & 3u) << 2u);
+        uint v = k_Bayer4x4[i];
+        return (v + 0.5) / 16.0 - 0.5;
+    }
 
     float4 FragDownsamplePoint(Varyings input) : SV_Target
     {
@@ -24,33 +35,27 @@ Shader "Medieval/Rendering/PixelArtComposite"
         return SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_LinearClamp, uv, 0);
     }
 
-    float4 FragLabUpscalePoint(Varyings input) : SV_Target
+    float4 FragUpscalePosterize(Varyings input) : SV_Target
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-        // Point-clamp: snap to source texel centers (keeps tixels blocky on upscale)
         float2 w = 1.0 / max(_BlitTexture_TexelSize.xy, 1.0e-4);
         float2 snUv = (floor(input.texcoord.xy * w) + 0.5) / w;
-        float3 linearRgb = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, snUv, 0).rgb;
-        if (_PaletteCount <= 0)
-            return float4(linearRgb, 1);
-        float3 plab = LinearRgbToCieLab(linearRgb);
-        float bestD = 1e10;
-        int bestI = 0;
-        [unroll]
-        for (int i = 0; i < MAX_PALETTE; i++)
+        float4 color = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, snUv, 0);
+
+        if (_Posterize > 0.001)
         {
-            if (i < _PaletteCount)
+            float levels = max(_Posterize, 2.0);
+            float3 c = color.rgb;
+            if (_PosterizeDitherStrength > 0.001)
             {
-                float3 clab = _PaletteLab[i].xyz;
-                float d = Cie76Distance(plab, clab);
-                if (d < bestD)
-                {
-                    bestD = d;
-                    bestI = i;
-                }
+                uint2 pix = (uint2)(input.texcoord.xy * _ScreenParams.xy);
+                float b = Bayer4x4(pix);
+                c += b * _PosterizeDitherStrength / levels;
             }
+            color.rgb = float3(floor(c * levels) / (levels - 1.0));
         }
-        return float4(_Palette[bestI].rgb, 1);
+
+        return color;
     }
     ENDHLSL
 
@@ -59,7 +64,6 @@ Shader "Medieval/Rendering/PixelArtComposite"
         Tags { "RenderPipeline" = "UniversalPipeline" "RenderType" = "Opaque" }
         ZWrite Off ZTest Always Cull Off
 
-        // Pass 0: full-res → low-res, cell-centre sampling
         Pass
         {
             Name "PixelArtDownsample"
@@ -69,13 +73,12 @@ Shader "Medieval/Rendering/PixelArtComposite"
             #pragma target 3.0
             ENDHLSL
         }
-        // Pass 1: low-res → full-res, point sample + Lab palette
         Pass
         {
-            Name "PixelArtLabQuantize"
+            Name "PixelArtPosterizeUpscale"
             HLSLPROGRAM
             #pragma vertex Vert
-            #pragma fragment FragLabUpscalePoint
+            #pragma fragment FragUpscalePosterize
             #pragma target 3.0
             ENDHLSL
         }
