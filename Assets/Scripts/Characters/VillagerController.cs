@@ -22,6 +22,7 @@ public class VillagerController : MonoBehaviour
     {
         _motor = GetComponent<TargetSteeringMotor>();
         _character = GetComponent<Character>();
+        EnsureLocomotionAnimatorDriver();
     }
 
     void Start()
@@ -30,5 +31,13 @@ public class VillagerController : MonoBehaviour
             _motor.InitializeWanderAroundAnchor(transform);
 
         CharacterMotorLink.ApplyMovementSpeed(_character, _motor);
+    }
+
+    void EnsureLocomotionAnimatorDriver()
+    {
+        if (GetComponent<NpcLocomotionAnimatorDriver>() != null)
+            return;
+
+        gameObject.AddComponent<NpcLocomotionAnimatorDriver>();
     }
 }

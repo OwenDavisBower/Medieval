@@ -9,14 +9,6 @@ using UnityEngine.Serialization;
 [RequireComponent(typeof(Rigidbody))]
 public abstract class CombatSeekControllerBase : MonoBehaviour
 {
-    [Header("Locomotion animation")]
-    [Tooltip("Leave empty to use the first Animator under this object (e.g. soldier mesh).")]
-    [SerializeField] Animator locomotionAnimator;
-    [Tooltip("Below this horizontal speed (m/s), animation playback is stopped.")]
-    [SerializeField] float locomotionStopSpeedThreshold = 0.04f;
-    [Tooltip("Scales walk animation vs. movement after speed is normalized. Raise to reduce foot sliding backward; lower if feet look too fast.")]
-    [SerializeField] float locomotionAnimationSpeedScale = 2f;
-
     [Header("Combat")]
     [SerializeField] protected float combatRange = 20f;
     [SerializeField] protected float eyeHeight = 1.5f;
@@ -39,8 +31,7 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
     protected virtual void Awake()
     {
         CacheComponents();
-        if (locomotionAnimator == null)
-            locomotionAnimator = GetComponentInChildren<Animator>();
+        EnsureLocomotionAnimatorDriver();
     }
 
     protected void EnsureComponentsInitialized()
@@ -107,27 +98,12 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
         CharacterMotorLink.ApplyMovementSpeed(Character, Motor);
     }
 
-    protected virtual void LateUpdate()
+    void EnsureLocomotionAnimatorDriver()
     {
-        UpdateLocomotionAnimationSpeed();
-    }
-
-    void UpdateLocomotionAnimationSpeed()
-    {
-        if (locomotionAnimator == null || Motor == null || _rigidbody == null)
+        if (GetComponent<NpcLocomotionAnimatorDriver>() != null)
             return;
 
-        Vector3 v = _rigidbody.linearVelocity;
-        float horizontalSpeed = new Vector3(v.x, 0f, v.z).magnitude;
-        float maxSpeed = Motor.EffectiveMoveSpeed;
-        if (horizontalSpeed < locomotionStopSpeedThreshold || maxSpeed < 0.01f)
-        {
-            locomotionAnimator.speed = 0f;
-            return;
-        }
-
-        float normalized = Mathf.Clamp01(horizontalSpeed / maxSpeed);
-        locomotionAnimator.speed = normalized * locomotionAnimationSpeedScale;
+        gameObject.AddComponent<NpcLocomotionAnimatorDriver>();
     }
 
     protected virtual void FixedUpdate()
