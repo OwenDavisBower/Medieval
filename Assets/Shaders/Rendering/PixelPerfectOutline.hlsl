@@ -35,6 +35,33 @@ float4 SampleMaskLoRes(float2 cellUv)
     return SAMPLE_TEXTURE2D(_MaskTex, sampler_MaskTex, cellUv);
 }
 
+float MaskMaxNeighborhoodR(float2 cuv, float2 du, float2 dv)
+{
+    float m = SampleMaskLoRes(cuv).r;
+    m = max(m, SampleMaskLoRes(cuv - du).r);
+    m = max(m, SampleMaskLoRes(cuv + du).r);
+    m = max(m, SampleMaskLoRes(cuv - dv).r);
+    m = max(m, SampleMaskLoRes(cuv + dv).r);
+    return m;
+}
+
+bool SilhouetteFromMaskEdge(float2 cuv)
+{
+    float2 g = max(_PixelGrid.xy, float2(1, 1));
+    float2 du = float2(1.0 / g.x, 0);
+    float2 dv = float2(0, 1.0 / g.y);
+
+    // Draw silhouette on pixels just outside the masked object.
+    float center = SampleMaskLoRes(cuv).r;
+    float neighMax = center;
+    if (_FillNeighbor > 0.5)
+        neighMax = MaskMaxNeighborhoodR(cuv, du, dv);
+
+    bool outside = center <= 0.001;
+    bool nearObject = neighMax > 0.001;
+    return outside && nearObject;
+}
+
 void EvaluateEdgesAtCell(float2 cuv, out bool rawSil, out bool rawCre)
 {
     float2 g = max(_PixelGrid.xy, float2(1, 1));
@@ -102,11 +129,16 @@ float4 CompositeOutline(float2 uv, float3 sceneColor)
     float2 cell = floor(uv * g);
     float2 cuv = (cell + 0.5) / g;
 
+    float2 du = float2(1.0 / g.x, 0);
+    float2 dv = float2(0, 1.0 / g.y);
     float4 mask = SampleMaskLoRes(cuv);
-    bool allowSil = mask.r > 0.001;
+
+    // Note: silhouette is drawn outside the object, so "allow" must consider neighbors.
+    float silAllow = (_FillNeighbor > 0.5) ? MaskMaxNeighborhoodR(cuv, du, dv) : mask.r;
+    bool allowSil = silAllow > 0.001;
     bool allowCre = mask.g > 0.001;
 
-    bool sil = DilatedSilhouette(cuv) && allowSil;
+    bool sil = SilhouetteFromMaskEdge(cuv) && allowSil;
     bool cre = false;
     if (!sil && allowCre)
         cre = DilatedCreases(cuv);
