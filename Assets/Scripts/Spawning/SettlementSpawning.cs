@@ -2,11 +2,20 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Plans settlement center positions uniformly across the terrain footprint (with edge margin) and instantiates settlements for chunk streaming (see <see cref="WorldGenerationCoordinator"/>).
+/// Plans settlement centers per logical terrain chunk (configurable count per chunk), using the same path and mask rules as before,
+/// and enforcing <see cref="SettlementSpawnConfig.MinSettlementSeparation"/> against every accepted center so spacing holds whether chunks are loaded or not.
+/// <see cref="WorldGenerationCoordinator"/> streams instances when each center's chunk enters the window.
 /// </summary>
 public class SettlementSpawning
 {
-    public void PlanSettlementCenters(SettlementSpawnConfig config, ProceduralPlacementMask placementMask, List<Vector3> outCenters)
+    static int ChunkRngSeed(int worldSeed, int chunkX, int chunkZ, int slot) =>
+        unchecked(worldSeed * 73856093 ^ chunkX * 19349663 ^ chunkZ * 83492791 ^ slot * 50331653);
+
+    public void PlanSettlementCenters(
+        SettlementSpawnConfig config,
+        ProceduralPlacementMask placementMask,
+        int worldSeed,
+        List<Vector3> outCenters)
     {
         outCenters.Clear();
         if (config == null || !HasAnyBuildingPrefab(config) || placementMask == null)
@@ -16,16 +25,36 @@ public class SettlementSpawning
         if (gen == null || !gen.IsTerrainReady)
             return;
 
+        int perChunk = config.SettlementsPerLogicalChunk;
+        if (perChunk <= 0)
+            return;
+
         float minSepSq = config.MinSettlementSeparation * config.MinSettlementSeparation;
-        var placedCenters = new List<Vector3>(config.SettlementCount);
+        var placedCenters = new List<Vector3>();
+        int axis = Mathf.Max(1, gen.chunkCount);
 
-        for (int i = 0; i < config.SettlementCount; i++)
+        var prev = Random.state;
+        try
         {
-            if (!TryPickSettlementPosition(gen, config, placedCenters, minSepSq, placementMask, out Vector3 pos))
-                continue;
+            for (int cz = 0; cz < axis; cz++)
+            {
+                for (int cx = 0; cx < axis; cx++)
+                {
+                    for (int slot = 0; slot < perChunk; slot++)
+                    {
+                        Random.InitState(ChunkRngSeed(worldSeed, cx, cz, slot));
+                        if (!TryPickSettlementPositionInChunk(gen, config, cx, cz, placedCenters, minSepSq, placementMask, out Vector3 pos))
+                            continue;
 
-            placedCenters.Add(pos);
-            outCenters.Add(pos);
+                        placedCenters.Add(pos);
+                        outCenters.Add(pos);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            Random.state = prev;
         }
     }
 
@@ -63,9 +92,11 @@ public class SettlementSpawning
         return false;
     }
 
-    static bool TryPickSettlementPosition(
+    static bool TryPickSettlementPositionInChunk(
         TerrainGenerator gen,
         SettlementSpawnConfig config,
+        int chunkX,
+        int chunkZ,
         List<Vector3> placedCenters,
         float minSepSq,
         ProceduralPlacementMask placementMask,
@@ -74,7 +105,12 @@ public class SettlementSpawning
         float centerR = config.SettlementCenterFootprintRadius;
         for (int attempt = 0; attempt < config.MaxSpawnAttemptsPerSettlement; attempt++)
         {
-            Vector3 candidate = SpawnPlacementUtility.RandomUniformWorldXZInTerrain(gen, config.TerrainEdgeMargin);
+            if (!SpawnPlacementUtility.TryRandomUniformWorldXZInTerrainChunk(
+                    gen, chunkX, chunkZ, config.TerrainEdgeMargin, out Vector3 candidate))
+            {
+                pos = default;
+                return false;
+            }
 
             if (placementMask != null && !placementMask.IsDiskFreeWorldXZ(candidate.x, candidate.z, centerR))
                 continue;
