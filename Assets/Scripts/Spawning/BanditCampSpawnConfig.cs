@@ -5,8 +5,8 @@ public class BanditCampSpawnConfig : ScriptableObject
 {
     [SerializeField] BanditCamp banditCampPrefab;
     [SerializeField] int campCount = 3;
-    [SerializeField] float spawnRadius = 100f;
-    [SerializeField] Vector3 spawnOrigin;
+    [Tooltip("Inset from procedural terrain edges when sampling camp positions (XZ).")]
+    [SerializeField] float terrainEdgeMargin = 8f;
 
     [Header("Separation")]
     [Tooltip("Minimum XZ distance from settlement centers (SettlementBuilder transform).")]
@@ -20,11 +20,15 @@ public class BanditCampSpawnConfig : ScriptableObject
 
     public BanditCamp BanditCampPrefab => banditCampPrefab;
     public int CampCount => campCount;
-    public float SpawnRadius => spawnRadius;
-    public Vector3 SpawnOrigin => spawnOrigin;
+    public float TerrainEdgeMargin => terrainEdgeMargin;
     public float MinDistanceFromSettlements => minDistanceFromSettlements;
     public float MinDistanceFromOtherCamps => minDistanceFromOtherCamps;
     public int MaxSpawnAttemptsPerCamp => maxSpawnAttemptsPerCamp;
     public float OccupationFootprintRadius => occupationFootprintRadius;
     public float OccupationBurnPadding => occupationBurnPadding;
+
+    void OnValidate()
+    {
+        terrainEdgeMargin = Mathf.Max(0f, terrainEdgeMargin);
+    }
 }

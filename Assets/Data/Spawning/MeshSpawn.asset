@@ -44,8 +44,6 @@ MonoBehaviour:
   lightProbeUsage: 0
   _legacyInstanceCount: -1
   _legacyRockCount: -1
-  regionRadius: 90
-  regionCenter: {x: 0, y: 0, z: 0}
   terrainHeightOffset: 0
   terrainEdgeMargin: 8
   pathClearance: -0.01

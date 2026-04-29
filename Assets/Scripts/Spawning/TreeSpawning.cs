@@ -30,14 +30,12 @@ public class TreeSpawning
         var accepted = new List<Vector3>(config.TreeCount);
         int totalAttempts = 0;
         int cap = config.TreeCount * config.MaxAttemptsPerTree;
-        Vector3 basePos = config.RegionCenter;
-
         while (accepted.Count < config.TreeCount && totalAttempts < cap)
         {
             totalAttempts++;
 
             Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(
-                basePos + SpawnPlacementUtility.RandomUniformDiskOffsetXZ(config.RegionRadius));
+                SpawnPlacementUtility.RandomUniformWorldXZInTerrain(gen, config.TerrainEdgeMargin));
             if (p.y < 0f)
                 continue;
 

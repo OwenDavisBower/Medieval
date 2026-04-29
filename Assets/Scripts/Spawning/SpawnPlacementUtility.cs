@@ -55,6 +55,19 @@ public static class SpawnPlacementUtility
         return new Vector3(x, worldPos.y, z);
     }
 
+    /// <summary>Uniform random XZ on the procedural terrain footprint; Y is zero. Respects <paramref name="edgeMargin"/> inset from each world edge (same convention as <see cref="ClampWorldXZToTerrain"/>).</summary>
+    public static Vector3 RandomUniformWorldXZInTerrain(TerrainGenerator gen, float edgeMargin)
+    {
+        float half = gen.worldSize * 0.5f - edgeMargin;
+        if (half <= 0f)
+            half = gen.worldSize * 0.25f;
+
+        var o = gen.transform.position;
+        float x = Random.Range(o.x - half, o.x + half);
+        float z = Random.Range(o.z - half, o.z + half);
+        return new Vector3(x, 0f, z);
+    }
+
     /// <summary>Axis-aligned bounds check for world XZ inside the procedural terrain footprint.</summary>
     public static bool IsWorldXZInsideTerrain(TerrainGenerator gen, float x, float z)
     {

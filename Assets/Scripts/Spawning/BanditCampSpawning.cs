@@ -85,7 +85,7 @@ public class BanditCampSpawning
         for (int attempt = 0; attempt < config.MaxSpawnAttemptsPerCamp; attempt++)
         {
             Vector3 candidate = TerrainSpawnUtility.GetWorldPositionOnTerrain(
-                config.SpawnOrigin + SpawnPlacementUtility.RandomUniformDiskOffsetXZ(config.SpawnRadius));
+                SpawnPlacementUtility.RandomUniformWorldXZInTerrain(terrain, config.TerrainEdgeMargin));
             if (candidate.y < 0f)
                 continue;
 

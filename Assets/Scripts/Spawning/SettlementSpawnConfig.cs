@@ -26,8 +26,7 @@ public class SettlementSpawnConfig : ScriptableObject
     [SerializeField] SettlementBuildingSpawnEntry[] buildings;
     [SerializeField] GameObject villagerPrefab;
     [SerializeField] int settlementCount = 3;
-    [SerializeField] float spawnRadius = 200f;
-    [SerializeField] Vector3 spawnOrigin;
+    [Tooltip("Inset from procedural terrain edges when picking settlement centers (XZ).")]
     [SerializeField] float terrainEdgeMargin = 64f;
     [Tooltip("Minimum distance between settlement centers (XZ).")]
     [SerializeField] float minSettlementSeparation = 30f;
@@ -50,8 +49,6 @@ public class SettlementSpawnConfig : ScriptableObject
     public IReadOnlyList<SettlementBuildingSpawnEntry> Buildings => buildings;
     public GameObject VillagerPrefab => villagerPrefab;
     public int SettlementCount => settlementCount;
-    public float SpawnRadius => spawnRadius;
-    public Vector3 SpawnOrigin => spawnOrigin;
     public float TerrainEdgeMargin => terrainEdgeMargin;
     public float MinSettlementSeparation => minSettlementSeparation;
     public int MaxSpawnAttemptsPerSettlement => maxSpawnAttemptsPerSettlement;

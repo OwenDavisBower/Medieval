@@ -57,7 +57,6 @@ public class MeshSpawning
 
         if (planned > 0)
             seeds.Capacity = Mathf.Max(seeds.Capacity, planned);
-        Vector3 origin = config.RegionCenter;
         float margin = config.TerrainEdgeMargin;
 
         for (int vi = 0; vi < variantIndices.Length; vi++)
@@ -78,10 +77,7 @@ public class MeshSpawning
             while (spawned < target && attempts < cap)
             {
                 attempts++;
-                Vector3 xz = origin + SpawnPlacementUtility.RandomUniformDiskOffsetXZ(config.RegionRadius);
-                if (margin > 0f)
-                    xz = SpawnPlacementUtility.ClampWorldXZToTerrain(gen, xz, margin);
-
+                Vector3 xz = SpawnPlacementUtility.RandomUniformWorldXZInTerrain(gen, margin);
                 Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(xz, config.TerrainHeightOffset);
                 if (p.y < 0f)
                     continue;

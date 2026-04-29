@@ -50,8 +50,6 @@ MonoBehaviour:
     spawnVillagersHere: 0
   villagerPrefab: {fileID: 8980714304071168946, guid: f1e2d3c4b5a697887766554433221100, type: 3}
   settlementCount: 3
-  spawnRadius: 200
-  spawnOrigin: {x: 0, y: 0, z: 0}
   terrainEdgeMargin: 64
   minSettlementSeparation: 30
   maxSpawnAttemptsPerSettlement: 120

@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   banditCampPrefab: {fileID: 9100000000000000003, guid: 4e8d7f6091a2b3c4d5e6f7a8b9c0d1e2, type: 3}
   campCount: 3
-  spawnRadius: 100
-  spawnOrigin: {x: 0, y: 0, z: 0}
+  terrainEdgeMargin: 8
   minDistanceFromSettlements: 30
   minDistanceFromOtherCamps: 20
   maxSpawnAttemptsPerCamp: 120

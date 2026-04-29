@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Plans settlement center positions and instantiates settlements for chunk streaming (see <see cref="WorldGenerationCoordinator"/>).
+/// Plans settlement center positions uniformly across the terrain footprint (with edge margin) and instantiates settlements for chunk streaming (see <see cref="WorldGenerationCoordinator"/>).
 /// </summary>
 public class SettlementSpawning
 {
@@ -74,8 +74,7 @@ public class SettlementSpawning
         float centerR = config.SettlementCenterFootprintRadius;
         for (int attempt = 0; attempt < config.MaxSpawnAttemptsPerSettlement; attempt++)
         {
-            Vector3 candidate = config.SpawnOrigin + SpawnPlacementUtility.RandomUniformDiskOffsetXZ(config.SpawnRadius);
-            candidate = SpawnPlacementUtility.ClampWorldXZToTerrain(gen, candidate, config.TerrainEdgeMargin);
+            Vector3 candidate = SpawnPlacementUtility.RandomUniformWorldXZInTerrain(gen, config.TerrainEdgeMargin);
 
             if (placementMask != null && !placementMask.IsDiskFreeWorldXZ(candidate.x, candidate.z, centerR))
                 continue;

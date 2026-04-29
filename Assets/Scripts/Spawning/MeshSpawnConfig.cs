@@ -52,8 +52,6 @@ public class MeshSpawnConfig : ScriptableObject
     int _legacyInstanceCount = -1;
     [SerializeField, HideInInspector, FormerlySerializedAs("rockCount")]
     int _legacyRockCount = -1;
-    [SerializeField] float regionRadius = 80f;
-    [SerializeField] Vector3 regionCenter;
     [Tooltip("Passed to terrain snap (meters above surface).")]
     [SerializeField] float terrainHeightOffset = 0.05f;
     [Tooltip("Clamp XZ to terrain footprint before sampling height; 0 disables clamp.")]
@@ -67,8 +65,6 @@ public class MeshSpawnConfig : ScriptableObject
 
     public MeshSpawnVariant[] MeshVariants => meshVariants;
     public ComputeShader MeshInstanceCompute => meshInstanceCompute;
-    public float RegionRadius => regionRadius;
-    public Vector3 RegionCenter => regionCenter;
     public float TerrainHeightOffset => terrainHeightOffset;
     public float TerrainEdgeMargin => terrainEdgeMargin;
     public float PathClearance => pathClearance;
@@ -112,7 +108,6 @@ public class MeshSpawnConfig : ScriptableObject
         MigrateLegacyIfNeeded();
         MigrateGlobalInstanceCountToVariantsIfNeeded();
 
-        regionRadius = Mathf.Max(0f, regionRadius);
         maxAttemptsPerInstance = Mathf.Max(1, maxAttemptsPerInstance);
         terrainEdgeMargin = Mathf.Max(0f, terrainEdgeMargin);
         pathClearance = Mathf.Max(-1f, pathClearance);
