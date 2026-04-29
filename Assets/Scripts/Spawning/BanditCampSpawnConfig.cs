@@ -4,7 +4,8 @@ using UnityEngine;
 public class BanditCampSpawnConfig : ScriptableObject
 {
     [SerializeField] BanditCamp banditCampPrefab;
-    [SerializeField] int campCount = 3;
+    [Tooltip("How many bandit camps to try placing in each logical terrain chunk. 0 disables camp planning.")]
+    [SerializeField, Min(0)] int campsPerLogicalChunk = 1;
     [Tooltip("Inset from procedural terrain edges when sampling camp positions (XZ).")]
     [SerializeField] float terrainEdgeMargin = 8f;
 
@@ -19,7 +20,7 @@ public class BanditCampSpawnConfig : ScriptableObject
     [SerializeField] float occupationBurnPadding = 1f;
 
     public BanditCamp BanditCampPrefab => banditCampPrefab;
-    public int CampCount => campCount;
+    public int CampsPerLogicalChunk => campsPerLogicalChunk;
     public float TerrainEdgeMargin => terrainEdgeMargin;
     public float MinDistanceFromSettlements => minDistanceFromSettlements;
     public float MinDistanceFromOtherCamps => minDistanceFromOtherCamps;

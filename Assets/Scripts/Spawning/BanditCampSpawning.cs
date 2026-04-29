@@ -1,15 +1,23 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Plans bandit camp centers per logical terrain chunk (configurable per chunk), with separation from all planned settlement centers
+/// and from every accepted camp so spacing holds whether chunks are loaded. Burns the placement mask after each camp; prefabs stream in <see cref="WorldGenerationCoordinator"/>.
+/// </summary>
 public class BanditCampSpawning
 {
+    /// <summary>Distinct from <see cref="SettlementSpawning"/> chunk seeds so camp randomness is independent.</summary>
+    static int ChunkRngSeed(int worldSeed, int chunkX, int chunkZ, int slot) =>
+        unchecked(worldSeed * 101200933 ^ chunkX * 19349663 ^ chunkZ * 83492791 ^ slot * 50331653 ^ unchecked((int)0xC4B4D000));
+
     public void Reset() { }
 
-    /// <summary>Picks camp locations and burns the mask (approximate disk); prefabs are instantiated when their chunk streams in.</summary>
     public void PlanCamps(
         BanditCampSpawnConfig config,
         ProceduralPlacementMask placementMask,
         IReadOnlyList<Vector3> plannedSettlementCenters,
+        int worldSeed,
         List<Vector3> outCenters)
     {
         outCenters.Clear();
@@ -20,25 +28,46 @@ public class BanditCampSpawning
         if (gen == null || !gen.IsTerrainReady || placementMask == null)
             return;
 
+        int perChunk = config.CampsPerLogicalChunk;
+        if (perChunk <= 0)
+            return;
+
         float minSettleSq = config.MinDistanceFromSettlements * config.MinDistanceFromSettlements;
         float minCampSq = config.MinDistanceFromOtherCamps * config.MinDistanceFromOtherCamps;
 
         var settlementCenters = plannedSettlementCenters != null
             ? new List<Vector3>(plannedSettlementCenters)
             : CollectSettlementCenters();
-        var placedCamps = new List<Vector3>(config.CampCount);
+        var placedCamps = new List<Vector3>();
         SeedExistingBanditCampPositions(placedCamps);
 
         float burnR = Mathf.Max(0.5f, config.OccupationFootprintRadius + config.OccupationBurnPadding);
+        int axis = Mathf.Max(1, gen.chunkCount);
 
-        for (int i = 0; i < config.CampCount; i++)
+        var prev = Random.state;
+        try
         {
-            if (!TryPickCampPosition(gen, config, settlementCenters, placedCamps, minSettleSq, minCampSq, placementMask, out Vector3 pos))
-                continue;
+            for (int cz = 0; cz < axis; cz++)
+            {
+                for (int cx = 0; cx < axis; cx++)
+                {
+                    for (int slot = 0; slot < perChunk; slot++)
+                    {
+                        Random.InitState(ChunkRngSeed(worldSeed, cx, cz, slot));
+                        if (!TryPickCampPositionInChunk(
+                                gen, config, cx, cz, settlementCenters, placedCamps, minSettleSq, minCampSq, placementMask, out Vector3 pos))
+                            continue;
 
-            placedCamps.Add(pos);
-            outCenters.Add(pos);
-            placementMask.BurnDiskWorldXZ(pos.x, pos.z, burnR);
+                        placedCamps.Add(pos);
+                        outCenters.Add(pos);
+                        placementMask.BurnDiskWorldXZ(pos.x, pos.z, burnR);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            Random.state = prev;
         }
     }
 
@@ -71,9 +100,11 @@ public class BanditCampSpawning
             placedCamps.Add(existing[i].transform.position);
     }
 
-    static bool TryPickCampPosition(
+    static bool TryPickCampPositionInChunk(
         TerrainGenerator terrain,
         BanditCampSpawnConfig config,
+        int chunkX,
+        int chunkZ,
         IReadOnlyList<Vector3> settlementCenters,
         List<Vector3> placedCamps,
         float minSettleSq,
@@ -84,8 +115,14 @@ public class BanditCampSpawning
         float campR = Mathf.Max(0.5f, config.OccupationFootprintRadius);
         for (int attempt = 0; attempt < config.MaxSpawnAttemptsPerCamp; attempt++)
         {
-            Vector3 candidate = TerrainSpawnUtility.GetWorldPositionOnTerrain(
-                SpawnPlacementUtility.RandomUniformWorldXZInTerrain(terrain, config.TerrainEdgeMargin));
+            if (!SpawnPlacementUtility.TryRandomUniformWorldXZInTerrainChunk(
+                    terrain, chunkX, chunkZ, config.TerrainEdgeMargin, out Vector3 xz))
+            {
+                pos = default;
+                return false;
+            }
+
+            Vector3 candidate = TerrainSpawnUtility.GetWorldPositionOnTerrain(xz);
             if (candidate.y < 0f)
                 continue;
 

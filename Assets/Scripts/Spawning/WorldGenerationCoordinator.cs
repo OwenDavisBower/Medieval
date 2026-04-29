@@ -8,7 +8,7 @@ using UnityEditor;
 /// <summary>
 /// Defers terrain <see cref="TerrainGenerator"/> startup, runs <see cref="TerrainGenerator.Regenerate"/>, then spawns
 /// content after terrain is ready. <see cref="seed"/> drives terrain procedural noise and spawn <see cref="Random"/> state.
-/// Settlement centers are planned once for every logical chunk (count per chunk is configurable); bandit camps are planned once for the full footprint after settlements burn the mask. Trees and mesh (rock) seeds are planned per logical chunk when that chunk first enters the streaming window (same 3×3 window as terrain meshes), so ongoing work scales with loaded area rather than the whole world at once.
+/// Settlement centers and bandit camps are planned once per logical chunk (counts per chunk are configurable on their configs). Bandit planning runs after settlements burn the mask. Trees and mesh (rock) seeds are planned per logical chunk when that chunk first enters the streaming window (same 3×3 window as terrain meshes), so ongoing work scales with loaded area rather than the whole world at once.
 /// </summary>
 [DefaultExecutionOrder(-100)]
 public class WorldGenerationCoordinator : MonoBehaviour
@@ -323,7 +323,7 @@ public class WorldGenerationCoordinator : MonoBehaviour
             }
         }
 
-        _banditCampSpawning.PlanCamps(banditCampSpawn, _placementMask, _plannedSettlementCenters, _plannedBanditCenters);
+        _banditCampSpawning.PlanCamps(banditCampSpawn, _placementMask, _plannedSettlementCenters, seed, _plannedBanditCenters);
 
         _treeAcceptedPositions.Clear();
         _treePlannedChunks.Clear();
