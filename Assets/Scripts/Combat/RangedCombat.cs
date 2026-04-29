@@ -38,22 +38,7 @@ public class RangedCombat : MonoBehaviour
     {
         _ownerCollider = GetComponentInChildren<Collider>();
         _selfCharacter = GetComponentInParent<Character>();
-        _animator = ResolveAnimatorForCombat();
-    }
-
-    /// <summary>
-    /// Prefer an Animator on an active hierarchy branch so hidden LOD/alternate rigs (inactive siblings) do not steal triggers.
-    /// </summary>
-    Animator ResolveAnimatorForCombat()
-    {
-        var animators = GetComponentsInChildren<Animator>(true);
-        for (int i = 0; i < animators.Length; i++)
-        {
-            var a = animators[i];
-            if (a != null && a.gameObject.activeInHierarchy)
-                return a;
-        }
-        return animators.Length > 0 ? animators[0] : null;
+        _animator = AnimatorUtil.ResolvePreferredAnimator(this);
     }
 
     /// <returns>True if a shot was started this call (animation + scheduled release).</returns>
@@ -75,7 +60,7 @@ public class RangedCombat : MonoBehaviour
         if (_selfCharacter != null)
             aimScale = _selfCharacter.RangedAimErrorMultiplier;
 
-        _animator ??= ResolveAnimatorForCombat();
+        _animator ??= AnimatorUtil.ResolvePreferredAnimator(this);
         if (_animator != null)
             _animator.SetTrigger(ShootArrowHash);
 
@@ -115,7 +100,7 @@ public class RangedCombat : MonoBehaviour
         Vector2 xz = Random.insideUnitCircle * (horizontalAimError * aimScale);
         aim += new Vector3(xz.x, Random.Range(-verticalAimError, verticalAimError) * aimScale, xz.y);
 
-        Vector3 velocity = LobbedLaunchVelocity(origin, aim);
+        Vector3 velocity = ProjectileBallistics.LobbedLaunchVelocity(origin, aim);
 
         Rigidbody arrow = Instantiate(arrowPrefab, origin, Quaternion.identity);
         arrow.linearVelocity = velocity;
@@ -139,21 +124,5 @@ public class RangedCombat : MonoBehaviour
         }
     }
 
-    static Vector3 LobbedLaunchVelocity(Vector3 from, Vector3 to)
-    {
-        Vector3 displacement = to - from;
-        Vector3 horizontal = new Vector3(displacement.x, 0f, displacement.z);
-        float h = horizontal.magnitude;
-        if (h < 0.05f)
-            h = 0.05f;
-        float dh = displacement.y;
-        float g = -Physics.gravity.y;
-        if (g < 0.01f)
-            g = 9.81f;
-
-        float t = Mathf.Clamp(h / 12f, 0.55f, 2.2f);
-        float vy = (dh + 0.5f * g * t * t) / t;
-        Vector3 vHoriz = horizontal.normalized * (h / t);
-        return new Vector3(vHoriz.x, vy, vHoriz.z);
-    }
+    
 }

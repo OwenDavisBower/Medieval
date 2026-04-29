@@ -9,8 +9,6 @@ using UnityEngine;
 [RequireComponent(typeof(TargetSteeringMotor))]
 public sealed class NpcLocomotionAnimatorDriver : MonoBehaviour
 {
-    static readonly int LocomotionParamId = Animator.StringToHash("Locomotion");
-
     [Header("Locomotion animation")]
     [Tooltip("Leave empty to use the first Animator under this object (e.g. mesh animator).")]
     [SerializeField] Animator animator;
@@ -37,20 +35,9 @@ public sealed class NpcLocomotionAnimatorDriver : MonoBehaviour
         if (animator == null || _motor == null || _rigidbody == null)
             return;
 
-        Vector3 v = _rigidbody.linearVelocity;
-        float horizontalSpeed = new Vector3(v.x, 0f, v.z).magnitude;
         float maxSpeed = _motor.EffectiveMoveSpeed;
-
-        animator.SetFloat(LocomotionParamId, horizontalSpeed);
-
-        if (horizontalSpeed < stopSpeedThreshold || maxSpeed < 0.01f)
-        {
-            animator.speed = 1f;
-            return;
-        }
-
-        float normalized = Mathf.Clamp01(horizontalSpeed / maxSpeed);
-        animator.speed = normalized * animationSpeedScale;
+        LocomotionAnimatorDriverUtil.Apply(animator, _rigidbody.linearVelocity, maxSpeed, stopSpeedThreshold,
+            animationSpeedScale);
     }
 }
 

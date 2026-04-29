@@ -198,17 +198,9 @@ public class Character : MonoBehaviour, IDamageableHealth
         }
     }
 
-    /// <summary>Prefer an Animator on an active hierarchy branch (same idea as <see cref="RangedCombat"/>).</summary>
     Animator ResolveAnimatorForDeath()
     {
-        var animators = GetComponentsInChildren<Animator>(true);
-        for (int i = 0; i < animators.Length; i++)
-        {
-            var a = animators[i];
-            if (a != null && a.gameObject.activeInHierarchy)
-                return a;
-        }
-        return animators.Length > 0 ? animators[0] : null;
+        return AnimatorUtil.ResolvePreferredAnimator(this);
     }
 
     void DisableCharacterControls()
