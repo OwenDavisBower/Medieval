@@ -79,6 +79,7 @@ public class SettlementSpawning
         var go = new GameObject($"Settlement_{planIndex}");
         go.transform.position = nominalCenter;
         var builder = go.AddComponent<SettlementBuilder>();
+        builder.SetSettlementId(planIndex);
         builder.ConfigurePathOverlay(config.PathRingOutsideFootprint, config.PathSegmentStepMeters, config.PathWobbleAmplitude);
 
         var prev = Random.state;

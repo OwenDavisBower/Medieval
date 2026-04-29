@@ -6,6 +6,12 @@ using UnityEngine;
 /// </summary>
 public class SettlementBuilder : MonoBehaviour
 {
+    const float PlayerSpawnDistance = 50f;
+    const float PlayerSpawnDistanceSqr = PlayerSpawnDistance * PlayerSpawnDistance;
+
+    static readonly HashSet<int> SpawnedSettlementIds = new HashSet<int>();
+    static Transform _cachedPlayer;
+
     [SerializeField] SettlementBuildingSpawnEntry[] buildingEntries;
     [SerializeField] GameObject villagerPrefab;
 
@@ -39,8 +45,14 @@ public class SettlementBuilder : MonoBehaviour
 
     ProceduralPlacementMask _placementMask;
     bool _built;
+    bool _villagersSpawnedForThisInstance;
+    int _settlementId = int.MinValue;
     SettlementBuildingSpawnEntry[] _runtimeBuildingEntries;
     readonly List<Bounds> _placementBurnBounds = new List<Bounds>();
+    readonly List<Transform> _villagerSpawnAnchors = new List<Transform>();
+    readonly List<Vector3> _villagerSpawnPositions = new List<Vector3>();
+
+    public void SetSettlementId(int id) => _settlementId = id;
 
     void OnEnable()
     {
@@ -55,6 +67,24 @@ public class SettlementBuilder : MonoBehaviour
     void Start() => TryBuildSettlement();
 
     void OnTerrainGenerated(TerrainGenerator _) => TryBuildSettlement();
+
+    void Update()
+    {
+        if (!_built || _villagersSpawnedForThisInstance || HasSpawnedVillagersAlready())
+            return;
+        if (villagerPrefab == null || _villagerSpawnAnchors.Count == 0)
+            return;
+
+        Transform player = GetPlayerTransform();
+        if (player == null)
+            return;
+
+        Vector3 delta = player.position - transform.position;
+        if (delta.sqrMagnitude > PlayerSpawnDistanceSqr)
+            return;
+
+        SpawnDeferredVillagersNow();
+    }
 
     /// <summary>Used when prefabs are assigned at runtime (e.g. from <see cref="SettlementSpawning"/>).</summary>
     public void InitializeAndBuild(IReadOnlyList<SettlementBuildingSpawnEntry> buildings, GameObject villager = null, ProceduralPlacementMask placementMask = null)
@@ -109,6 +139,8 @@ public class SettlementBuilder : MonoBehaviour
         var structureRoots = new List<GameObject>(capacity);
         float minSepSq = minSeparation * minSeparation;
         float baseH = gen.baseHeight;
+        _villagerSpawnAnchors.Clear();
+        _villagerSpawnPositions.Clear();
 
         for (int e = 0; e < entries.Length; e++)
         {
@@ -141,7 +173,10 @@ public class SettlementBuilder : MonoBehaviour
                 }
 
                 if (entry.spawnVillagersHere)
-                    SpawnVillagersNearBuilding(structure.transform, pos);
+                {
+                    _villagerSpawnAnchors.Add(structure.transform);
+                    _villagerSpawnPositions.Add(pos);
+                }
             }
         }
 
@@ -149,6 +184,8 @@ public class SettlementBuilder : MonoBehaviour
             PaintSettlementPathsToSplatmap(gen, structureRoots);
 
         _built = true;
+        if (HasSpawnedVillagersAlready())
+            _villagersSpawnedForThisInstance = true;
     }
 
     /// <summary>Releases structure burns from the mask (e.g. when streaming unloads this settlement). Path bits are unchanged.</summary>
@@ -426,5 +463,45 @@ public class SettlementBuilder : MonoBehaviour
             if (villager != null)
                 villager.Initialize(anchor);
         }
+    }
+
+    void SpawnDeferredVillagersNow()
+    {
+        _villagersSpawnedForThisInstance = true;
+        SpawnedSettlementIds.Add(GetSettlementSpawnKey());
+        for (int i = 0; i < _villagerSpawnAnchors.Count; i++)
+            SpawnVillagersNearBuilding(_villagerSpawnAnchors[i], _villagerSpawnPositions[i]);
+    }
+
+    bool HasSpawnedVillagersAlready() => SpawnedSettlementIds.Contains(GetSettlementSpawnKey());
+
+    int GetSettlementSpawnKey()
+    {
+        if (_settlementId != int.MinValue)
+            return _settlementId;
+
+        Vector3 p = transform.position;
+        int x = Mathf.RoundToInt(p.x * 10f);
+        int z = Mathf.RoundToInt(p.z * 10f);
+        return unchecked((x * 73856093) ^ (z * 19349663));
+    }
+
+    static Transform GetPlayerTransform()
+    {
+        if (_cachedPlayer != null)
+            return _cachedPlayer;
+
+        var player = FindFirstObjectByType<PlayerController>();
+        if (player != null)
+            _cachedPlayer = player.transform;
+
+        return _cachedPlayer;
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        SpawnedSettlementIds.Clear();
+        _cachedPlayer = null;
     }
 }
