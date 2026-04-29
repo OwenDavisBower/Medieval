@@ -269,7 +269,12 @@ public class WorldGenerationCoordinator : MonoBehaviour
                 {
                     GameObject spawned = BanditCampSpawning.SpawnCampAt(banditCampSpawn, nominal);
                     if (spawned != null)
+                    {
+                        BanditCamp camp = spawned.GetComponent<BanditCamp>();
+                        if (camp != null)
+                            camp.SetCampId(i);
                         _streamingBandits[i] = spawned;
+                    }
                 }
             }
         }
