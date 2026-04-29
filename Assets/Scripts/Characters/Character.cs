@@ -3,7 +3,12 @@ using UnityEngine;
 /// <summary>Health for player, bandits, and followers.</summary>
 public class Character : MonoBehaviour, IDamageableHealth
 {
-    static readonly int DeathBackwardStateHash = Animator.StringToHash("DeathBackward");
+    static readonly int[] DeathAnimationStateHashes =
+    {
+        Animator.StringToHash("DeathBackward"),
+        Animator.StringToHash("DeathBackward2"),
+        Animator.StringToHash("DeathRight"),
+    };
 
     [Header("Death")]
     [SerializeField] float deathAnimCrossFadeSeconds = 0.12f;
@@ -154,10 +159,11 @@ public class Character : MonoBehaviour, IDamageableHealth
         if (animator != null)
         {
             animator.speed = 1f;
+            int deathHash = DeathAnimationStateHashes[Random.Range(0, DeathAnimationStateHashes.Length)];
             if (deathAnimCrossFadeSeconds > 0f)
-                animator.CrossFade(DeathBackwardStateHash, deathAnimCrossFadeSeconds, 0);
+                animator.CrossFade(deathHash, deathAnimCrossFadeSeconds, 0);
             else
-                animator.Play(DeathBackwardStateHash, 0, 0f);
+                animator.Play(deathHash, 0, 0f);
         }
     }
 
