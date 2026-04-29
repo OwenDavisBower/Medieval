@@ -67,6 +67,9 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (_character != null && _character.IsDead)
+            return;
+
         ReadMoveAxes(out float h, out float v);
 
         Vector3 move;

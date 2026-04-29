@@ -3,6 +3,11 @@ using UnityEngine;
 /// <summary>Health for player, bandits, and followers.</summary>
 public class Character : MonoBehaviour, IDamageableHealth
 {
+    static readonly int DeathBackwardStateHash = Animator.StringToHash("DeathBackward");
+
+    [Header("Death")]
+    [SerializeField] float deathAnimCrossFadeSeconds = 0.12f;
+
     [Header("Stat rolls (randomized in Awake)")]
     [SerializeField] float minHealth = 70f;
     [SerializeField] float maxHealth = 130f;
@@ -28,6 +33,7 @@ public class Character : MonoBehaviour, IDamageableHealth
     float _attackStunUntil;
 
     CharacterHealthBar _healthBar;
+    bool _deathHandled;
 
     float _meleeDamageMultiplier;
     float _movementSpeedMultiplier;
@@ -118,6 +124,75 @@ public class Character : MonoBehaviour, IDamageableHealth
         _healthBar?.OnHealthChanged(_current, _rolledMaxHealth);
 
         if (_current <= 0f)
-            Destroy(gameObject);
+            HandleDeath();
+    }
+
+    void HandleDeath()
+    {
+        if (_deathHandled)
+            return;
+        _deathHandled = true;
+
+        DisableCharacterControls();
+
+        var rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        Animator animator = ResolveAnimatorForDeath();
+        if (animator != null)
+        {
+            animator.speed = 1f;
+            if (deathAnimCrossFadeSeconds > 0f)
+                animator.CrossFade(DeathBackwardStateHash, deathAnimCrossFadeSeconds, 0);
+            else
+                animator.Play(DeathBackwardStateHash, 0, 0f);
+        }
+    }
+
+    /// <summary>Prefer an Animator on an active hierarchy branch (same idea as <see cref="RangedCombat"/>).</summary>
+    Animator ResolveAnimatorForDeath()
+    {
+        var animators = GetComponentsInChildren<Animator>(true);
+        for (int i = 0; i < animators.Length; i++)
+        {
+            var a = animators[i];
+            if (a != null && a.gameObject.activeInHierarchy)
+                return a;
+        }
+        return animators.Length > 0 ? animators[0] : null;
+    }
+
+    void DisableCharacterControls()
+    {
+        foreach (var d in GetComponents<NpcLocomotionAnimatorDriver>())
+            d.enabled = false;
+
+        var motor = GetComponent<TargetSteeringMotor>();
+        if (motor != null)
+            motor.enabled = false;
+
+        var ranged = GetComponent<RangedCombat>();
+        if (ranged != null)
+            ranged.enabled = false;
+
+        var melee = GetComponent<MeleeCombat>();
+        if (melee != null)
+            melee.enabled = false;
+
+        var seek = GetComponent<CombatSeekControllerBase>();
+        if (seek != null)
+            seek.enabled = false;
+
+        var villager = GetComponent<VillagerController>();
+        if (villager != null)
+            villager.enabled = false;
+
+        var player = GetComponent<PlayerController>();
+        if (player != null)
+            player.enabled = false;
     }
 }

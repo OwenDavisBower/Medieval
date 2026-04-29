@@ -71,7 +71,11 @@ public class CharacterHealthBar : MonoBehaviour
     {
         RefreshBarVisual(current, maxHealth);
 
-        if (_canvas != null && current > 0f && current < maxHealth)
+        if (_canvas == null)
+            return;
+        if (current <= 0f)
+            _canvas.gameObject.SetActive(false);
+        else if (current < maxHealth)
             _canvas.gameObject.SetActive(true);
     }
 
