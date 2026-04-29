@@ -38,7 +38,22 @@ public class RangedCombat : MonoBehaviour
     {
         _ownerCollider = GetComponentInChildren<Collider>();
         _selfCharacter = GetComponentInParent<Character>();
-        _animator = GetComponentInChildren<Animator>(true);
+        _animator = ResolveAnimatorForCombat();
+    }
+
+    /// <summary>
+    /// Prefer an Animator on an active hierarchy branch so hidden LOD/alternate rigs (inactive siblings) do not steal triggers.
+    /// </summary>
+    Animator ResolveAnimatorForCombat()
+    {
+        var animators = GetComponentsInChildren<Animator>(true);
+        for (int i = 0; i < animators.Length; i++)
+        {
+            var a = animators[i];
+            if (a != null && a.gameObject.activeInHierarchy)
+                return a;
+        }
+        return animators.Length > 0 ? animators[0] : null;
     }
 
     /// <returns>True if a shot was started this call (animation + scheduled release).</returns>
@@ -57,7 +72,7 @@ public class RangedCombat : MonoBehaviour
         if (_selfCharacter != null)
             aimScale = _selfCharacter.RangedAimErrorMultiplier;
 
-        _animator ??= GetComponentInChildren<Animator>(true);
+        _animator ??= ResolveAnimatorForCombat();
         if (_animator != null)
             _animator.SetTrigger(ShootArrowHash);
 
