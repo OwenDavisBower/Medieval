@@ -1,21 +1,26 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public struct PlannedTreeSpawn
+{
+    public Vector3 Position;
+    public float YawDegrees;
+    public GameObject Prefab;
+}
+
 public class TreeSpawning
 {
-    bool _spawned;
+    public void Reset() { }
 
-    public void Reset() => _spawned = false;
-
-    public void TrySpawnTrees(TreeSpawnConfig config, Transform parent, TerrainGenerator gen, ProceduralPlacementMask placementMask)
+    /// <summary>Computes tree layout and burns the placement mask; streaming instantiates from <paramref name="outPlanned"/>.</summary>
+    public void PlanTrees(TreeSpawnConfig config, TerrainGenerator gen, ProceduralPlacementMask placementMask, List<PlannedTreeSpawn> outPlanned)
     {
-        if (config == null || _spawned || !config.HasSpawnableTreePrefab())
+        outPlanned.Clear();
+        if (config == null || !config.HasSpawnableTreePrefab())
             return;
 
         if (gen == null || !gen.IsTerrainReady || placementMask == null)
             return;
-
-        _spawned = true;
 
         float minPathClearance = config.PathClearance >= 0f
             ? config.PathClearance
@@ -50,10 +55,22 @@ public class TreeSpawning
                 continue;
 
             float yaw = Random.Range(0f, 360f);
-            Quaternion rot = Quaternion.Euler(0f, yaw, 0f);
-            Object.Instantiate(prefab, accepted[i], rot, parent);
+            outPlanned.Add(new PlannedTreeSpawn
+            {
+                Position = accepted[i],
+                YawDegrees = yaw,
+                Prefab = prefab
+            });
         }
 
         placementMask.BurnDisksWorldXZ(accepted, treeBurnR);
+    }
+
+    public static GameObject SpawnTreeAt(PlannedTreeSpawn planned, Transform parent)
+    {
+        if (planned.Prefab == null)
+            return null;
+        var rot = Quaternion.Euler(0f, planned.YawDegrees, 0f);
+        return Object.Instantiate(planned.Prefab, planned.Position, rot, parent);
     }
 }

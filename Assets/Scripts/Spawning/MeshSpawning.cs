@@ -3,28 +3,25 @@ using UnityEngine;
 
 public class MeshSpawning
 {
-    bool _spawned;
+    public void Reset() { }
 
-    public void Reset() => _spawned = false;
-
-    public void TrySpawnMeshes(MeshSpawnConfig config, RockIndirectRenderer renderer, TerrainGenerator gen, ProceduralPlacementMask placementMask)
+    /// <summary>Builds the full rock seed list for the world; <see cref="RockIndirectRenderer"/> is updated from a chunk-filtered subset during streaming.</summary>
+    public bool TryPlanRockSeeds(MeshSpawnConfig config, TerrainGenerator gen, ProceduralPlacementMask placementMask, List<RockInstanceSeed> into)
     {
-        if (_spawned || config == null || renderer == null)
-            return;
-        if (!config.HasRenderableVariants)
-            return;
+        if (into == null)
+            return false;
+        into.Clear();
+        if (config == null || !config.HasRenderableVariants)
+            return false;
 
         if (gen == null || !gen.IsTerrainReady || placementMask == null)
-            return;
+            return false;
 
         if (!TryBuildValidVariantIndices(config, out var variantIndices))
-            return;
+            return false;
 
-        if (!TryCollectSeeds(config, gen, placementMask, variantIndices, out var seeds) || seeds.Count == 0)
-            return;
-
-        _spawned = true;
-        renderer.Initialize(config, seeds);
+        TryCollectSeeds(config, gen, placementMask, variantIndices, into);
+        return into.Count > 0;
     }
 
     static bool TryBuildValidVariantIndices(MeshSpawnConfig config, out int[] indices)
@@ -47,8 +44,9 @@ public class MeshSpawning
         return true;
     }
 
-    static bool TryCollectSeeds(MeshSpawnConfig config, TerrainGenerator gen, ProceduralPlacementMask placementMask, int[] variantIndices, out List<RockInstanceSeed> seeds)
+    static void TryCollectSeeds(MeshSpawnConfig config, TerrainGenerator gen, ProceduralPlacementMask placementMask, int[] variantIndices, List<RockInstanceSeed> seeds)
     {
+        seeds.Clear();
         int planned = 0;
         for (int i = 0; i < variantIndices.Length; i++)
         {
@@ -57,7 +55,8 @@ public class MeshSpawning
                 planned += Mathf.Max(0, v.instanceCount);
         }
 
-        seeds = new List<RockInstanceSeed>(planned);
+        if (planned > 0)
+            seeds.Capacity = Mathf.Max(seeds.Capacity, planned);
         Vector3 origin = config.RegionCenter;
         float margin = config.TerrainEdgeMargin;
 
@@ -99,7 +98,5 @@ public class MeshSpawning
                 spawned++;
             }
         }
-
-        return seeds.Count > 0;
     }
 }

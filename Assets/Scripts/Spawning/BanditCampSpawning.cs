@@ -3,23 +3,22 @@ using UnityEngine;
 
 public class BanditCampSpawning
 {
-    bool _spawned;
+    public void Reset() { }
 
-    public void Reset() => _spawned = false;
-
-    public void SpawnCamps(
+    /// <summary>Picks camp locations and burns the mask (approximate disk); prefabs are instantiated when their chunk streams in.</summary>
+    public void PlanCamps(
         BanditCampSpawnConfig config,
         ProceduralPlacementMask placementMask,
-        IReadOnlyList<Vector3> plannedSettlementCenters)
+        IReadOnlyList<Vector3> plannedSettlementCenters,
+        List<Vector3> outCenters)
     {
-        if (config == null || _spawned || config.BanditCampPrefab == null)
+        outCenters.Clear();
+        if (config == null || config.BanditCampPrefab == null)
             return;
 
         var gen = TerrainGenerator.GetActiveOrFind();
         if (gen == null || !gen.IsTerrainReady || placementMask == null)
             return;
-
-        _spawned = true;
 
         float minSettleSq = config.MinDistanceFromSettlements * config.MinDistanceFromSettlements;
         float minCampSq = config.MinDistanceFromOtherCamps * config.MinDistanceFromOtherCamps;
@@ -30,28 +29,26 @@ public class BanditCampSpawning
         var placedCamps = new List<Vector3>(config.CampCount);
         SeedExistingBanditCampPositions(placedCamps);
 
+        float burnR = Mathf.Max(0.5f, config.OccupationFootprintRadius + config.OccupationBurnPadding);
+
         for (int i = 0; i < config.CampCount; i++)
         {
             if (!TryPickCampPosition(gen, config, settlementCenters, placedCamps, minSettleSq, minCampSq, placementMask, out Vector3 pos))
                 continue;
 
             placedCamps.Add(pos);
-            var campGo = Object.Instantiate(config.BanditCampPrefab, pos, Quaternion.identity);
-            HierarchyLayers.SetRecursiveByLayerName(campGo.transform, "Building");
-            placementMask.BurnFromRendererBoundsXZ(CombineRendererBounds(campGo.gameObject), config.OccupationBurnPadding);
+            outCenters.Add(pos);
+            placementMask.BurnDiskWorldXZ(pos.x, pos.z, burnR);
         }
     }
 
-    static Bounds CombineRendererBounds(GameObject root)
+    public static GameObject SpawnCampAt(BanditCampSpawnConfig config, Vector3 pos)
     {
-        var rends = root.GetComponentsInChildren<Renderer>();
-        if (rends.Length == 0)
-            return new Bounds(root.transform.position, Vector3.one * 4f);
-
-        Bounds b = rends[0].bounds;
-        for (int i = 1; i < rends.Length; i++)
-            b.Encapsulate(rends[i].bounds);
-        return b;
+        if (config?.BanditCampPrefab == null)
+            return null;
+        var camp = Object.Instantiate(config.BanditCampPrefab, pos, Quaternion.identity);
+        HierarchyLayers.SetRecursiveByLayerName(camp.transform, "Building");
+        return camp.gameObject;
     }
 
     static List<Vector3> CollectSettlementCenters()
