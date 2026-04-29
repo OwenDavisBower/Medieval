@@ -214,7 +214,7 @@ public class WorldGenerationCoordinator : MonoBehaviour
                 }
                 else if (inWin)
                 {
-                    var spawned = _settlementSpawning.SpawnSettlementAt(settlementSpawn, nominal, _placementMask, i);
+                    var spawned = _settlementSpawning.SpawnSettlementAt(settlementSpawn, nominal, _placementMask, seed, i);
                     if (spawned != null)
                         _streamingSettlements[i] = spawned;
                 }

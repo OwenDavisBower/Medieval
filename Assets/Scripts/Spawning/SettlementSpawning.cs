@@ -11,6 +11,10 @@ public class SettlementSpawning
     static int ChunkRngSeed(int worldSeed, int chunkX, int chunkZ, int slot) =>
         unchecked(worldSeed * 73856093 ^ chunkX * 19349663 ^ chunkZ * 83492791 ^ slot * 50331653);
 
+    /// <summary>Distinct from <see cref="ChunkRngSeed"/>; drives <see cref="SettlementBuilder"/> layout RNG.</summary>
+    static int BuildRngSeed(int worldSeed, int planIndex) =>
+        unchecked(worldSeed * 1013904223 ^ planIndex * 1664525 ^ unchecked((int)0x5747B000));
+
     public void PlanSettlementCenters(
         SettlementSpawnConfig config,
         ProceduralPlacementMask placementMask,
@@ -62,6 +66,7 @@ public class SettlementSpawning
         SettlementSpawnConfig config,
         Vector3 nominalCenter,
         ProceduralPlacementMask placementMask,
+        int worldSeed,
         int planIndex)
     {
         if (config == null || !HasAnyBuildingPrefab(config) || placementMask == null)
@@ -75,7 +80,18 @@ public class SettlementSpawning
         go.transform.position = nominalCenter;
         var builder = go.AddComponent<SettlementBuilder>();
         builder.ConfigurePathOverlay(config.PathRingOutsideFootprint, config.PathSegmentStepMeters, config.PathWobbleAmplitude);
-        builder.InitializeAndBuild(config.Buildings, config.VillagerPrefab, placementMask);
+
+        var prev = Random.state;
+        try
+        {
+            Random.InitState(BuildRngSeed(worldSeed, planIndex));
+            builder.InitializeAndBuild(config.Buildings, config.VillagerPrefab, placementMask);
+        }
+        finally
+        {
+            Random.state = prev;
+        }
+
         return go;
     }
 
