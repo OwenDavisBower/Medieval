@@ -2,12 +2,12 @@ using UnityEngine;
 
 /// <summary>
 /// Drives locomotion playback speed from horizontal movement speed.
-/// Attach to any NPC root that has a Rigidbody + TargetSteeringMotor and an Animator in children.
+/// Attach to any character root that has a Rigidbody and either a <see cref="TargetSteeringMotor"/>
+/// (NPCs) or a <see cref="PlayerController"/> (player).
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody))]
-[RequireComponent(typeof(TargetSteeringMotor))]
-public sealed class NpcLocomotionAnimatorDriver : MonoBehaviour
+public sealed class LocomotionAnimatorDriver : MonoBehaviour
 {
     [Header("Locomotion animation")]
     [Tooltip("Leave empty to use the first Animator under this object (e.g. mesh animator).")]
@@ -21,23 +21,42 @@ public sealed class NpcLocomotionAnimatorDriver : MonoBehaviour
 
     Rigidbody _rigidbody;
     TargetSteeringMotor _motor;
+    PlayerController _player;
 
     void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
         _motor = GetComponent<TargetSteeringMotor>();
+        _player = GetComponent<PlayerController>();
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
     }
 
     void LateUpdate()
     {
-        if (animator == null || _motor == null || _rigidbody == null)
+        if (animator == null || _rigidbody == null)
             return;
 
-        float maxSpeed = _motor.EffectiveMoveSpeed;
-        LocomotionAnimatorDriverUtil.Apply(animator, _rigidbody.linearVelocity, maxSpeed, stopSpeedThreshold,
-            animationSpeedScale);
+        float maxSpeed = ResolveEffectiveMaxSpeed();
+        if (maxSpeed <= 0.001f)
+            return;
+
+        LocomotionAnimatorDriverUtil.Apply(
+            animator,
+            _rigidbody.linearVelocity,
+            maxSpeed,
+            stopSpeedThreshold,
+            animationSpeedScale
+        );
+    }
+
+    float ResolveEffectiveMaxSpeed()
+    {
+        if (_motor != null)
+            return _motor.EffectiveMoveSpeed;
+        if (_player != null)
+            return _player.GetEffectiveMaxMoveSpeed();
+        return 0f;
     }
 }
 

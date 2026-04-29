@@ -35,9 +35,9 @@ public class VillagerController : MonoBehaviour
 
     void EnsureLocomotionAnimatorDriver()
     {
-        if (GetComponent<NpcLocomotionAnimatorDriver>() != null)
+        if (GetComponent<LocomotionAnimatorDriver>() != null)
             return;
 
-        gameObject.AddComponent<NpcLocomotionAnimatorDriver>();
+        gameObject.AddComponent<LocomotionAnimatorDriver>();
     }
 }

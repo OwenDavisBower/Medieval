@@ -205,10 +205,7 @@ public class Character : MonoBehaviour, IDamageableHealth
 
     void DisableCharacterControls()
     {
-        foreach (var d in GetComponents<NpcLocomotionAnimatorDriver>())
-            d.enabled = false;
-
-        foreach (var d in GetComponents<PlayerLocomotionAnimatorDriver>())
+        foreach (var d in GetComponents<LocomotionAnimatorDriver>())
             d.enabled = false;
 
         var motor = GetComponent<TargetSteeringMotor>();
