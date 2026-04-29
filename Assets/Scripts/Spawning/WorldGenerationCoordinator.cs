@@ -17,6 +17,7 @@ public class WorldGenerationCoordinator : MonoBehaviour
     const string DefaultTreePath = "Assets/Data/Spawning/MainScene_TreeSpawn.asset";
     const string DefaultBanditPath = "Assets/Data/Spawning/MainScene_BanditCampSpawn.asset";
     const string DefaultRockSpawnPath = "Assets/Data/Spawning/MainScene_RockSpawn.asset";
+    const string DefaultBridgePrefabPath = "Assets/Prefabs/Bridge.prefab";
 
     const float StreamingAnchorMoveEpsilonSqr = 0.25f;
 
@@ -32,6 +33,10 @@ public class WorldGenerationCoordinator : MonoBehaviour
     [SerializeField] Transform treeSpawnParent;
     [Tooltip("When >= 0, path corridor stamped into the placement mask uses at least this many meters from the path centerline. When -1, uses the max of bandit/tree/mesh auto clearances.")]
     [SerializeField] float pathOccupancyStampMeters = -1f;
+    [SerializeField] GameObject bridgePrefab;
+    [Tooltip("Optional parent for bridge instances; defaults to this coordinator.")]
+    [SerializeField] Transform bridgeSpawnParent;
+    [SerializeField] float bridgeVerticalOffset;
 
     ProceduralPlacementMask _placementMask;
     readonly SettlementSpawning _settlementSpawning = new SettlementSpawning();
@@ -58,6 +63,9 @@ public class WorldGenerationCoordinator : MonoBehaviour
     readonly HashSet<Vector2Int> _rockPlannedChunks = new HashSet<Vector2Int>();
     readonly List<Vector2Int> _windowChunkSortScratch = new List<Vector2Int>();
 
+    readonly List<PathRiverBridgeCrossing> _plannedBridges = new List<PathRiverBridgeCrossing>();
+    readonly Dictionary<int, GameObject> _streamingBridges = new Dictionary<int, GameObject>();
+
     readonly HashSet<Vector2Int> _streamingWindowChunksScratch = new HashSet<Vector2Int>();
     Vector3 _lastStreamAnchor = new Vector3(float.NaN, float.NaN, float.NaN);
     Vector2Int _lastStreamingWindowOrigin = new Vector2Int(int.MinValue, int.MinValue);
@@ -73,6 +81,8 @@ public class WorldGenerationCoordinator : MonoBehaviour
             banditCampSpawn = AssetDatabase.LoadAssetAtPath<BanditCampSpawnConfig>(DefaultBanditPath);
         if (meshSpawn == null)
             meshSpawn = AssetDatabase.LoadAssetAtPath<MeshSpawnConfig>(DefaultRockSpawnPath);
+        if (bridgePrefab == null)
+            bridgePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(DefaultBridgePrefabPath);
     }
 #endif
 
@@ -152,6 +162,14 @@ public class WorldGenerationCoordinator : MonoBehaviour
 
         _streamingBandits.Clear();
 
+        foreach (var kv in _streamingBridges)
+        {
+            if (kv.Value != null)
+                Destroy(kv.Value);
+        }
+
+        _streamingBridges.Clear();
+
         _rockIndirectRenderer ??= GetComponent<RockIndirectRenderer>();
         _rockIndirectRenderer?.Initialize(null, null);
     }
@@ -194,7 +212,8 @@ public class WorldGenerationCoordinator : MonoBehaviour
             TerrainChunkCharacterStreaming.OnTerrainStreamingWindowMoved(gen, prevStreamingWindowOrigin, win, pool);
 
         bool hasSpawnWork = settlementSpawn != null || treeSpawn != null || banditCampSpawn != null
-            || (meshSpawn != null && meshSpawn.HasRenderableVariants);
+            || (meshSpawn != null && meshSpawn.HasRenderableVariants)
+            || bridgePrefab != null;
         if (!hasSpawnWork)
             return;
 
@@ -295,6 +314,36 @@ public class WorldGenerationCoordinator : MonoBehaviour
         }
         else if (_rockIndirectRenderer != null)
             _rockIndirectRenderer.Initialize(null, null);
+
+        Transform bridgeParent = bridgeSpawnParent != null ? bridgeSpawnParent : transform;
+        if (bridgePrefab != null && _plannedBridges.Count > 0)
+        {
+            for (int i = 0; i < _plannedBridges.Count; i++)
+            {
+                PathRiverBridgeCrossing planned = _plannedBridges[i];
+                var home = TerrainLogicalChunkWindow.WorldXZToChunk(origin, ws, axis, planned.WorldPosition.x, planned.WorldPosition.z);
+                bool inWin = _streamingWindowChunksScratch.Contains(home);
+
+                if (_streamingBridges.TryGetValue(i, out var br) && br != null)
+                {
+                    if (!inWin)
+                    {
+                        Destroy(br);
+                        _streamingBridges.Remove(i);
+                    }
+                }
+                else if (inWin)
+                {
+                    Vector3 fwd = planned.PathForwardHorizontal;
+                    Quaternion rot = fwd.sqrMagnitude > 1e-8f
+                        ? Quaternion.LookRotation(fwd, Vector3.up)
+                        : Quaternion.identity;
+                    GameObject spawned = Instantiate(bridgePrefab, planned.WorldPosition, rot, bridgeParent);
+                    if (spawned != null)
+                        _streamingBridges[i] = spawned;
+                }
+            }
+        }
     }
 
     void RunSpawnSequence()
@@ -314,12 +363,16 @@ public class WorldGenerationCoordinator : MonoBehaviour
         _plannedTrees.Clear();
         _plannedBanditCenters.Clear();
         _plannedRockSeeds.Clear();
+        _plannedBridges.Clear();
 
         _placementMask?.Dispose();
         _placementMask = new ProceduralPlacementMask();
         _placementMask.Allocate(gen);
         float pathStamp = ComputePathOccupancyStampMeters(gen);
         _placementMask.StampPathFromTerrain(gen, pathStamp);
+
+        if (bridgePrefab != null)
+            gen.CollectPathRiverBridgeCrossings(_plannedBridges, bridgeVerticalOffset);
 
         _plannedSettlementCenters.Clear();
         _settlementSpawning.PlanSettlementCenters(settlementSpawn, _placementMask, seed, _plannedSettlementCenters);

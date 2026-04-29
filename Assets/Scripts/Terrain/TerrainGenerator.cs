@@ -34,6 +34,21 @@ public struct TerrainMeshVertex
 }
 
 /// <summary>
+/// Path–river crossing in world space; <see cref="PathForwardHorizontal"/> is the unit tangent along the path (bridge +Z should match).
+/// </summary>
+public readonly struct PathRiverBridgeCrossing
+{
+    public PathRiverBridgeCrossing(Vector3 worldPosition, Vector3 pathForwardHorizontal)
+    {
+        WorldPosition = worldPosition;
+        PathForwardHorizontal = pathForwardHorizontal;
+    }
+
+    public Vector3 WorldPosition { get; }
+    public Vector3 PathForwardHorizontal { get; }
+}
+
+/// <summary>
 /// Orchestrates procedural heightmap generation, path splat mask, distance fields, and pooled terrain chunk meshes.
 /// </summary>
 [ExecuteAlways]
@@ -287,6 +302,194 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         float y = SampleHeightWorldXZ(bestX, bestZ) + heightOffset;
         worldPosition = new Vector3(bestX, y, bestZ);
+        return true;
+    }
+
+    /// <summary>
+    /// Finds intersections between path and river splines (list + worm + optional authoring containers; same sampling as distance fields).
+    /// </summary>
+    public void CollectPathRiverBridgeCrossings(List<PathRiverBridgeCrossing> results, float verticalOffset = 0f)
+    {
+        results.Clear();
+        if (!IsTerrainReady)
+            return;
+
+        var pathPolylines = new List<List<Vector2>>(_mergedPathsForBuild.Count + 8);
+        foreach (var pathControls in _mergedPathsForBuild)
+        {
+            if (pathControls == null || pathControls.Count < 2)
+                continue;
+            var pathPoly = new List<Vector2>(splineSampleCount);
+            SamplePolylineWorldXz(pathControls, pathPoly);
+            if (pathPoly.Count >= 2)
+                pathPolylines.Add(pathPoly);
+        }
+
+        if (authoringPathSplines != null)
+        {
+            foreach (var c in authoringPathSplines)
+            {
+                if (c == null)
+                    continue;
+                var pathPoly = new List<Vector2>(splineSampleCount);
+                SampleAuthoringContainerWorldXz(c, pathPoly);
+                if (pathPoly.Count >= 2)
+                    pathPolylines.Add(pathPoly);
+            }
+        }
+
+        var riverPolylines = new List<List<Vector2>>(_mergedRiversForBuild.Count + 8);
+        foreach (var riverControls in _mergedRiversForBuild)
+        {
+            if (riverControls == null || riverControls.Count < 2)
+                continue;
+            var riverPoly = new List<Vector2>(splineSampleCount);
+            SamplePolylineWorldXz(riverControls, riverPoly);
+            if (riverPoly.Count >= 2)
+                riverPolylines.Add(riverPoly);
+        }
+
+        if (authoringRiverSplines != null)
+        {
+            foreach (var c in authoringRiverSplines)
+            {
+                if (c == null)
+                    continue;
+                var riverPoly = new List<Vector2>(splineSampleCount);
+                SampleAuthoringContainerWorldXz(c, riverPoly);
+                if (riverPoly.Count >= 2)
+                    riverPolylines.Add(riverPoly);
+            }
+        }
+
+        if (pathPolylines.Count == 0 || riverPolylines.Count == 0)
+            return;
+
+        const float dedupDist = 6f;
+        float dedupDistSqr = dedupDist * dedupDist;
+
+        var candidates = new List<(Vector2 xz, Vector2 pathDir)>(16);
+
+        foreach (var pathPoly in pathPolylines)
+        {
+            for (int i = 0; i < pathPoly.Count - 1; i++)
+            {
+                Vector2 p0 = pathPoly[i];
+                Vector2 p1 = pathPoly[i + 1];
+                Vector2 segDir = p1 - p0;
+                if (segDir.sqrMagnitude < 1e-8f)
+                    continue;
+
+                foreach (var riverPoly in riverPolylines)
+                {
+                    for (int j = 0; j < riverPoly.Count - 1; j++)
+                    {
+                        if (!TryIntersectSegment2D(p0, p1, riverPoly[j], riverPoly[j + 1], out Vector2 hit))
+                            continue;
+                        candidates.Add((hit, segDir));
+                    }
+                }
+            }
+        }
+
+        for (int c = 0; c < candidates.Count; c++)
+        {
+            (Vector2 xz, Vector2 pathDir) = candidates[c];
+            bool duplicate = false;
+            for (int k = 0; k < results.Count; k++)
+            {
+                Vector3 existing = results[k].WorldPosition;
+                float dx = xz.x - existing.x;
+                float dz = xz.y - existing.z;
+                if (dx * dx + dz * dz < dedupDistSqr)
+                {
+                    duplicate = true;
+                    break;
+                }
+            }
+
+            if (duplicate)
+                continue;
+
+            Vector3 fwd = new Vector3(pathDir.x, 0f, pathDir.y);
+            if (fwd.sqrMagnitude < 1e-8f)
+                continue;
+            fwd.Normalize();
+
+            float y = SampleHeightWorldXZ(xz.x, xz.y) + verticalOffset;
+            results.Add(new PathRiverBridgeCrossing(new Vector3(xz.x, y, xz.y), fwd));
+        }
+    }
+
+    void SampleAuthoringContainerWorldXz(SplineContainer container, List<Vector2> worldXzOut)
+    {
+        worldXzOut.Clear();
+        if (container == null || container.Spline.Count < 2 || splineSampleCount < 2)
+            return;
+
+        for (var s = 0; s < splineSampleCount; s++)
+        {
+            var t = splineSampleCount <= 1 ? 0f : s / (float)(splineSampleCount - 1);
+            var world = container.EvaluatePosition(t);
+            worldXzOut.Add(new Vector2(world.x, world.z));
+        }
+    }
+
+    void SamplePolylineWorldXz(List<Vector2> controls, List<Vector2> worldXzOut)
+    {
+        worldXzOut.Clear();
+        if (controls.Count < 2 || splineSampleCount < 2)
+            return;
+
+        for (var s = 0; s < splineSampleCount; s++)
+        {
+            var u = s / (float)(splineSampleCount - 1);
+            var f = u * (controls.Count - 1);
+            var seg = (int)math.floor(f);
+            if (seg >= controls.Count - 1)
+                seg = controls.Count - 2;
+
+            var lt = f - seg;
+            var p0 = CatmullControlToFloat2(controls[math.max(0, seg - 1)]);
+            var p1 = CatmullControlToFloat2(controls[seg]);
+            var p2 = CatmullControlToFloat2(controls[seg + 1]);
+            var p3 = CatmullControlToFloat2(controls[math.min(controls.Count - 1, seg + 2)]);
+
+            var pos2 = CatmullRom2(p0, p1, p2, p3, lt);
+            var world = transform.TransformPoint(new Vector3(pos2.x, 0f, pos2.y));
+            worldXzOut.Add(new Vector2(world.x, world.z));
+        }
+    }
+
+    static float2 CatmullControlToFloat2(Vector2 v) => new(v.x, v.y);
+
+    static float2 CatmullRom2(float2 p0, float2 p1, float2 p2, float2 p3, float t)
+    {
+        var t2 = t * t;
+        var t3 = t2 * t;
+        return 0.5f * (
+            (2f * p1) +
+            (-p0 + p2) * t +
+            (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
+            (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
+    }
+
+    static bool TryIntersectSegment2D(Vector2 a0, Vector2 a1, Vector2 b0, Vector2 b1, out Vector2 hit)
+    {
+        hit = default;
+        Vector2 r = a1 - a0;
+        Vector2 s = b1 - b0;
+        float rxs = r.x * s.y - r.y * s.x;
+        Vector2 qp = b0 - a0;
+        if (math.abs(rxs) < 1e-6f)
+            return false;
+
+        float t = (qp.x * s.y - qp.y * s.x) / rxs;
+        float u = (qp.x * r.y - qp.y * r.x) / rxs;
+        if (t < 0f || t > 1f || u < 0f || u > 1f)
+            return false;
+
+        hit = a0 + t * r;
         return true;
     }
 
