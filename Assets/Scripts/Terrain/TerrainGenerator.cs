@@ -87,7 +87,7 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Logical chunks along each axis for sampling the heightmap (full world is chunkCount × chunkCount cells).</summary>
     public int chunkCount = 16;
 
-    const int StreamingWindowSide = 9;
+    const int StreamingWindowSide = 3;
 
     /// <summary>Noise / worm seed for the current pipeline run; set via <see cref="SetProceduralSeed"/> (e.g. from <c>WorldGenerationCoordinator</c>). Defaults to 42 when unset.</summary>
     int _proceduralSeed = 42;
