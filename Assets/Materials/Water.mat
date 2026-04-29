@@ -117,7 +117,7 @@ Material:
     - _Cull: 2
     - _Cutoff: 0.5
     - _DebugView: 0
-    - _DepthSteps: 6.97
+    - _DepthSteps: 5.35
     - _DetailAlbedoMapScale: 1
     - _DetailNormalMapScale: 1
     - _DistortionStrength: 0.01
@@ -131,7 +131,7 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0
     - _GlossyReflections: 1
-    - _MaxDepth: 2
+    - _MaxDepth: 1.2
     - _Metallic: 0
     - _Mode: 0
     - _NoiseSpeed: 0.15
