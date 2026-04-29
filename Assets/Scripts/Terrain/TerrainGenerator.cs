@@ -84,8 +84,10 @@ public sealed class TerrainGenerator : MonoBehaviour
     [Tooltip("smoothstep high edge: billow above this is mostly ridge-shaped.")]
     public float ridgeBlendBillowHigh = 0.92f;
 
-    /// <summary>Number of chunks along each axis (chunkCount × chunkCount).</summary>
-    public int chunkCount = 8;
+    /// <summary>Logical chunks along each axis for sampling the heightmap (full world is chunkCount × chunkCount cells).</summary>
+    public int chunkCount = 16;
+
+    const int StreamingWindowSide = 9;
 
     /// <summary>Noise / worm seed for the current pipeline run; set via <see cref="SetProceduralSeed"/> (e.g. from <c>WorldGenerationCoordinator</c>). Defaults to 42 when unset.</summary>
     int _proceduralSeed = 42;
@@ -130,6 +132,8 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     [Header("Rendering")]
     [SerializeField] Transform? cameraTransform;
+    [Tooltip("Chunk streaming window is centered on this transform. If unset, uses Camera Transform.")]
+    [SerializeField] Transform? streamingAnchor;
     [SerializeField] Material? terrainMaterial;
     [SerializeField] int chunkVertexDensity = 32;
     [SerializeField] float lod1Distance = 180f;
@@ -168,6 +172,8 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     bool _chunksBuilt;
     Vector3 _lastCameraPos = new(float.NaN, float.NaN, float.NaN);
+    Vector3 _lastStreamingSourcePos = new(float.NaN, float.NaN, float.NaN);
+    Vector2Int _lastStreamingWindowOrigin = new(int.MinValue, int.MinValue);
 
     /// <summary>When set before <see cref="Start"/>, automatic <see cref="RunPipeline"/> is skipped (e.g. <c>WorldGenerationCoordinator</c> calls <see cref="Regenerate"/>).</summary>
     bool _deferInitialPipeline;
@@ -195,6 +201,8 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     /// <summary>Camera used for chunk LOD and shared with <see cref="TerrainNavMeshBuilder"/> for bake volume placement.</summary>
     public Transform? CameraTransform => cameraTransform;
+
+    Transform? StreamingAnchorOrCamera => streamingAnchor != null ? streamingAnchor : cameraTransform;
 
     /// <summary>Call from <see cref="MonoBehaviour.Awake"/> before this component's <see cref="Start"/> so initial generation can be driven by <see cref="WorldGenerationCoordinator"/>.</summary>
     public void DeferInitialPipeline() => _deferInitialPipeline = true;
@@ -502,19 +510,43 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     void OnBeginContextRendering(ScriptableRenderContext _, List<Camera> __)
     {
-        if (!_chunksBuilt || cameraTransform == null)
+        if (!_chunksBuilt)
             return;
 
-        var p = cameraTransform.position;
-        var dx = p.x - _lastCameraPos.x;
-        var dy = p.y - _lastCameraPos.y;
-        var dz = p.z - _lastCameraPos.z;
-        if (dx * dx + dy * dy + dz * dz < lodCameraMoveEpsilonSqr)
+        var lodCamera = cameraTransform;
+        var streamSource = streamingAnchor != null ? streamingAnchor : lodCamera;
+        if (streamSource == null)
             return;
 
-        _lastCameraPos = p;
-        var lodDirty = _chunkManager.UpdateLodAndMeshes(
-            cameraTransform,
+        var anchorPos = streamSource.position;
+        var streamDx = anchorPos.x - _lastStreamingSourcePos.x;
+        var streamDy = anchorPos.y - _lastStreamingSourcePos.y;
+        var streamDz = anchorPos.z - _lastStreamingSourcePos.z;
+        var streamMoved = float.IsNaN(_lastStreamingSourcePos.x) ||
+            streamDx * streamDx + streamDy * streamDy + streamDz * streamDz >= lodCameraMoveEpsilonSqr;
+
+        var camMoved = false;
+        if (lodCamera != null)
+        {
+            var p = lodCamera.position;
+            var dx = p.x - _lastCameraPos.x;
+            var dy = p.y - _lastCameraPos.y;
+            var dz = p.z - _lastCameraPos.z;
+            camMoved = float.IsNaN(_lastCameraPos.x) ||
+                dx * dx + dy * dy + dz * dz >= lodCameraMoveEpsilonSqr;
+        }
+
+        if (!streamMoved && !camMoved)
+            return;
+
+        _lastStreamingSourcePos = anchorPos;
+        if (lodCamera != null)
+            _lastCameraPos = lodCamera.position;
+
+        var notifyPos = lodCamera != null ? lodCamera.position : anchorPos;
+        var (lodDirty, streamDirty) = _chunkManager.UpdateStreamingAndLod(
+            anchorPos,
+            lodCamera,
             lod1Distance,
             lod2Distance,
             _heightmap,
@@ -524,8 +556,11 @@ public sealed class TerrainGenerator : MonoBehaviour
             maxHeightVariation,
             transform,
             chunkCount,
-            chunkVertexDensity);
-        terrainNavMeshBuilder?.NotifyCameraOrLodChange(p, lodDirty);
+            StreamingWindowSide,
+            chunkVertexDensity,
+            ref _lastStreamingWindowOrigin);
+
+        terrainNavMeshBuilder?.NotifyCameraOrLodChange(notifyPos, lodDirty || streamDirty);
     }
 
     /// <summary>
@@ -645,21 +680,27 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         EnsureSplatmapTexture(ref _splatmapTexture, _splatmapRgba);
 
-        _chunkManager.InitializePool(transform, chunkCount, worldSize, TerrainChunkGameObjectPrefix);
+        _chunkManager.InitializePool(transform, StreamingWindowSide, chunkCount, worldSize, TerrainChunkGameObjectPrefix);
         _chunksBuilt = true;
 
+        var anchor = StreamingAnchorOrCamera;
+        var anchorPos = anchor != null ? anchor.position : transform.position;
+        _lastStreamingWindowOrigin = new Vector2Int(int.MinValue, int.MinValue);
         _chunkManager.GenerateAllChunkMeshes(
+            anchorPos,
             _heightmap,
             worldResolution,
             worldSize,
             chunkCount,
+            StreamingWindowSide,
             chunkVertexDensity,
             baseHeight,
             maxHeightVariation,
             transform.position,
             cameraTransform,
             lod1Distance,
-            lod2Distance);
+            lod2Distance,
+            ref _lastStreamingWindowOrigin);
 
         _chunkManager.AssignMaterial(terrainMaterial);
         if (terrainMaterial != null && _splatmapTexture != null)
@@ -667,6 +708,10 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         if (cameraTransform != null)
             _lastCameraPos = cameraTransform.position;
+        else
+            _lastCameraPos = new Vector3(float.NaN, float.NaN, float.NaN);
+
+        _lastStreamingSourcePos = anchorPos;
 
         terrainNavMeshBuilder?.RebuildImmediatelyAfterTerrainPipeline();
 
@@ -1499,23 +1544,30 @@ public sealed class TerrainGenerator : MonoBehaviour
         int _maxVertsPerChunk;
         int _maxIndicesPerChunk;
         int _totalChunks;
-        int _chunkAxis;
+        int _poolSide;
+        int _logicalChunkAxis;
+        int _windowOriginX;
+        int _windowOriginZ;
         float3 _worldOrigin;
         Transform? _terrainRoot;
         bool _scratchAllocated;
 
         /// <summary>
-        /// Creates pooled chunk objects under an empty child of <paramref name="root"/> named <c>TerrainChunks</c>.
+        /// Creates a fixed <paramref name="poolSide"/> × <paramref name="poolSide"/> pool under <c>TerrainChunks</c>.
+        /// Logical world subdivisions use <paramref name="logicalChunkAxis"/>.
         /// </summary>
-        public void InitializePool(Transform root, int chunkAxis, float worldSize, string chunkName)
+        public void InitializePool(Transform root, int poolSide, int logicalChunkAxis, float worldSize, string chunkName)
         {
             DisposeScratch();
 
             DestroyChunksHierarchy(root, chunkName);
 
             _terrainRoot = root;
-            _chunkAxis = chunkAxis;
-            _totalChunks = chunkAxis * chunkAxis;
+            _poolSide = math.max(1, poolSide);
+            _logicalChunkAxis = math.max(1, logicalChunkAxis);
+            _totalChunks = _poolSide * _poolSide;
+            _windowOriginX = 0;
+            _windowOriginZ = 0;
             _filters.Clear();
             _renderers.Clear();
             _colliders.Clear();
@@ -1529,10 +1581,10 @@ public sealed class TerrainGenerator : MonoBehaviour
             chunksParent.localRotation = Quaternion.identity;
             chunksParent.localScale = Vector3.one;
 
-            var chunkWorld = worldSize / math.max(1, chunkAxis);
-            for (var z = 0; z < chunkAxis; z++)
+            var chunkWorld = worldSize / _logicalChunkAxis;
+            for (var z = 0; z < _poolSide; z++)
             {
-                for (var x = 0; x < chunkAxis; x++)
+                for (var x = 0; x < _poolSide; x++)
                 {
                     var go = new GameObject($"{chunkName}_{x}_{z}");
                     go.transform.SetParent(chunksParent, false);
@@ -1662,59 +1714,46 @@ public sealed class TerrainGenerator : MonoBehaviour
         }
 
         /// <summary>
-        /// Builds meshes for all chunks at the current LOD selection.
+        /// First-time mesh build after <see cref="InitializePool"/>; sets streaming window from <paramref name="anchorWorld"/>.
         /// </summary>
         public void GenerateAllChunkMeshes(
+            Vector3 anchorWorld,
             NativeArray<float> heightmap,
             int heightResolution,
             float worldSize,
-            int chunkAxis,
+            int logicalChunkAxis,
+            int poolSide,
             int baseDensity,
             float baseHeight,
             float maxVariation,
             Vector3 worldOrigin,
             Transform? camera,
             float lod1,
-            float lod2)
+            float lod2,
+            ref Vector2Int lastWindowOrigin)
         {
-            _chunkAxis = chunkAxis;
+            _logicalChunkAxis = math.max(1, logicalChunkAxis);
+            _poolSide = math.max(1, poolSide);
             _worldOrigin = new float3(worldOrigin.x, worldOrigin.y, worldOrigin.z);
+
+            ComputeStreamingWindow(anchorWorld, worldOrigin, worldSize, _logicalChunkAxis, _poolSide, ref lastWindowOrigin);
+            ApplyChunkTransforms(worldSize);
 
             EnsureScratch(baseDensity);
 
             for (var i = 0; i < _totalChunks; i++)
-            {
-                var lod = SelectLod(i, chunkAxis, worldSize, camera, lod1, lod2);
-                _lodLevels[i] = lod;
-            }
+                _lodLevels[i] = SelectLodForSlotIndex(i, worldSize, camera, lod1, lod2);
 
-            var handle = new ChunkMeshJob
-            {
-                Heightmap = heightmap,
-                HeightResolution = heightResolution,
-                WorldSize = worldSize,
-                WorldOrigin = _worldOrigin,
-                ChunkAxis = chunkAxis,
-                BaseDensity = baseDensity,
-                BaseHeight = baseHeight,
-                MaxVariation = maxVariation,
-                LodLevels = _lodLevels,
-                VertexOut = _vertexScratch,
-                IndexOut = _indexScratch,
-                MaxVertsPerChunk = _maxVertsPerChunk,
-                MaxIndicesPerChunk = _maxIndicesPerChunk
-            }.Schedule(_totalChunks, 1);
-
-            handle.Complete();
-
+            RunChunkMeshJob(heightmap, heightResolution, worldSize, baseDensity, baseHeight, maxVariation);
             UploadMeshesFromScratch(baseDensity);
         }
 
         /// <summary>
-        /// Updates LOD and rebuilds meshes when the camera moves meaningfully.
+        /// Recenters the streaming window on <paramref name="anchorWorld"/> and refreshes LOD from <paramref name="lodCamera"/>.
         /// </summary>
-        public bool UpdateLodAndMeshes(
-            Transform camera,
+        public (bool lodDirty, bool streamDirty) UpdateStreamingAndLod(
+            Vector3 anchorWorld,
+            Transform? lodCamera,
             float lod1,
             float lod2,
             NativeArray<float> heightmap,
@@ -1723,37 +1762,107 @@ public sealed class TerrainGenerator : MonoBehaviour
             float baseHeight,
             float maxVariation,
             Transform root,
-            int chunkAxis,
-            int baseDensity)
+            int logicalChunkAxis,
+            int poolSide,
+            int baseDensity,
+            ref Vector2Int lastWindowOrigin)
         {
             if (_meshes.Count == 0 || !_lodLevels.IsCreated)
-                return false;
+                return (false, false);
 
             _terrainRoot = root;
-            _chunkAxis = chunkAxis;
+            _logicalChunkAxis = math.max(1, logicalChunkAxis);
+            _poolSide = math.max(1, poolSide);
             _worldOrigin = new float3(root.position.x, root.position.y, root.position.z);
 
-            var dirty = false;
+            var prevOx = _windowOriginX;
+            var prevOz = _windowOriginZ;
+            ComputeStreamingWindow(anchorWorld, root.position, worldSize, _logicalChunkAxis, _poolSide, ref lastWindowOrigin);
+            var streamDirty = _windowOriginX != prevOx || _windowOriginZ != prevOz;
+            if (streamDirty)
+                ApplyChunkTransforms(worldSize);
+
+            var lodDirty = false;
             for (var i = 0; i < _totalChunks; i++)
             {
-                var lod = SelectLod(i, chunkAxis, worldSize, camera, lod1, lod2);
+                var lod = SelectLodForSlotIndex(i, worldSize, lodCamera, lod1, lod2);
                 if (lod != _lodLevels[i])
                 {
                     _lodLevels[i] = lod;
-                    dirty = true;
+                    lodDirty = true;
                 }
             }
 
-            if (!dirty)
-                return false;
+            if (!streamDirty && !lodDirty)
+                return (false, false);
 
+            EnsureScratch(baseDensity);
+            RunChunkMeshJob(heightmap, heightResolution, worldSize, baseDensity, baseHeight, maxVariation);
+            UploadMeshesFromScratch(baseDensity);
+            return (lodDirty, streamDirty);
+        }
+
+        void ComputeStreamingWindow(
+            Vector3 anchorWorld,
+            Vector3 worldOriginVec,
+            float worldSize,
+            int logicalAxis,
+            int poolSide,
+            ref Vector2Int lastWindowOrigin)
+        {
+            var chunkWorld = worldSize / logicalAxis;
+            var relX = anchorWorld.x - worldOriginVec.x + worldSize * 0.5f;
+            var relZ = anchorWorld.z - worldOriginVec.z + worldSize * 0.5f;
+            var pcx = (int)math.floor(relX / math.max(1e-4f, chunkWorld));
+            var pcz = (int)math.floor(relZ / math.max(1e-4f, chunkWorld));
+            pcx = math.clamp(pcx, 0, math.max(0, logicalAxis - 1));
+            pcz = math.clamp(pcz, 0, math.max(0, logicalAxis - 1));
+
+            var half = (poolSide - 1) / 2;
+            var maxOx = math.max(0, logicalAxis - poolSide);
+            _windowOriginX = math.clamp(pcx - half, 0, maxOx);
+            _windowOriginZ = math.clamp(pcz - half, 0, maxOx);
+
+            lastWindowOrigin = new Vector2Int(_windowOriginX, _windowOriginZ);
+        }
+
+        void ApplyChunkTransforms(float worldSize)
+        {
+            var chunkWorld = worldSize / _logicalChunkAxis;
+            for (var i = 0; i < _totalChunks; i++)
+            {
+                var sx = i % _poolSide;
+                var sz = i / _poolSide;
+                var cx = _windowOriginX + sx;
+                var cz = _windowOriginZ + sz;
+                var valid = cx >= 0 && cz >= 0 && cx < _logicalChunkAxis && cz < _logicalChunkAxis;
+                var f = _filters[i];
+                if (f == null)
+                    continue;
+                f.transform.localPosition = valid
+                    ? new Vector3(-worldSize * 0.5f + cx * chunkWorld, 0f, -worldSize * 0.5f + cz * chunkWorld)
+                    : Vector3.zero;
+            }
+        }
+
+        void RunChunkMeshJob(
+            NativeArray<float> heightmap,
+            int heightResolution,
+            float worldSize,
+            int baseDensity,
+            float baseHeight,
+            float maxVariation)
+        {
             var handle = new ChunkMeshJob
             {
                 Heightmap = heightmap,
                 HeightResolution = heightResolution,
                 WorldSize = worldSize,
                 WorldOrigin = _worldOrigin,
-                ChunkAxis = chunkAxis,
+                ChunkAxis = _logicalChunkAxis,
+                PoolSide = _poolSide,
+                WindowOriginX = _windowOriginX,
+                WindowOriginZ = _windowOriginZ,
                 BaseDensity = baseDensity,
                 BaseHeight = baseHeight,
                 MaxVariation = maxVariation,
@@ -1765,9 +1874,6 @@ public sealed class TerrainGenerator : MonoBehaviour
             }.Schedule(_totalChunks, 1);
 
             handle.Complete();
-
-            UploadMeshesFromScratch(baseDensity);
-            return true;
         }
 
         void UploadMeshesFromScratch(int baseDensity)
@@ -1775,16 +1881,35 @@ public sealed class TerrainGenerator : MonoBehaviour
             if (_meshUploadSlots.Length != _totalChunks)
                 return;
 
-            var meshDataArray = Mesh.AllocateWritableMeshData(_totalChunks);
+            var validCount = 0;
             for (var i = 0; i < _totalChunks; i++)
             {
+                if (IsSlotLogicalValid(i))
+                    validCount++;
+            }
+
+            if (validCount == 0)
+            {
+                for (var i = 0; i < _totalChunks; i++)
+                    ClearInactiveSlot(i);
+                return;
+            }
+
+            var meshDataArray = Mesh.AllocateWritableMeshData(validCount);
+            var validMeshes = new Mesh[validCount];
+            var batch = 0;
+            for (var i = 0; i < _totalChunks; i++)
+            {
+                if (!IsSlotLogicalValid(i))
+                    continue;
+
                 var seg = DensityForLod(baseDensity, _lodLevels[i]);
                 var vertCount = (seg + 1) * (seg + 1);
                 var indexCount = seg * seg * 6;
                 var vStart = i * _maxVertsPerChunk;
                 var iStart = i * _maxIndicesPerChunk;
 
-                var meshData = meshDataArray[i];
+                var meshData = meshDataArray[batch];
                 meshData.SetVertexBufferParams(vertCount,
                     new VertexAttributeDescriptor(VertexAttribute.Position),
                     new VertexAttributeDescriptor(VertexAttribute.Normal),
@@ -1802,12 +1927,20 @@ public sealed class TerrainGenerator : MonoBehaviour
                 iDst.CopyFrom(iSrc);
 
                 meshData.SetSubMesh(0, new SubMeshDescriptor(0, indexCount), MeshUpdateFlags.DontRecalculateBounds);
+                validMeshes[batch] = _meshes[i];
+                batch++;
             }
 
-            Mesh.ApplyAndDisposeWritableMeshData(meshDataArray, _meshUploadSlots, MeshUpdateFlags.Default);
+            Mesh.ApplyAndDisposeWritableMeshData(meshDataArray, validMeshes, MeshUpdateFlags.Default);
 
             for (var i = 0; i < _totalChunks; i++)
             {
+                if (!IsSlotLogicalValid(i))
+                {
+                    ClearInactiveSlot(i);
+                    continue;
+                }
+
                 var mesh = _meshes[i];
                 mesh.RecalculateBounds();
                 if (i < _colliders.Count)
@@ -1815,18 +1948,61 @@ public sealed class TerrainGenerator : MonoBehaviour
                     var mc = _colliders[i];
                     if (mc != null)
                     {
+                        mc.enabled = true;
                         mc.sharedMesh = null;
                         mc.sharedMesh = mesh;
                     }
                 }
+
+                if (i < _renderers.Count && _renderers[i] != null)
+                    _renderers[i].enabled = true;
             }
         }
 
-        int SelectLod(int chunkIndex, int chunkAxis, float worldSize, Transform? camera, float lod1, float lod2)
+        void ClearInactiveSlot(int i)
         {
-            var cx = chunkIndex % chunkAxis;
-            var cz = chunkIndex / chunkAxis;
-            var chunkWorld = worldSize / chunkAxis;
+            if (i < _meshes.Count)
+            {
+                var mesh = _meshes[i];
+                mesh.Clear();
+                mesh.RecalculateBounds();
+            }
+
+            if (i < _colliders.Count && _colliders[i] != null)
+            {
+                var mc = _colliders[i];
+                mc.sharedMesh = null;
+                mc.enabled = false;
+            }
+
+            if (i < _renderers.Count && _renderers[i] != null)
+                _renderers[i].enabled = false;
+        }
+
+        bool IsSlotLogicalValid(int slotIndex)
+        {
+            var sx = slotIndex % _poolSide;
+            var sz = slotIndex / _poolSide;
+            var cx = _windowOriginX + sx;
+            var cz = _windowOriginZ + sz;
+            return cx >= 0 && cz >= 0 && cx < _logicalChunkAxis && cz < _logicalChunkAxis;
+        }
+
+        int SelectLodForSlotIndex(int slotIndex, float worldSize, Transform? camera, float lod1, float lod2)
+        {
+            if (!IsSlotLogicalValid(slotIndex))
+                return 0;
+
+            var sx = slotIndex % _poolSide;
+            var sz = slotIndex / _poolSide;
+            var cx = _windowOriginX + sx;
+            var cz = _windowOriginZ + sz;
+            return SelectLod(cx, cz, worldSize, camera, lod1, lod2);
+        }
+
+        int SelectLod(int cx, int cz, float worldSize, Transform? camera, float lod1, float lod2)
+        {
+            var chunkWorld = worldSize / _logicalChunkAxis;
             var localCenter = new Vector3(-worldSize * 0.5f + (cx + 0.5f) * chunkWorld, 0f, -worldSize * 0.5f + (cz + 0.5f) * chunkWorld);
             if (camera == null || _terrainRoot == null)
                 return 0;
@@ -1898,6 +2074,9 @@ public sealed class TerrainGenerator : MonoBehaviour
             public float WorldSize;
             public float3 WorldOrigin;
             public int ChunkAxis;
+            public int PoolSide;
+            public int WindowOriginX;
+            public int WindowOriginZ;
             public int BaseDensity;
             public float BaseHeight;
             public float MaxVariation;
@@ -1909,6 +2088,13 @@ public sealed class TerrainGenerator : MonoBehaviour
 
             public void Execute(int chunkIndex)
             {
+                var sx = chunkIndex % PoolSide;
+                var sz = chunkIndex / PoolSide;
+                var cx = WindowOriginX + sx;
+                var cz = WindowOriginZ + sz;
+                if (cx < 0 || cz < 0 || cx >= ChunkAxis || cz >= ChunkAxis)
+                    return;
+
                 var lod = LodLevels[chunkIndex];
                 var seg = BaseDensity;
                 if (lod == 1)
@@ -1918,8 +2104,6 @@ public sealed class TerrainGenerator : MonoBehaviour
 
                 var vertsPerAxis = seg + 1;
                 var chunkWorld = WorldSize / ChunkAxis;
-                var cx = chunkIndex % ChunkAxis;
-                var cz = chunkIndex / ChunkAxis;
 
                 var vStart = chunkIndex * MaxVertsPerChunk;
                 var iStart = chunkIndex * MaxIndicesPerChunk;
