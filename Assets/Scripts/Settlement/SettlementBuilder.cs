@@ -40,6 +40,7 @@ public class SettlementBuilder : MonoBehaviour
     ProceduralPlacementMask _placementMask;
     bool _built;
     SettlementBuildingSpawnEntry[] _runtimeBuildingEntries;
+    readonly List<Bounds> _placementBurnBounds = new List<Bounds>();
 
     void OnEnable()
     {
@@ -133,7 +134,11 @@ public class SettlementBuilder : MonoBehaviour
 
                 structureRoots.Add(structure);
                 if (_placementMask != null)
-                    _placementMask.BurnFromRendererBoundsXZ(CombineRendererBounds(structure), burnBoundsPadding);
+                {
+                    var b = CombineRendererBounds(structure);
+                    _placementBurnBounds.Add(b);
+                    _placementMask.BurnFromRendererBoundsXZ(b, burnBoundsPadding);
+                }
 
                 if (entry.spawnVillagersHere)
                     SpawnVillagersNearBuilding(structure.transform, pos);
@@ -144,6 +149,16 @@ public class SettlementBuilder : MonoBehaviour
             PaintSettlementPathsToSplatmap(gen, structureRoots);
 
         _built = true;
+    }
+
+    /// <summary>Releases structure burns from the mask (e.g. when streaming unloads this settlement). Path bits are unchanged.</summary>
+    public void ClearPlacementBurnsFromMask(ProceduralPlacementMask mask)
+    {
+        if (mask == null || _placementBurnBounds.Count == 0)
+            return;
+        for (int i = 0; i < _placementBurnBounds.Count; i++)
+            mask.UnburnFromRendererBoundsXZ(_placementBurnBounds[i], burnBoundsPadding);
+        _placementBurnBounds.Clear();
     }
 
     SettlementBuildingSpawnEntry[] ActiveBuildingEntries() => _runtimeBuildingEntries ?? buildingEntries;

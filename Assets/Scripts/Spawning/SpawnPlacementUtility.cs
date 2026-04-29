@@ -28,7 +28,7 @@ public static class SpawnPlacementUtility
         return new Vector3(Mathf.Cos(ang) * rad, 0f, Mathf.Sin(ang) * rad);
     }
 
-    public static bool IsFarEnoughFromAllXZ(Vector3 candidate, List<Vector3> placed, float minSepSq)
+    public static bool IsFarEnoughFromAllXZ(Vector3 candidate, IReadOnlyList<Vector3> placed, float minSepSq)
     {
         float cx = candidate.x;
         float cz = candidate.z;

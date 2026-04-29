@@ -5,7 +5,12 @@ public class BanditCampSpawning
 {
     bool _spawned;
 
-    public void SpawnCamps(BanditCampSpawnConfig config, ProceduralPlacementMask placementMask)
+    public void Reset() => _spawned = false;
+
+    public void SpawnCamps(
+        BanditCampSpawnConfig config,
+        ProceduralPlacementMask placementMask,
+        IReadOnlyList<Vector3> plannedSettlementCenters)
     {
         if (config == null || _spawned || config.BanditCampPrefab == null)
             return;
@@ -19,7 +24,9 @@ public class BanditCampSpawning
         float minSettleSq = config.MinDistanceFromSettlements * config.MinDistanceFromSettlements;
         float minCampSq = config.MinDistanceFromOtherCamps * config.MinDistanceFromOtherCamps;
 
-        List<Vector3> settlementCenters = CollectSettlementCenters();
+        var settlementCenters = plannedSettlementCenters != null
+            ? new List<Vector3>(plannedSettlementCenters)
+            : CollectSettlementCenters();
         var placedCamps = new List<Vector3>(config.CampCount);
         SeedExistingBanditCampPositions(placedCamps);
 
@@ -70,7 +77,7 @@ public class BanditCampSpawning
     static bool TryPickCampPosition(
         TerrainGenerator terrain,
         BanditCampSpawnConfig config,
-        List<Vector3> settlementCenters,
+        IReadOnlyList<Vector3> settlementCenters,
         List<Vector3> placedCamps,
         float minSettleSq,
         float minCampSq,

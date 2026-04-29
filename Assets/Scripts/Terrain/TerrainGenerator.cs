@@ -202,7 +202,10 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Camera used for chunk LOD and shared with <see cref="TerrainNavMeshBuilder"/> for bake volume placement.</summary>
     public Transform? CameraTransform => cameraTransform;
 
-    Transform? StreamingAnchorOrCamera => streamingAnchor != null ? streamingAnchor : cameraTransform;
+    public Transform? StreamingAnchorOrCamera => streamingAnchor != null ? streamingAnchor : cameraTransform;
+
+    /// <summary>Current streaming window origin (logical chunk indices); updated when chunk meshes stream.</summary>
+    public Vector2Int StreamingWindowOrigin => new(_chunkManager.StreamingWindowOriginX, _chunkManager.StreamingWindowOriginZ);
 
     /// <summary>Call from <see cref="MonoBehaviour.Awake"/> before this component's <see cref="Start"/> so initial generation can be driven by <see cref="WorldGenerationCoordinator"/>.</summary>
     public void DeferInitialPipeline() => _deferInitialPipeline = true;
@@ -1548,6 +1551,9 @@ public sealed class TerrainGenerator : MonoBehaviour
         int _logicalChunkAxis;
         int _windowOriginX;
         int _windowOriginZ;
+
+        public int StreamingWindowOriginX => _windowOriginX;
+        public int StreamingWindowOriginZ => _windowOriginZ;
         float3 _worldOrigin;
         Transform? _terrainRoot;
         bool _scratchAllocated;
@@ -1810,20 +1816,10 @@ public sealed class TerrainGenerator : MonoBehaviour
             int poolSide,
             ref Vector2Int lastWindowOrigin)
         {
-            var chunkWorld = worldSize / logicalAxis;
-            var relX = anchorWorld.x - worldOriginVec.x + worldSize * 0.5f;
-            var relZ = anchorWorld.z - worldOriginVec.z + worldSize * 0.5f;
-            var pcx = (int)math.floor(relX / math.max(1e-4f, chunkWorld));
-            var pcz = (int)math.floor(relZ / math.max(1e-4f, chunkWorld));
-            pcx = math.clamp(pcx, 0, math.max(0, logicalAxis - 1));
-            pcz = math.clamp(pcz, 0, math.max(0, logicalAxis - 1));
-
-            var half = (poolSide - 1) / 2;
-            var maxOx = math.max(0, logicalAxis - poolSide);
-            _windowOriginX = math.clamp(pcx - half, 0, maxOx);
-            _windowOriginZ = math.clamp(pcz - half, 0, maxOx);
-
-            lastWindowOrigin = new Vector2Int(_windowOriginX, _windowOriginZ);
+            var o = TerrainLogicalChunkWindow.ComputeWindowOrigin(anchorWorld, worldOriginVec, worldSize, logicalAxis, poolSide);
+            _windowOriginX = o.x;
+            _windowOriginZ = o.y;
+            lastWindowOrigin = o;
         }
 
         void ApplyChunkTransforms(float worldSize)

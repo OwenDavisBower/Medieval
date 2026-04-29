@@ -5,11 +5,13 @@ using UnityEngine;
 
 /// <summary>
 /// World XZ occupancy aligned with <see cref="TerrainGenerator"/> path distance grid: bit set = blocked (path, structures, trees, camps).
+/// Path corridor and dynamic burns (structures, trees, etc.) are stored separately so dynamic occupancy can be cleared when streaming unloads content.
 /// CPU sampling uses a cached byte grid; optional R8 <see cref="OccupancyTexture"/> is built lazily for GPU or debugging.
 /// </summary>
 public sealed class ProceduralPlacementMask : IDisposable
 {
-    NativeArray<uint> _words;
+    NativeArray<uint> _pathWords;
+    NativeArray<uint> _dynamicWords;
     NativeArray<byte> _cpuFreeBytes;
     Texture2D _texture;
     int _resolution;
@@ -23,12 +25,14 @@ public sealed class ProceduralPlacementMask : IDisposable
     public float WorldSize => _worldSize;
     public Vector3 WorldOrigin => _worldOrigin;
 
+    bool WordsAllocated => _pathWords.IsCreated && _dynamicWords.IsCreated;
+
     /// <summary>Lazily allocates and uploads from the current bit mask. Prefer <see cref="SampleFree01WorldXZ"/> for hot-path sampling.</summary>
     public Texture2D OccupancyTexture
     {
         get
         {
-            if (!_words.IsCreated)
+            if (!WordsAllocated)
                 return null;
             EnsureTextureAllocated();
             if (_textureGpuDirty)
@@ -47,7 +51,8 @@ public sealed class ProceduralPlacementMask : IDisposable
         _worldSize = gen.worldSize;
         _worldOrigin = gen.transform.position;
         _wordCount = (_resolution * _resolution + 31) / 32;
-        _words = new NativeArray<uint>(_wordCount, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        _pathWords = new NativeArray<uint>(_wordCount, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        _dynamicWords = new NativeArray<uint>(_wordCount, Allocator.Persistent, NativeArrayOptions.ClearMemory);
         _cpuFreeBytes = new NativeArray<byte>(_resolution * _resolution, Allocator.Persistent, NativeArrayOptions.ClearMemory);
         _cpuFreeBytesStale = true;
         _textureGpuDirty = true;
@@ -56,10 +61,10 @@ public sealed class ProceduralPlacementMask : IDisposable
     /// <summary>Stamp path corridor from terrain distance field; cells with distance &lt; clearance become blocked.</summary>
     public void StampPathFromTerrain(TerrainGenerator gen, float clearanceWorldMeters)
     {
-        if (!_words.IsCreated || gen == null)
+        if (!WordsAllocated || gen == null)
             return;
 
-        if (!gen.TryStampPathOccupancyBits(_words, _resolution, clearanceWorldMeters))
+        if (!gen.TryStampPathOccupancyBits(_pathWords, _resolution, clearanceWorldMeters))
         {
             int n = _resolution * _resolution;
             using var blocked = new NativeArray<byte>(n, Allocator.TempJob);
@@ -67,7 +72,7 @@ public sealed class ProceduralPlacementMask : IDisposable
             for (int i = 0; i < n; i++)
             {
                 if (blocked[i] != 0)
-                    SetCellBlockedByLinearIndex(i);
+                    SetPathBlockedByLinearIndex(i);
             }
         }
 
@@ -76,7 +81,7 @@ public sealed class ProceduralPlacementMask : IDisposable
 
     public bool IsDiskFreeWorldXZ(float worldX, float worldZ, float radiusWorld)
     {
-        if (!_words.IsCreated || radiusWorld < 0f)
+        if (!WordsAllocated || radiusWorld < 0f)
             return false;
 
         float cell = _worldSize / _resolution;
@@ -116,7 +121,7 @@ public sealed class ProceduralPlacementMask : IDisposable
     /// <summary>Burns multiple disks with a single invalidation of the CPU sampling cache.</summary>
     public void BurnDisksWorldXZ(IReadOnlyList<Vector3> positions, float radiusWorld, float padding = 0f)
     {
-        if (!_words.IsCreated || positions == null || positions.Count == 0)
+        if (!WordsAllocated || positions == null || positions.Count == 0)
             return;
 
         for (int i = 0; i < positions.Count; i++)
@@ -130,7 +135,7 @@ public sealed class ProceduralPlacementMask : IDisposable
 
     void BurnDiskWorldXZCore(float worldX, float worldZ, float radiusWorld, float padding)
     {
-        if (!_words.IsCreated)
+        if (!WordsAllocated)
             return;
 
         float r = Mathf.Max(0f, radiusWorld + padding);
@@ -151,14 +156,14 @@ public sealed class ProceduralPlacementMask : IDisposable
                 float dx = worldX - cx;
                 float dz = worldZ - cz;
                 if (dx * dx + dz * dz <= outerSq)
-                    SetCellBlocked(x, z);
+                    SetDynamicCellBlocked(x, z);
             }
         }
     }
 
     public void BurnAxisAlignedRectWorldXZ(float minX, float minZ, float maxX, float maxZ, float padding = 0f)
     {
-        if (!_words.IsCreated)
+        if (!WordsAllocated)
             return;
 
         float loX = Mathf.Min(minX, maxX) - padding;
@@ -172,7 +177,7 @@ public sealed class ProceduralPlacementMask : IDisposable
         for (int z = z0; z <= z1; z++)
         {
             for (int x = x0; x <= x1; x++)
-                SetCellBlocked(x, z);
+                SetDynamicCellBlocked(x, z);
         }
 
         MarkWordsChanged();
@@ -188,10 +193,43 @@ public sealed class ProceduralPlacementMask : IDisposable
             padding);
     }
 
+    /// <summary>Clears dynamic (non-path) occupancy inside the axis-aligned XZ bounds. Path corridor bits are unchanged.</summary>
+    public void UnburnAxisAlignedRectWorldXZ(float minX, float minZ, float maxX, float maxZ, float padding = 0f)
+    {
+        if (!WordsAllocated)
+            return;
+
+        float loX = Mathf.Min(minX, maxX) - padding;
+        float hiX = Mathf.Max(minX, maxX) + padding;
+        float loZ = Mathf.Min(minZ, maxZ) - padding;
+        float hiZ = Mathf.Max(minZ, maxZ) + padding;
+
+        if (!WorldToCellInclusive(loX, loZ, hiX, hiZ, out int x0, out int z0, out int x1, out int z1))
+            return;
+
+        for (int z = z0; z <= z1; z++)
+        {
+            for (int x = x0; x <= x1; x++)
+                ClearDynamicCellBlocked(x, z);
+        }
+
+        MarkWordsChanged();
+    }
+
+    public void UnburnFromRendererBoundsXZ(Bounds worldBounds, float padding)
+    {
+        UnburnAxisAlignedRectWorldXZ(
+            worldBounds.min.x,
+            worldBounds.min.z,
+            worldBounds.max.x,
+            worldBounds.max.z,
+            padding);
+    }
+
     /// <summary>Bilinear sample of free channel in [0,1]: 1 = free, 0 = blocked.</summary>
     public float SampleFree01WorldXZ(float worldX, float worldZ)
     {
-        if (!_words.IsCreated)
+        if (!WordsAllocated)
             return 0f;
 
         EnsureCpuFreeBytesCurrent();
@@ -204,7 +242,7 @@ public sealed class ProceduralPlacementMask : IDisposable
     /// <summary>Uploads the cached CPU free grid to <see cref="OccupancyTexture"/> (allocates texture if needed).</summary>
     public void SyncToTexture()
     {
-        if (!_words.IsCreated)
+        if (!WordsAllocated)
             return;
 
         EnsureTextureAllocated();
@@ -222,8 +260,10 @@ public sealed class ProceduralPlacementMask : IDisposable
 
     public void Dispose()
     {
-        if (_words.IsCreated)
-            _words.Dispose();
+        if (_pathWords.IsCreated)
+            _pathWords.Dispose();
+        if (_dynamicWords.IsCreated)
+            _dynamicWords.Dispose();
 
         if (_cpuFreeBytes.IsCreated)
             _cpuFreeBytes.Dispose();
@@ -266,7 +306,7 @@ public sealed class ProceduralPlacementMask : IDisposable
         _cpuFreeBytesStale = false;
     }
 
-    /// <summary>Matches <see cref="Texture2D.GetPixelBilinear"/> on an R8 grid laid out row-major with the same indexing as <see cref="SetCellBlocked"/>.</summary>
+    /// <summary>Matches <see cref="Texture2D.GetPixelBilinear"/> on an R8 grid laid out row-major with the same indexing as occupancy bits.</summary>
     static float SampleBilinearFree01(NativeArray<byte> grid, int resolution, float u, float v)
     {
         if (!grid.IsCreated || resolution < 1)
@@ -303,7 +343,6 @@ public sealed class ProceduralPlacementMask : IDisposable
     bool TryGetCellRangeForWorldDisk(float wx, float wz, float radius, out int x0, out int x1, out int z0, out int z1)
     {
         x0 = x1 = z0 = z1 = 0;
-        float half = _worldSize * 0.5f;
         float minX = wx - radius;
         float maxX = wx + radius;
         float minZ = wz - radius;
@@ -335,22 +374,48 @@ public sealed class ProceduralPlacementMask : IDisposable
         int bit = linear & 31;
         if ((uint)word >= (uint)_wordCount)
             return true;
-        return (_words[word] & (1u << bit)) != 0u;
+        uint mask = 1u << bit;
+        return ((_pathWords[word] | _dynamicWords[word]) & mask) != 0u;
     }
 
-    void SetCellBlocked(int ix, int iz)
+    void SetDynamicCellBlocked(int ix, int iz)
     {
         if ((uint)ix >= (uint)_resolution || (uint)iz >= (uint)_resolution)
             return;
-        SetCellBlockedByLinearIndex(iz * _resolution + ix);
+        SetDynamicBlockedByLinearIndex(iz * _resolution + ix);
     }
 
-    void SetCellBlockedByLinearIndex(int linear)
+    void ClearDynamicCellBlocked(int ix, int iz)
+    {
+        if ((uint)ix >= (uint)_resolution || (uint)iz >= (uint)_resolution)
+            return;
+        ClearDynamicBlockedByLinearIndex(iz * _resolution + ix);
+    }
+
+    void SetPathBlockedByLinearIndex(int linear)
     {
         int word = linear >> 5;
         int bit = linear & 31;
         if ((uint)word >= (uint)_wordCount)
             return;
-        _words[word] |= 1u << bit;
+        _pathWords[word] |= 1u << bit;
+    }
+
+    void SetDynamicBlockedByLinearIndex(int linear)
+    {
+        int word = linear >> 5;
+        int bit = linear & 31;
+        if ((uint)word >= (uint)_wordCount)
+            return;
+        _dynamicWords[word] |= 1u << bit;
+    }
+
+    void ClearDynamicBlockedByLinearIndex(int linear)
+    {
+        int word = linear >> 5;
+        int bit = linear & 31;
+        if ((uint)word >= (uint)_wordCount)
+            return;
+        _dynamicWords[word] &= ~(1u << bit);
     }
 }

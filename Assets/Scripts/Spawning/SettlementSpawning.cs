@@ -2,26 +2,22 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Spawns several <see cref="SettlementBuilder"/> instances after procedural terrain is ready.
+/// Plans settlement center positions and instantiates settlements for chunk streaming (see <see cref="WorldGenerationCoordinator"/>).
 /// </summary>
 public class SettlementSpawning
 {
-    bool _spawned;
-
-    public void TrySpawnSettlements(SettlementSpawnConfig config, ProceduralPlacementMask placementMask)
+    public void PlanSettlementCenters(SettlementSpawnConfig config, ProceduralPlacementMask placementMask, List<Vector3> outCenters)
     {
-        if (config == null || _spawned || !HasAnyBuildingPrefab(config))
+        outCenters.Clear();
+        if (config == null || !HasAnyBuildingPrefab(config) || placementMask == null)
             return;
 
         var gen = TerrainGenerator.GetActiveOrFind();
         if (gen == null || !gen.IsTerrainReady)
             return;
 
-        _spawned = true;
-
         float minSepSq = config.MinSettlementSeparation * config.MinSettlementSeparation;
         var placedCenters = new List<Vector3>(config.SettlementCount);
-        int spawned = 0;
 
         for (int i = 0; i < config.SettlementCount; i++)
         {
@@ -29,14 +25,29 @@ public class SettlementSpawning
                 continue;
 
             placedCenters.Add(pos);
-
-            var go = new GameObject($"Settlement_{spawned}");
-            spawned++;
-            go.transform.position = pos;
-            var builder = go.AddComponent<SettlementBuilder>();
-            builder.ConfigurePathOverlay(config.PathRingOutsideFootprint, config.PathSegmentStepMeters, config.PathWobbleAmplitude);
-            builder.InitializeAndBuild(config.Buildings, config.VillagerPrefab, placementMask);
+            outCenters.Add(pos);
         }
+    }
+
+    public GameObject SpawnSettlementAt(
+        SettlementSpawnConfig config,
+        Vector3 nominalCenter,
+        ProceduralPlacementMask placementMask,
+        int planIndex)
+    {
+        if (config == null || !HasAnyBuildingPrefab(config) || placementMask == null)
+            return null;
+
+        var gen = TerrainGenerator.GetActiveOrFind();
+        if (gen == null || !gen.IsTerrainReady)
+            return null;
+
+        var go = new GameObject($"Settlement_{planIndex}");
+        go.transform.position = nominalCenter;
+        var builder = go.AddComponent<SettlementBuilder>();
+        builder.ConfigurePathOverlay(config.PathRingOutsideFootprint, config.PathSegmentStepMeters, config.PathWobbleAmplitude);
+        builder.InitializeAndBuild(config.Buildings, config.VillagerPrefab, placementMask);
+        return go;
     }
 
     static bool HasAnyBuildingPrefab(SettlementSpawnConfig config)

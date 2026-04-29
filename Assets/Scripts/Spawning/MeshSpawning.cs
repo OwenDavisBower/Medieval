@@ -5,6 +5,8 @@ public class MeshSpawning
 {
     bool _spawned;
 
+    public void Reset() => _spawned = false;
+
     public void TrySpawnMeshes(MeshSpawnConfig config, RockIndirectRenderer renderer, TerrainGenerator gen, ProceduralPlacementMask placementMask)
     {
         if (_spawned || config == null || renderer == null)

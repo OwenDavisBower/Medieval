@@ -5,6 +5,8 @@ public class TreeSpawning
 {
     bool _spawned;
 
+    public void Reset() => _spawned = false;
+
     public void TrySpawnTrees(TreeSpawnConfig config, Transform parent, TerrainGenerator gen, ProceduralPlacementMask placementMask)
     {
         if (config == null || _spawned || !config.HasSpawnableTreePrefab())
