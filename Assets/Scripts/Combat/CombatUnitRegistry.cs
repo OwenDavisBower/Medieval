@@ -17,6 +17,14 @@ public static class CombatUnitRegistry
     static float _villagersNextRefresh = float.NegativeInfinity;
     static float _banditsNextRefresh = float.NegativeInfinity;
 
+    /// <summary>Forces the next <c>Get*</c> call to rescan the scene (e.g. after bulk enabling/disabling units).</summary>
+    public static void InvalidateCaches()
+    {
+        _followersNextRefresh = float.NegativeInfinity;
+        _villagersNextRefresh = float.NegativeInfinity;
+        _banditsNextRefresh = float.NegativeInfinity;
+    }
+
     public static FollowerController[] GetFollowers()
     {
         if (Time.time >= _followersNextRefresh)

@@ -162,10 +162,6 @@ public class WorldGenerationCoordinator : MonoBehaviour
         if (gen == null || !gen.IsTerrainReady)
             return;
 
-        if (settlementSpawn == null && treeSpawn == null && banditCampSpawn == null
-            && (meshSpawn == null || !meshSpawn.HasRenderableVariants))
-            return;
-
         var anchorTr = gen.StreamingAnchorOrCamera;
         if (anchorTr == null)
             return;
@@ -177,6 +173,7 @@ public class WorldGenerationCoordinator : MonoBehaviour
         int pool = TerrainLogicalChunkWindow.DefaultStreamingPoolSide;
 
         var win = TerrainLogicalChunkWindow.ComputeWindowOrigin(p, origin, ws, axis, pool);
+        Vector2Int prevStreamingWindowOrigin = _lastStreamingWindowOrigin;
         if (!float.IsNaN(_lastStreamAnchor.x))
         {
             float dx = p.x - _lastStreamAnchor.x;
@@ -191,6 +188,15 @@ public class WorldGenerationCoordinator : MonoBehaviour
         _lastStreamAnchor = p;
         _lastStreamingWindowOrigin = win;
         TerrainLogicalChunkWindow.CollectWindowChunks(win.x, win.y, pool, axis, _streamingWindowChunksScratch);
+
+        bool streamingWindowOriginChanged = prevStreamingWindowOrigin.x != win.x || prevStreamingWindowOrigin.y != win.y;
+        if (streamingWindowOriginChanged)
+            TerrainChunkCharacterStreaming.OnTerrainStreamingWindowMoved(gen, prevStreamingWindowOrigin, win, pool);
+
+        bool hasSpawnWork = settlementSpawn != null || treeSpawn != null || banditCampSpawn != null
+            || (meshSpawn != null && meshSpawn.HasRenderableVariants);
+        if (!hasSpawnWork)
+            return;
 
         EnsureChunkSpawnsPlannedForWindow(gen);
 
