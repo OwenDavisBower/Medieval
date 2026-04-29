@@ -5,7 +5,7 @@ public class MeshSpawning
 {
     public void Reset() { }
 
-    /// <summary>Builds the full rock seed list for the world; <see cref="RockIndirectRenderer"/> is updated from a chunk-filtered subset during streaming.</summary>
+    /// <summary>Builds the full rock seed list for the world (each variant's <see cref="MeshSpawnVariant.instanceCount"/> is per logical terrain chunk); <see cref="RockIndirectRenderer"/> is updated from a chunk-filtered subset during streaming.</summary>
     public bool TryPlanRockSeeds(MeshSpawnConfig config, TerrainGenerator gen, ProceduralPlacementMask placementMask, List<RockInstanceSeed> into)
     {
         if (into == null)
@@ -47,51 +47,60 @@ public class MeshSpawning
     static void TryCollectSeeds(MeshSpawnConfig config, TerrainGenerator gen, ProceduralPlacementMask placementMask, int[] variantIndices, List<RockInstanceSeed> seeds)
     {
         seeds.Clear();
+        int axis = Mathf.Max(1, gen.chunkCount);
+        int chunks = axis * axis;
         int planned = 0;
         for (int i = 0; i < variantIndices.Length; i++)
         {
             MeshSpawnVariant v = config.GetVariant(variantIndices[i]);
             if (v != null)
-                planned += Mathf.Max(0, v.instanceCount);
+                planned += Mathf.Max(0, v.instanceCount) * chunks;
         }
 
         if (planned > 0)
             seeds.Capacity = Mathf.Max(seeds.Capacity, planned);
         float margin = config.TerrainEdgeMargin;
 
-        for (int vi = 0; vi < variantIndices.Length; vi++)
+        for (int cz = 0; cz < axis; cz++)
         {
-            int variantIndex = variantIndices[vi];
-            MeshSpawnVariant variant = config.GetVariant(variantIndex);
-            if (variant == null)
-                continue;
-
-            int target = Mathf.Max(0, variant.instanceCount);
-            if (target == 0)
-                continue;
-
-            int cap = target * config.MaxAttemptsPerInstance;
-            int attempts = 0;
-            int spawned = 0;
-
-            while (spawned < target && attempts < cap)
+            for (int cx = 0; cx < axis; cx++)
             {
-                attempts++;
-                Vector3 xz = SpawnPlacementUtility.RandomUniformWorldXZInTerrain(gen, margin);
-                Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(xz, config.TerrainHeightOffset);
-                if (p.y < 0f)
-                    continue;
-                if (placementMask.SampleFree01WorldXZ(p.x, p.z) < 0.5f)
-                    continue;
-
-                float yaw = Random.Range(0f, Mathf.PI * 2f);
-                float scale = Random.Range(variant.minScale, variant.maxScale);
-                seeds.Add(new RockInstanceSeed
+                for (int vi = 0; vi < variantIndices.Length; vi++)
                 {
-                    PositionAndYaw = new Vector4(p.x, p.y, p.z, yaw),
-                    ScaleAndPad = new Vector4(scale, variantIndex, 0f, 0f)
-                });
-                spawned++;
+                    int variantIndex = variantIndices[vi];
+                    MeshSpawnVariant variant = config.GetVariant(variantIndex);
+                    if (variant == null)
+                        continue;
+
+                    int target = Mathf.Max(0, variant.instanceCount);
+                    if (target == 0)
+                        continue;
+
+                    int cap = target * config.MaxAttemptsPerInstance;
+                    int attempts = 0;
+                    int spawned = 0;
+
+                    while (spawned < target && attempts < cap)
+                    {
+                        attempts++;
+                        if (!SpawnPlacementUtility.TryRandomUniformWorldXZInTerrainChunk(gen, cx, cz, margin, out Vector3 xz))
+                            break;
+                        Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(xz, config.TerrainHeightOffset);
+                        if (p.y < 0f)
+                            continue;
+                        if (placementMask.SampleFree01WorldXZ(p.x, p.z) < 0.5f)
+                            continue;
+
+                        float yaw = Random.Range(0f, Mathf.PI * 2f);
+                        float scale = Random.Range(variant.minScale, variant.maxScale);
+                        seeds.Add(new RockInstanceSeed
+                        {
+                            PositionAndYaw = new Vector4(p.x, p.y, p.z, yaw),
+                            ScaleAndPad = new Vector4(scale, variantIndex, 0f, 0f)
+                        });
+                        spawned++;
+                    }
+                }
             }
         }
     }

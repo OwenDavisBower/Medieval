@@ -8,7 +8,7 @@ using UnityEditor;
 /// <summary>
 /// Defers terrain <see cref="TerrainGenerator"/> startup, runs <see cref="TerrainGenerator.Regenerate"/>, then spawns
 /// content after terrain is ready. <see cref="seed"/> drives terrain procedural noise and spawn <see cref="Random"/> state.
-/// Settlements, trees, bandit camps, and rocks are planned across the procedural terrain footprint (with per-config edge inset) and stream with the same 3×3 logical chunk window as terrain meshes.
+/// Settlements, trees, bandit camps, and rocks are planned across the procedural terrain footprint (with per-config edge inset). Tree and mesh-instance counts are per logical terrain chunk; streaming uses the same 3×3 logical chunk window as terrain meshes.
 /// </summary>
 [DefaultExecutionOrder(-100)]
 public class WorldGenerationCoordinator : MonoBehaviour

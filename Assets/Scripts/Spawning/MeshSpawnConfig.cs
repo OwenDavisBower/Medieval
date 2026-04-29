@@ -12,7 +12,7 @@ public class MeshSpawnVariant
     public Mesh mesh;
     [Tooltip("Must use a shader compatible with GPU instancing and RenderMeshInstanced.")]
     public Material material;
-    [Tooltip("Number of instances to spawn for this mesh/material.")]
+    [Tooltip("Instances to spawn per logical terrain chunk (TerrainGenerator.chunkCount grid) for this mesh/material.")]
     public int instanceCount = 64;
     public float minScale = 0.8f;
     public float maxScale = 1.4f;

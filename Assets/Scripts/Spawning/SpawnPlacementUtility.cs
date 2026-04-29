@@ -68,6 +68,49 @@ public static class SpawnPlacementUtility
         return new Vector3(x, 0f, z);
     }
 
+    /// <summary>
+    /// Uniform random XZ inside one logical terrain chunk (see <see cref="TerrainGenerator.chunkCount"/>), intersected with the global terrain footprint inset by <paramref name="edgeMargin"/>.
+    /// Chunk axes match <see cref="TerrainLogicalChunkWindow.WorldXZToChunk"/> (X → chunkX, Z → chunkZ).
+    /// </summary>
+    public static bool TryRandomUniformWorldXZInTerrainChunk(
+        TerrainGenerator gen,
+        int chunkX,
+        int chunkZ,
+        float edgeMargin,
+        out Vector3 xz)
+    {
+        xz = default;
+        if (gen == null)
+            return false;
+
+        int axis = Mathf.Max(1, gen.chunkCount);
+        chunkX = Mathf.Clamp(chunkX, 0, axis - 1);
+        chunkZ = Mathf.Clamp(chunkZ, 0, axis - 1);
+
+        float ws = gen.worldSize;
+        float cw = ws / axis;
+        float inset = Mathf.Max(0f, edgeMargin);
+
+        float relMinX = chunkX * cw;
+        float relMaxX = (chunkX + 1) * cw;
+        float relMinZ = chunkZ * cw;
+        float relMaxZ = (chunkZ + 1) * cw;
+
+        relMinX = Mathf.Max(relMinX, inset);
+        relMaxX = Mathf.Min(relMaxX, ws - inset);
+        relMinZ = Mathf.Max(relMinZ, inset);
+        relMaxZ = Mathf.Min(relMaxZ, ws - inset);
+
+        if (relMinX >= relMaxX || relMinZ >= relMaxZ)
+            return false;
+
+        var o = gen.transform.position;
+        float rx = Random.Range(relMinX, relMaxX);
+        float rz = Random.Range(relMinZ, relMaxZ);
+        xz = new Vector3(o.x - ws * 0.5f + rx, 0f, o.z - ws * 0.5f + rz);
+        return true;
+    }
+
     /// <summary>Axis-aligned bounds check for world XZ inside the procedural terrain footprint.</summary>
     public static bool IsWorldXZInsideTerrain(TerrainGenerator gen, float x, float z)
     {

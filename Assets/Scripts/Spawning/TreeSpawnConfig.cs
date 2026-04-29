@@ -17,6 +17,7 @@ public class TreeSpawnConfig : ScriptableObject
     [SerializeField] TreeSpawnWeightedPrefab[] weightedTreePrefabs;
     [Tooltip("Used when Weighted Tree Prefabs is empty, or as fallback when no variant applies.")]
     [SerializeField] GameObject treePrefab;
+    [Tooltip("Target trees per logical terrain chunk (TerrainGenerator.chunkCount grid), not world total.")]
     [SerializeField] int treeCount = 200;
     [Tooltip("Inset from procedural terrain edges when sampling tree positions (XZ).")]
     [SerializeField] float terrainEdgeMargin = 8f;

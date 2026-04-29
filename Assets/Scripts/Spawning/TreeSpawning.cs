@@ -12,7 +12,7 @@ public class TreeSpawning
 {
     public void Reset() { }
 
-    /// <summary>Computes tree layout and burns the placement mask; streaming instantiates from <paramref name="outPlanned"/>.</summary>
+    /// <summary>Computes tree layout and burns the placement mask; streaming instantiates from <paramref name="outPlanned"/>. <see cref="TreeSpawnConfig.TreeCount"/> is per logical terrain chunk.</summary>
     public void PlanTrees(TreeSpawnConfig config, TerrainGenerator gen, ProceduralPlacementMask placementMask, List<PlannedTreeSpawn> outPlanned)
     {
         outPlanned.Clear();
@@ -27,23 +27,38 @@ public class TreeSpawning
             : gen.flatRadius + 2f;
         float treeBurnR = Mathf.Max(0.1f, config.OccupationFootprintRadius);
         float minSepSq = config.MinSeparation * config.MinSeparation;
-        var accepted = new List<Vector3>(config.TreeCount);
-        int totalAttempts = 0;
-        int cap = config.TreeCount * config.MaxAttemptsPerTree;
-        while (accepted.Count < config.TreeCount && totalAttempts < cap)
+        int axis = Mathf.Max(1, gen.chunkCount);
+        int maxTrees = config.TreeCount * axis * axis;
+        var accepted = new List<Vector3>(maxTrees);
+        int capPerChunk = config.TreeCount * config.MaxAttemptsPerTree;
+
+        for (int cz = 0; cz < axis; cz++)
         {
-            totalAttempts++;
+            for (int cx = 0; cx < axis; cx++)
+            {
+                int chunkAttempts = 0;
+                int chunkAccepted = 0;
+                while (chunkAccepted < config.TreeCount && chunkAttempts < capPerChunk)
+                {
+                    chunkAttempts++;
 
-            Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(
-                SpawnPlacementUtility.RandomUniformWorldXZInTerrain(gen, config.TerrainEdgeMargin));
-            if (p.y < 0f)
-                continue;
+                    if (!SpawnPlacementUtility.TryRandomUniformWorldXZInTerrainChunk(gen, cx, cz, config.TerrainEdgeMargin, out Vector3 xz))
+                        break;
 
-            if (!placementMask.IsDiskFreeWorldXZ(p.x, p.z, minPathClearance))
-                continue;
+                    Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(xz);
+                    if (p.y < 0f)
+                        continue;
 
-            if (SpawnPlacementUtility.IsFarEnoughFromAllXZ(p, accepted, minSepSq))
-                accepted.Add(p);
+                    if (!placementMask.IsDiskFreeWorldXZ(p.x, p.z, minPathClearance))
+                        continue;
+
+                    if (SpawnPlacementUtility.IsFarEnoughFromAllXZ(p, accepted, minSepSq))
+                    {
+                        accepted.Add(p);
+                        chunkAccepted++;
+                    }
+                }
+            }
         }
 
         for (int i = 0; i < accepted.Count; i++)
