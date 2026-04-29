@@ -341,9 +341,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 75da5c82b9ef45cba62e06789e543149, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FollowerController
-  locomotionAnimator: {fileID: 0}
-  locomotionStopSpeedThreshold: 0.04
-  locomotionAnimationSpeedScale: 2
   combatRange: 20
   eyeHeight: 1.5
   targetHeight: 1
@@ -418,6 +415,8 @@ MonoBehaviour:
   targetAimHeight: 1
   horizontalAimError: 1.8
   verticalAimError: 0.35
+  fireAnimationLeadSeconds: 0.45
+  movementLockDuration: 0.85
 --- !u!114 &881191335029085900
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -521,7 +520,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4a5968778695a4b3c2d1e0f1a2b3c4d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TargetFinder
-  targetLayer:
+  targetLayerMask:
     serializedVersion: 2
     m_Bits: 384
   scanRadius: 50

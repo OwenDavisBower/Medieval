@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>Lobs physics-based arrows toward a target with intentional inaccuracy.</summary>
@@ -11,6 +12,8 @@ public class RangedCombat : MonoBehaviour
     [SerializeField] float targetAimHeight = 1f;
     [SerializeField] float horizontalAimError = 1.8f;
     [SerializeField] float verticalAimError = 0.35f;
+    [Tooltip("Seconds after the shoot animation trigger before the arrow is spawned. Aim is recomputed at release.")]
+    [SerializeField] float fireAnimationLeadSeconds = 0.12f;
     [Tooltip("No horizontal movement from steering while drawing/releasing (approx. shoot animation length).")]
     [SerializeField] float movementLockDuration = 0.85f;
 
@@ -19,19 +22,26 @@ public class RangedCombat : MonoBehaviour
     Animator _animator;
     float _nextFireTime;
     float _movementLockUntilTime;
+    bool _shotInProgress;
 
     public bool IsMovementLocked => Time.time < _movementLockUntilTime;
 
     public void CancelMovementLock() => _movementLockUntilTime = 0f;
 
+    void OnDisable()
+    {
+        StopAllCoroutines();
+        _shotInProgress = false;
+    }
+
     void Awake()
     {
         _ownerCollider = GetComponentInChildren<Collider>();
         _selfCharacter = GetComponentInParent<Character>();
-        _animator = GetComponentInChildren<Animator>();
+        _animator = GetComponentInChildren<Animator>(true);
     }
 
-    /// <returns>True if a shot was fired this call.</returns>
+    /// <returns>True if a shot was started this call (animation + scheduled release).</returns>
     public bool TryFireAt(Transform target)
     {
         if (arrowPrefab == null || target == null)
@@ -40,11 +50,44 @@ public class RangedCombat : MonoBehaviour
             return false;
         if (Time.time < _nextFireTime)
             return false;
+        if (_shotInProgress)
+            return false;
 
         float aimScale = 1f;
         if (_selfCharacter != null)
             aimScale = _selfCharacter.RangedAimErrorMultiplier;
 
+        _animator ??= GetComponentInChildren<Animator>(true);
+        if (_animator != null)
+            _animator.SetTrigger(ShootArrowHash);
+
+        // Apply delay whenever configured (do not tie to animator cache; Awake can run before child rig is ready).
+        float lead = Mathf.Max(0f, fireAnimationLeadSeconds);
+        _movementLockUntilTime = Time.time + movementLockDuration + lead;
+        _nextFireTime = Time.time + fireInterval;
+        _shotInProgress = true;
+
+        if (lead <= 0f)
+        {
+            TrySpawnArrow(target, aimScale);
+            _shotInProgress = false;
+        }
+        else
+            StartCoroutine(SpawnArrowAfterLead(target, aimScale, lead));
+
+        return true;
+    }
+
+    IEnumerator SpawnArrowAfterLead(Transform target, float aimScale, float lead)
+    {
+        yield return new WaitForSeconds(lead);
+        if (arrowPrefab != null && target != null && (_selfCharacter == null || _selfCharacter.CanAttack))
+            TrySpawnArrow(target, aimScale);
+        _shotInProgress = false;
+    }
+
+    void TrySpawnArrow(Transform target, float aimScale)
+    {
         Vector3 origin = transform.position + Vector3.up * launchHeight;
         Vector3 aim = target.position + Vector3.up * targetAimHeight;
         Vector2 xz = Random.insideUnitCircle * (horizontalAimError * aimScale);
@@ -72,13 +115,6 @@ public class RangedCombat : MonoBehaviour
             if (ac != null)
                 Physics.IgnoreCollision(_ownerCollider, ac, true);
         }
-
-        if (_animator != null)
-            _animator.SetTrigger(ShootArrowHash);
-
-        _movementLockUntilTime = Time.time + movementLockDuration;
-        _nextFireTime = Time.time + fireInterval;
-        return true;
     }
 
     static Vector3 LobbedLaunchVelocity(Vector3 from, Vector3 to)
