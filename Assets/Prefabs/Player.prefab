@@ -50,6 +50,7 @@ GameObject:
   - component: {fileID: 1998080611009367954}
   - component: {fileID: 7822334455667788990}
   - component: {fileID: 557766001}
+  - component: {fileID: 6611223344556677889}
   m_Layer: 7
   m_Name: Player
   m_TagString: Untagged
@@ -239,6 +240,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Affiliation
   faction: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770001, type: 2}
+--- !u!114 &6611223344556677889
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8134341599606891099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7e8d9c0b1a2436589706152435a6b8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerGodMode
+  godModeMaxHealth: 1000
+  godModeMoveSpeed: 25
 --- !u!1 &8753374470813275373
 GameObject:
   m_ObjectHideFlags: 0

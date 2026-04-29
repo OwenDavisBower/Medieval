@@ -44,6 +44,10 @@ public class Character : MonoBehaviour, IDamageableHealth
     float _movementSpeedMultiplier;
     float _rangedAimErrorMultiplier;
 
+    bool _godMode;
+    float _preGodModeRolledMaxHealth;
+    float _preGodModeCurrentHealth;
+
     public float CurrentHealth => _current;
     public float MaxHealth => _rolledMaxHealth;
     public float Strength => _strength;
@@ -119,9 +123,36 @@ public class Character : MonoBehaviour, IDamageableHealth
         return Mathf.Lerp(atMin, atMax, StatT(value, min, max));
     }
 
+    public bool IsGodMode => _godMode;
+
+    /// <summary>Player debug: high health, invulnerable while active. Restores prior health when disabled.</summary>
+    public void SetGodMode(bool enabled, float godModeMaxHealth)
+    {
+        if (enabled)
+        {
+            if (_godMode)
+                return;
+            _preGodModeRolledMaxHealth = _rolledMaxHealth;
+            _preGodModeCurrentHealth = _current;
+            _rolledMaxHealth = godModeMaxHealth;
+            _current = godModeMaxHealth;
+            _godMode = true;
+            _healthBar ??= GetComponent<CharacterHealthBar>();
+            _healthBar?.OnHealthChanged(_current, _rolledMaxHealth);
+            return;
+        }
+
+        if (!_godMode)
+            return;
+        _rolledMaxHealth = _preGodModeRolledMaxHealth;
+        _current = Mathf.Clamp(_preGodModeCurrentHealth, 0f, _rolledMaxHealth);
+        _godMode = false;
+        _healthBar?.OnHealthChanged(_current, _rolledMaxHealth);
+    }
+
     public void TakeDamage(float amount)
     {
-        if (amount <= 0f || IsDead)
+        if (_godMode || amount <= 0f || IsDead)
             return;
 
         _current = Mathf.Max(0f, _current - amount);

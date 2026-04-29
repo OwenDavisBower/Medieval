@@ -12,6 +12,9 @@ public class PlayerController : MonoBehaviour
     [Tooltip("Max degrees per second when rotating to face movement input.")]
     [SerializeField] float facingTurnSpeedDegreesPerSecond = 720f;
 
+    bool _godMode;
+    float _preGodModeMoveSpeed;
+
     Rigidbody _rb;
     Transform _cam;
     Character _character;
@@ -106,11 +109,30 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    /// <summary>Player debug: flat move speed (before water only) while active.</summary>
+    public void SetGodMode(bool enabled, float godModeMoveSpeed)
+    {
+        if (enabled)
+        {
+            if (_godMode)
+                return;
+            _preGodModeMoveSpeed = moveSpeed;
+            moveSpeed = godModeMoveSpeed;
+            _godMode = true;
+            return;
+        }
+
+        if (!_godMode)
+            return;
+        moveSpeed = _preGodModeMoveSpeed;
+        _godMode = false;
+    }
+
     /// <summary>Max horizontal speed (m/s) from <see cref="moveSpeed"/>, <see cref="Character"/> stats, and water.</summary>
     public float GetEffectiveMaxMoveSpeed()
     {
         float speed = moveSpeed;
-        if (_character != null)
+        if (!_godMode && _character != null)
             speed *= _character.MovementSpeedMultiplier;
         speed *= WaterMovement.SpeedMultiplier(transform.position.y);
         return speed;
