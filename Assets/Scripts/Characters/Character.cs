@@ -135,11 +135,19 @@ public class Character : MonoBehaviour, IDamageableHealth
 
         DisableCharacterControls();
 
+        foreach (var col in GetComponentsInChildren<Collider>(true))
+        {
+            if (col != null)
+                col.enabled = false;
+        }
+
         var rb = GetComponent<Rigidbody>();
         if (rb != null)
         {
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
+            rb.detectCollisions = false;
+            rb.isKinematic = true;
         }
 
         Animator animator = ResolveAnimatorForDeath();
