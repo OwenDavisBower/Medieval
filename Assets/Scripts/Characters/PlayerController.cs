@@ -92,10 +92,7 @@ public class PlayerController : MonoBehaviour
             move.Normalize();
 
         Vector3 velocity = _rb.linearVelocity;
-        float speed = moveSpeed;
-        if (_character != null)
-            speed *= _character.MovementSpeedMultiplier;
-        speed *= WaterMovement.SpeedMultiplier(transform.position.y);
+        float speed = GetEffectiveMaxMoveSpeed();
         Vector3 targetHorizontal = move * speed;
         velocity.x = targetHorizontal.x;
         velocity.z = targetHorizontal.z;
@@ -107,6 +104,16 @@ public class PlayerController : MonoBehaviour
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot,
                 facingTurnSpeedDegreesPerSecond * Time.fixedDeltaTime);
         }
+    }
+
+    /// <summary>Max horizontal speed (m/s) from <see cref="moveSpeed"/>, <see cref="Character"/> stats, and water.</summary>
+    public float GetEffectiveMaxMoveSpeed()
+    {
+        float speed = moveSpeed;
+        if (_character != null)
+            speed *= _character.MovementSpeedMultiplier;
+        speed *= WaterMovement.SpeedMultiplier(transform.position.y);
+        return speed;
     }
 
     static void ReadMoveAxes(out float h, out float v)

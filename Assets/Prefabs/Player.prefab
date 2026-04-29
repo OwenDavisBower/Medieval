@@ -44,6 +44,7 @@ GameObject:
   - component: {fileID: 8397204553699638141}
   - component: {fileID: 4570254701785241709}
   - component: {fileID: 5955185648169749553}
+  - component: {fileID: 7483920156483920156}
   - component: {fileID: 6048110813309676061}
   - component: {fileID: 8598736387419282416}
   - component: {fileID: 1998080611009367954}
@@ -137,6 +138,21 @@ MonoBehaviour:
   moveSpeed: 6
   terrainSnapHeightOffset: 0.05
   facingTurnSpeedDegreesPerSecond: 720
+--- !u!114 &7483920156483920156
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8134341599606891099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f4e2c1a9d7b6e503f2a8c4d1e9b7a6f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerLocomotionAnimatorDriver
+  animator: {fileID: 0}
+  stopSpeedThreshold: 0.04
+  animationSpeedScale: 2
 --- !u!114 &6048110813309676061
 MonoBehaviour:
   m_ObjectHideFlags: 0
