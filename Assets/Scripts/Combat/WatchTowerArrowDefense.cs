@@ -58,8 +58,8 @@ public class WatchTowerArrowDefense : MonoBehaviour
             Transform candidate = _targetFinder.CurrentEnemyTarget;
             if (candidate != null)
             {
-                Character ch = candidate.GetComponentInParent<Character>();
-                if (ch == null || !ch.IsDead)
+                var health = candidate.GetComponentInParent<IDamageableHealth>();
+                if (health == null || !health.IsDead)
                 {
                     float sq = SpatialMath.FlatSqrDistance(transform.position, candidate.position);
                     if (sq <= rangeSq &&
@@ -80,8 +80,8 @@ public class WatchTowerArrowDefense : MonoBehaviour
             if (b == null)
                 continue;
 
-            Character ch = b.GetComponent<Character>();
-            if (ch != null && ch.IsDead)
+            var bh = b.GetComponentInParent<IDamageableHealth>();
+            if (bh != null && bh.IsDead)
                 continue;
 
             float sq = SpatialMath.FlatSqrDistance(transform.position, b.transform.position);

@@ -56,7 +56,7 @@ public class FollowerController : CombatSeekControllerBase
         for (int i = 0; i < bandits.Length; i++)
         {
             BanditController b = bandits[i];
-            if (b == null)
+            if (b == null || !IsAliveDamageableTarget(b.transform))
                 continue;
             Transform bt = b.transform;
             float sq = SpatialMath.FlatSqrDistance(transform.position, bt.position);

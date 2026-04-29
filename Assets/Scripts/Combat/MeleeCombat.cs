@@ -27,6 +27,9 @@ public class MeleeCombat : MonoBehaviour
     {
         if (target == null || !enabled)
             return false;
+        var targetHealth = target.GetComponentInParent<IDamageableHealth>();
+        if (targetHealth != null && targetHealth.IsDead)
+            return false;
         if (_selfCharacter != null && !_selfCharacter.CanAttack)
             return false;
         if (Time.time < _nextAttackTime)

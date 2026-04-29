@@ -61,6 +61,9 @@ public class RangedCombat : MonoBehaviour
     {
         if (arrowPrefab == null || target == null)
             return false;
+        var targetHealth = target.GetComponentInParent<IDamageableHealth>();
+        if (targetHealth != null && targetHealth.IsDead)
+            return false;
         if (_selfCharacter != null && !_selfCharacter.CanAttack)
             return false;
         if (Time.time < _nextFireTime)
@@ -97,7 +100,11 @@ public class RangedCombat : MonoBehaviour
     {
         yield return new WaitForSeconds(lead);
         if (arrowPrefab != null && target != null && (_selfCharacter == null || _selfCharacter.CanAttack))
-            TrySpawnArrow(target, aimScale);
+        {
+            var h = target.GetComponentInParent<IDamageableHealth>();
+            if (h == null || !h.IsDead)
+                TrySpawnArrow(target, aimScale);
+        }
         _shotInProgress = false;
     }
 

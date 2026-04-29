@@ -100,6 +100,10 @@ public sealed class TargetFinder : MonoBehaviour
             if (fm.GetRelationship(myId, otherId) != Relationship.Enemy)
                 continue;
 
+            var health = col.GetComponentInParent<IDamageableHealth>();
+            if (health != null && health.IsDead)
+                continue;
+
             float sq = (other.transform.position - origin).sqrMagnitude;
             if (sq < bestSq)
             {

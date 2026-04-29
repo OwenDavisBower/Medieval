@@ -64,8 +64,8 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
         if (candidate == null)
             return null;
 
-        Character other = candidate.GetComponentInParent<Character>();
-        if (other != null && other.IsDead)
+        var otherHealth = candidate.GetComponentInParent<IDamageableHealth>();
+        if (otherHealth != null && otherHealth.IsDead)
             return null;
 
         if (SpatialMath.FlatSqrDistance(transform.position, candidate.position) > AggroRadiusSqr)
@@ -175,6 +175,14 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
     protected bool HasLineOfSightTo(Transform target) =>
         LineOfSightUtility.HasClearLineOfSight(transform.position, target, eyeHeight, targetHeight, obstacleLayers,
             transform.root);
+
+    protected static bool IsAliveDamageableTarget(Transform t)
+    {
+        if (t == null)
+            return false;
+        var h = t.GetComponentInParent<IDamageableHealth>();
+        return h == null || !h.IsDead;
+    }
 
     protected float AggroRadiusSqr => aggroRadius * aggroRadius;
 }

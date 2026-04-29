@@ -34,7 +34,7 @@ public class BanditController : CombatSeekControllerBase
         Transform best = null;
         float bestSq = float.MaxValue;
 
-        if (_player != null)
+        if (_player != null && IsAliveDamageableTarget(_player))
         {
             float sq = SpatialMath.FlatSqrDistance(transform.position, _player.position);
             if (sq <= aggroSq && sq < bestSq && HasLineOfSightTo(_player))
@@ -48,7 +48,7 @@ public class BanditController : CombatSeekControllerBase
         for (int i = 0; i < followers.Length; i++)
         {
             FollowerController f = followers[i];
-            if (f == null)
+            if (f == null || !IsAliveDamageableTarget(f.transform))
                 continue;
             Transform ft = f.transform;
             float sq = SpatialMath.FlatSqrDistance(transform.position, ft.position);
@@ -63,7 +63,7 @@ public class BanditController : CombatSeekControllerBase
         for (int i = 0; i < villagers.Length; i++)
         {
             VillagerController v = villagers[i];
-            if (v == null)
+            if (v == null || !IsAliveDamageableTarget(v.transform))
                 continue;
             Transform vt = v.transform;
             float sq = SpatialMath.FlatSqrDistance(transform.position, vt.position);
