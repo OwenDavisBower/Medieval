@@ -8,7 +8,7 @@ using UnityEditor;
 /// <summary>
 /// Defers terrain <see cref="TerrainGenerator"/> startup, runs <see cref="TerrainGenerator.Regenerate"/>, then spawns
 /// content after terrain is ready. <see cref="seed"/> drives terrain procedural noise and spawn <see cref="Random"/> state.
-/// Settlements, trees, bandit camps, and rocks are planned across the procedural terrain footprint (with per-config edge inset). Tree and mesh-instance counts are per logical terrain chunk; streaming uses the same 3×3 logical chunk window as terrain meshes.
+/// Settlements and bandit camps are planned once for the full footprint; trees and mesh (rock) seeds are planned per logical chunk when that chunk first enters the streaming window (same 3×3 window as terrain meshes), so work scales with loaded area rather than the whole world at once.
 /// </summary>
 [DefaultExecutionOrder(-100)]
 public class WorldGenerationCoordinator : MonoBehaviour
@@ -51,9 +51,16 @@ public class WorldGenerationCoordinator : MonoBehaviour
     readonly List<RockInstanceSeed> _plannedRockSeeds = new List<RockInstanceSeed>();
     readonly List<RockInstanceSeed> _streamingRocksScratch = new List<RockInstanceSeed>();
     RockIndirectRenderer _rockIndirectRenderer;
+    int[] _meshVariantIndicesForStreaming;
+
+    readonly List<Vector3> _treeAcceptedPositions = new List<Vector3>();
+    readonly HashSet<Vector2Int> _treePlannedChunks = new HashSet<Vector2Int>();
+    readonly HashSet<Vector2Int> _rockPlannedChunks = new HashSet<Vector2Int>();
+    readonly List<Vector2Int> _windowChunkSortScratch = new List<Vector2Int>();
 
     readonly HashSet<Vector2Int> _streamingWindowChunksScratch = new HashSet<Vector2Int>();
     Vector3 _lastStreamAnchor = new Vector3(float.NaN, float.NaN, float.NaN);
+    Vector2Int _lastStreamingWindowOrigin = new Vector2Int(int.MinValue, int.MinValue);
 
 #if UNITY_EDITOR
     void OnValidate()
@@ -155,11 +162,8 @@ public class WorldGenerationCoordinator : MonoBehaviour
         if (gen == null || !gen.IsTerrainReady)
             return;
 
-        bool hasStreamingPlans = _plannedSettlementCenters.Count > 0
-            || _plannedTrees.Count > 0
-            || _plannedBanditCenters.Count > 0
-            || _plannedRockSeeds.Count > 0;
-        if (!hasStreamingPlans)
+        if (settlementSpawn == null && treeSpawn == null && banditCampSpawn == null
+            && (meshSpawn == null || !meshSpawn.HasRenderableVariants))
             return;
 
         var anchorTr = gen.StreamingAnchorOrCamera;
@@ -167,24 +171,28 @@ public class WorldGenerationCoordinator : MonoBehaviour
             return;
 
         Vector3 p = anchorTr.position;
-        if (!float.IsNaN(_lastStreamAnchor.x))
-        {
-            float dx = p.x - _lastStreamAnchor.x;
-            float dy = p.y - _lastStreamAnchor.y;
-            float dz = p.z - _lastStreamAnchor.z;
-            if (dx * dx + dy * dy + dz * dz < StreamingAnchorMoveEpsilonSqr)
-                return;
-        }
-
-        _lastStreamAnchor = p;
-
         Vector3 origin = gen.transform.position;
         float ws = gen.worldSize;
         int axis = gen.chunkCount;
         int pool = TerrainLogicalChunkWindow.DefaultStreamingPoolSide;
 
         var win = TerrainLogicalChunkWindow.ComputeWindowOrigin(p, origin, ws, axis, pool);
+        if (!float.IsNaN(_lastStreamAnchor.x))
+        {
+            float dx = p.x - _lastStreamAnchor.x;
+            float dy = p.y - _lastStreamAnchor.y;
+            float dz = p.z - _lastStreamAnchor.z;
+            bool anchorMoved = dx * dx + dy * dy + dz * dz >= StreamingAnchorMoveEpsilonSqr;
+            bool windowChanged = win.x != _lastStreamingWindowOrigin.x || win.y != _lastStreamingWindowOrigin.y;
+            if (!anchorMoved && !windowChanged)
+                return;
+        }
+
+        _lastStreamAnchor = p;
+        _lastStreamingWindowOrigin = win;
         TerrainLogicalChunkWindow.CollectWindowChunks(win.x, win.y, pool, axis, _streamingWindowChunksScratch);
+
+        EnsureChunkSpawnsPlannedForWindow(gen);
 
         if (settlementSpawn != null && _placementMask != null)
         {
@@ -316,23 +324,67 @@ public class WorldGenerationCoordinator : MonoBehaviour
         }
 
         _banditCampSpawning.PlanCamps(banditCampSpawn, _placementMask, _plannedSettlementCenters, _plannedBanditCenters);
-        if (treeSpawn != null)
-            _treeSpawning.PlanTrees(treeSpawn, gen, _placementMask, _plannedTrees);
+
+        _treeAcceptedPositions.Clear();
+        _treePlannedChunks.Clear();
+        _rockPlannedChunks.Clear();
 
         _rockIndirectRenderer = GetComponent<RockIndirectRenderer>();
         if (meshSpawn != null && meshSpawn.HasRenderableVariants)
         {
             if (_rockIndirectRenderer == null)
                 _rockIndirectRenderer = gameObject.AddComponent<RockIndirectRenderer>();
-            _meshSpawning.TryPlanRockSeeds(meshSpawn, gen, _placementMask, _plannedRockSeeds);
+            if (!_meshSpawning.TryGetRenderableVariantIndices(meshSpawn, out _meshVariantIndicesForStreaming))
+                _meshVariantIndicesForStreaming = null;
         }
         else
         {
             _plannedRockSeeds.Clear();
+            _meshVariantIndicesForStreaming = null;
             _rockIndirectRenderer?.Initialize(null, null);
         }
 
         _lastStreamAnchor = new Vector3(float.NaN, float.NaN, float.NaN);
+        _lastStreamingWindowOrigin = new Vector2Int(int.MinValue, int.MinValue);
+    }
+
+    void EnsureChunkSpawnsPlannedForWindow(TerrainGenerator gen)
+    {
+        if (_streamingWindowChunksScratch.Count == 0)
+            return;
+
+        _windowChunkSortScratch.Clear();
+        foreach (Vector2Int c in _streamingWindowChunksScratch)
+            _windowChunkSortScratch.Add(c);
+        _windowChunkSortScratch.Sort((a, b) =>
+        {
+            int cmp = a.y.CompareTo(b.y);
+            return cmp != 0 ? cmp : a.x.CompareTo(b.x);
+        });
+
+        for (int i = 0; i < _windowChunkSortScratch.Count; i++)
+        {
+            Vector2Int ch = _windowChunkSortScratch[i];
+            if (treeSpawn != null && treeSpawn.HasSpawnableTreePrefab() && _placementMask != null
+                && !_treePlannedChunks.Contains(ch))
+            {
+                _treeSpawning.PlanTreesForChunk(treeSpawn, gen, _placementMask, seed, ch.x, ch.y, _treeAcceptedPositions, _plannedTrees);
+                _treePlannedChunks.Add(ch);
+            }
+        }
+
+        for (int i = 0; i < _windowChunkSortScratch.Count; i++)
+        {
+            Vector2Int ch = _windowChunkSortScratch[i];
+            if (meshSpawn != null && meshSpawn.HasRenderableVariants && _placementMask != null
+                && _meshVariantIndicesForStreaming != null && _meshVariantIndicesForStreaming.Length > 0
+                && !_rockPlannedChunks.Contains(ch))
+            {
+                _meshSpawning.TryCollectSeedsForChunk(
+                    meshSpawn, gen, _placementMask, seed, ch.x, ch.y, _meshVariantIndicesForStreaming, _plannedRockSeeds);
+                _rockPlannedChunks.Add(ch);
+            }
+        }
     }
 
     float ComputePathOccupancyStampMeters(TerrainGenerator gen)

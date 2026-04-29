@@ -5,6 +5,71 @@ public class MeshSpawning
 {
     public void Reset() { }
 
+    static int ChunkRngSeed(int worldSeed, int chunkX, int chunkZ, int variantIndex) =>
+        unchecked(worldSeed * 73856093 ^ chunkX * 19349663 ^ chunkZ * 83492791 ^ variantIndex * 50331653);
+
+    /// <summary>Appends rock seeds for one logical chunk. Per-chunk / variant RNG from <paramref name="worldSeed"/>; restores global <see cref="Random.state"/>.</summary>
+    public void TryCollectSeedsForChunk(
+        MeshSpawnConfig config,
+        TerrainGenerator gen,
+        ProceduralPlacementMask placementMask,
+        int worldSeed,
+        int chunkX,
+        int chunkZ,
+        int[] variantIndices,
+        List<RockInstanceSeed> seeds)
+    {
+        if (config == null || gen == null || !gen.IsTerrainReady || placementMask == null || variantIndices == null || seeds == null)
+            return;
+
+        float margin = config.TerrainEdgeMargin;
+        var prev = Random.state;
+        try
+        {
+            for (int vi = 0; vi < variantIndices.Length; vi++)
+            {
+                int variantIndex = variantIndices[vi];
+                MeshSpawnVariant variant = config.GetVariant(variantIndex);
+                if (variant == null)
+                    continue;
+
+                int target = Mathf.Max(0, variant.instanceCount);
+                if (target == 0)
+                    continue;
+
+                Random.InitState(ChunkRngSeed(worldSeed, chunkX, chunkZ, variantIndex));
+                int cap = target * config.MaxAttemptsPerInstance;
+                int attempts = 0;
+                int spawned = 0;
+
+                while (spawned < target && attempts < cap)
+                {
+                    attempts++;
+                    if (!SpawnPlacementUtility.TryRandomUniformWorldXZInTerrainChunk(gen, chunkX, chunkZ, margin, out Vector3 xz))
+                        break;
+                    Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(xz, config.TerrainHeightOffset);
+                    if (p.y < 0f)
+                        continue;
+                    if (placementMask.SampleFree01WorldXZ(p.x, p.z) < 0.5f)
+                        continue;
+
+                    float yaw = Random.Range(0f, Mathf.PI * 2f);
+                    float scale = Random.Range(variant.minScale, variant.maxScale);
+                    seeds.Add(new RockInstanceSeed
+                    {
+                        PositionAndYaw = new Vector4(p.x, p.y, p.z, yaw),
+                        ScaleAndPad = new Vector4(scale, variantIndex, 0f, 0f)
+                    });
+                    spawned++;
+                }
+            }
+        }
+        finally
+        {
+            Random.state = prev;
+        }
+    }
+
     /// <summary>Builds the full rock seed list for the world (each variant's <see cref="MeshSpawnVariant.instanceCount"/> is per logical terrain chunk); <see cref="RockIndirectRenderer"/> is updated from a chunk-filtered subset during streaming.</summary>
     public bool TryPlanRockSeeds(MeshSpawnConfig config, TerrainGenerator gen, ProceduralPlacementMask placementMask, List<RockInstanceSeed> into)
     {
@@ -23,6 +88,9 @@ public class MeshSpawning
         TryCollectSeeds(config, gen, placementMask, variantIndices, into);
         return into.Count > 0;
     }
+
+    public bool TryGetRenderableVariantIndices(MeshSpawnConfig config, out int[] indices) =>
+        TryBuildValidVariantIndices(config, out indices);
 
     static bool TryBuildValidVariantIndices(MeshSpawnConfig config, out int[] indices)
     {

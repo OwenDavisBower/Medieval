@@ -15,7 +15,7 @@ MonoBehaviour:
   meshVariants:
   - mesh: {fileID: 4199401309831131938, guid: 0a99d2c7b45da014a9006fc6863e6471, type: 3}
     material: {fileID: 2100000, guid: f0e1d2c3b4a596877869504132231190, type: 2}
-    instanceCount: 200
+    instanceCount: 100
     minScale: 0.4
     maxScale: 0.8
     windYawRadiansPerSecond: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
     lightProbeUsage: 0
   - mesh: {fileID: -7817339922576292930, guid: 45e055da01554ad4086d58285793b572, type: 3}
     material: {fileID: 2100000, guid: ebfef4fa29d7d4f96978a2dcbbd71b75, type: 2}
-    instanceCount: 1000
-    minScale: 0.5
-    maxScale: 1
+    instanceCount: 500
+    minScale: 0.7
+    maxScale: 1.5
     windYawRadiansPerSecond: 0
     layer: 0
     shadowCastingMode: 1

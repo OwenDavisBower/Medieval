@@ -18,9 +18,9 @@ MonoBehaviour:
   - prefab: {fileID: 2221739865789624798, guid: c7f2c34b7cfd646a4bb6998b820f7cfa, type: 3}
     weight: 1
   treePrefab: {fileID: 343138504714799944, guid: 92daf5674a7784361899e62590c7b70d, type: 3}
-  treeCount: 200
+  treeCount: 100
   terrainEdgeMargin: 8
-  minSeparation: 6
+  minSeparation: 3
   maxAttemptsPerTree: 80
   pathClearance: 4
   occupationFootprintRadius: 2.5
