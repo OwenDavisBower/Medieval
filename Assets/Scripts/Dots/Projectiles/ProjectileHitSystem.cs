@@ -18,6 +18,8 @@ namespace Medieval.Projectiles
             public int OwnerColliderInstanceId;
             public ProjectileDamage Damage;
             public RaycastHit Hit;
+            public float3 PreviousPosition;
+            public float3 CurrentPosition;
         }
 
         protected override void OnUpdate()
@@ -31,16 +33,16 @@ namespace Medieval.Projectiles
                          .WithAll<ProjectileTag>()
                          .WithEntityAccess())
             {
-                Vector3 prev = motion.ValueRO.PreviousPosition;
-                Vector3 cur = tf.ValueRO.Position;
-                Vector3 disp = cur - prev;
+                float3 prev = motion.ValueRO.PreviousPosition;
+                float3 cur = tf.ValueRO.Position;
+                Vector3 disp = (Vector3)(cur - prev);
                 float dist = disp.magnitude;
                 if (dist < 1e-6f)
                     continue;
 
                 Vector3 dir = disp / dist;
                 float radius = math.max(0.001f, hitSphere.ValueRO.Radius);
-                RaycastHit[] hits = Physics.SphereCastAll(prev, radius, dir, dist, ~0, QueryTriggerInteraction.Ignore);
+                RaycastHit[] hits = Physics.SphereCastAll((Vector3)prev, radius, dir, dist, ~0, QueryTriggerInteraction.Ignore);
                 if (hits == null || hits.Length == 0)
                     continue;
 
@@ -70,7 +72,9 @@ namespace Medieval.Projectiles
                     ShooterRootInstanceId = shooterRootId,
                     OwnerColliderInstanceId = ownerColliderId,
                     Damage = damage.ValueRO,
-                    Hit = hits[best]
+                    Hit = hits[best],
+                    PreviousPosition = prev,
+                    CurrentPosition = cur
                 });
             }
 
@@ -83,7 +87,8 @@ namespace Medieval.Projectiles
                     continue;
                 }
 
-                ApplyHitAndDestroy(em, p.Entity, p.ShooterRootInstanceId, p.Damage, p.Hit);
+                ApplyHitStickOrDestroy(em, p.Entity, p.ShooterRootInstanceId, p.Damage, p.Hit, p.PreviousPosition,
+                    p.CurrentPosition);
             }
         }
 
@@ -98,8 +103,14 @@ namespace Medieval.Projectiles
             return false;
         }
 
-        static void ApplyHitAndDestroy(EntityManager em, Entity entity, int shooterRootInstanceId, ProjectileDamage damage,
-            RaycastHit hit)
+        static void ApplyHitStickOrDestroy(
+            EntityManager em,
+            Entity entity,
+            int shooterRootInstanceId,
+            ProjectileDamage damage,
+            RaycastHit hit,
+            float3 prevPos,
+            float3 curPos)
         {
             var victim = hit.collider.GetComponentInParent<IDamageableHealth>();
             if (victim != null && !victim.IsDead)
@@ -113,9 +124,48 @@ namespace Medieval.Projectiles
                 }
 
                 victim.TakeDamage(damage.Amount);
+                em.DestroyEntity(entity);
+                return;
             }
 
-            em.DestroyEntity(entity);
+            StickProjectile(em, entity, hit, prevPos, curPos);
+        }
+
+        static void StickProjectile(EntityManager em, Entity entity, RaycastHit hit, float3 prevPos, float3 curPos)
+        {
+            if (!em.Exists(entity))
+                return;
+
+            // Snap to impact point and orient into the surface.
+            if (em.HasComponent<LocalTransform>(entity))
+            {
+                var tf = em.GetComponentData<LocalTransform>(entity);
+
+                float3 travel = curPos - prevPos;
+                float3 travelDir = math.normalizesafe(travel, new float3(0f, 0f, 1f));
+
+                // Push slightly "into" the surface so it looks embedded.
+                const float embed = 0.06f;
+                float3 pos = (float3)hit.point - travelDir * embed;
+
+                // Prefer travel direction for a natural look; fallback to surface normal.
+                float3 forward = math.select(-((float3)hit.normal), travelDir, math.lengthsq(travel) > 1e-8f);
+                tf.Position = pos;
+                tf.Rotation = quaternion.LookRotationSafe(math.normalizesafe(forward, new float3(0f, 0f, 1f)),
+                    new float3(0f, 1f, 0f));
+
+                em.SetComponentData(entity, tf);
+            }
+
+            // Remove "projectile-ness" so it stops simulating and never times out.
+            if (em.HasComponent<ProjectileVelocity>(entity)) em.RemoveComponent<ProjectileVelocity>(entity);
+            if (em.HasComponent<ProjectileMotionState>(entity)) em.RemoveComponent<ProjectileMotionState>(entity);
+            if (em.HasComponent<ProjectileLifetime>(entity)) em.RemoveComponent<ProjectileLifetime>(entity);
+            if (em.HasComponent<ProjectileHitSphere>(entity)) em.RemoveComponent<ProjectileHitSphere>(entity);
+            if (em.HasComponent<ProjectileDamage>(entity)) em.RemoveComponent<ProjectileDamage>(entity);
+            if (em.HasComponent<ProjectileShooterId>(entity)) em.RemoveComponent<ProjectileShooterId>(entity);
+            if (em.HasComponent<ProjectileOwnerColliderId>(entity)) em.RemoveComponent<ProjectileOwnerColliderId>(entity);
+            if (em.HasComponent<ProjectileTag>(entity)) em.RemoveComponent<ProjectileTag>(entity);
         }
     }
 }
