@@ -1,14 +1,15 @@
-using System.Collections.Generic;
+using Medieval.NpcMovement;
+using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.AI;
 
 public enum TargetSteeringMovementMode
 {
-    /// <summary>Loiter on an annulus around <see cref="TargetSteeringMotor.anchorTarget"/> with organic noise.</summary>
+    /// <summary>Loiter on an annulus around <see cref="TargetSteeringMotor.AnchorTarget"/> with organic noise.</summary>
     Orbit,
-    /// <summary>Seek <see cref="TargetSteeringMotor.seekOverride"/> if set, otherwise <see cref="TargetSteeringMotor.anchorTarget"/>.</summary>
+    /// <summary>Seek <see cref="TargetSteeringMotor.SeekOverride"/> if set, otherwise <see cref="TargetSteeringMotor.AnchorTarget"/>.</summary>
     MoveTowards,
-    /// <summary>Random walk within a disk around <see cref="TargetSteeringMotor.anchorTarget"/> (re-picks periodically).</summary>
+    /// <summary>Random walk within a disk around <see cref="TargetSteeringMotor.AnchorTarget"/> (re-picks periodically).</summary>
     WanderAroundTarget
 }
 
@@ -20,11 +21,14 @@ public enum TargetSteeringSeparationGroup
 }
 
 /// <summary>
-/// Ground-plane steering toward a computed goal: orbit, seek, or wander around an anchor transform.
+/// GameObject-side facade over the DOTS NPC movement pipeline. All serialized tuning mirrors the
+/// legacy motor; at <c>Start</c> a backing <see cref="Entity"/> is created and all runtime API calls
+/// forward into it via <c>EntityManager</c>. The companion <see cref="Rigidbody"/> is driven kinematically
+/// by the DOTS writeback system each frame.
 /// </summary>
 [DefaultExecutionOrder(100)]
 [RequireComponent(typeof(Rigidbody))]
-public class TargetSteeringMotor : MonoBehaviour
+public class TargetSteeringMotor : MonoBehaviour, INpcFacade
 {
     [Header("Mode")]
     [SerializeField] TargetSteeringMovementMode mode = TargetSteeringMovementMode.Orbit;
@@ -58,7 +62,7 @@ public class TargetSteeringMotor : MonoBehaviour
     [SerializeField] float minLoiterRadius = 2.5f;
     [SerializeField] float maxLoiterRadius = 5.5f;
 
-    [Header("Orbit — trail behind moving anchor")]
+    [Header("Orbit - trail behind moving anchor")]
     [SerializeField] float trailBehindStrength = 0.35f;
     [SerializeField] float maxTrailOffset = 2f;
 
@@ -81,52 +85,43 @@ public class TargetSteeringMotor : MonoBehaviour
     [SerializeField] float separationStrength = 4f;
     [SerializeField] float obstacleProbeRadius = 0.35f;
     [SerializeField] float obstacleProbeDistance = 1.25f;
-    [SerializeField] LayerMask obstacleLayers = ~0;
-    [Tooltip("Bandits ignore follower colliders for obstacle probes (LOS/aggro stay on BanditController).")]
-    [SerializeField] bool ignoreFollowerCollidersForObstacles;
 
-    static readonly List<TargetSteeringMotor> FollowerMotors = new List<TargetSteeringMotor>();
-    static readonly List<TargetSteeringMotor> BanditMotors = new List<TargetSteeringMotor>();
+    [Header("Path refresh")]
+    [Tooltip("Seconds between pathfinding attempts when the goal has not moved significantly.")]
+    [SerializeField] float repathInterval = 0.35f;
+    [Tooltip("Distance the goal must move before forcing an early repath.")]
+    [SerializeField] float repathGoalShiftDistance = 2f;
 
-    NavMeshPath _navPath;
-    float _baseAngle;
-    float _baseRadius;
-    float _noiseA;
-    float _noiseB;
     Rigidbody _rb;
-    Rigidbody _anchorRb;
-    Vector3 _smoothTarget;
-    Vector3 _smoothTargetVel;
-    bool _hasSmoothTarget;
+    Entity _entity = Entity.Null;
+    bool _entityCreated;
+
     bool _orbitInitialized;
     bool _wanderInitialized;
-    float _nextWanderPickTime;
-    Vector3? _pendingDodgeReferencePosition;
-    float _pendingDodgeTime;
-    float _lastRangedDodgeApplyTime = float.NegativeInfinity;
-    bool _dodgeImpulseThisFixed;
-    float _effectiveMoveSpeedThisFixed;
-    bool _rangedMovementLock;
+    float _pendingBaseAngle;
+    float _pendingBaseRadius;
+    float _pendingNoiseA;
+    float _pendingNoiseB;
+    float _pendingNextWanderPickTime;
+
+    Vector3 _cachedHorizontalVelocity;
+    float _cachedEffectiveMoveSpeed;
+    bool _cachedHasPendingDodge;
+    float _lastDodgeApplyTime = float.NegativeInfinity;
+
     Vector3? _overrideFacingFlatDirection;
 
-    /// <summary>Max configured horizontal speed this physics step (move speed × scale × water). Updated in <see cref="FixedUpdate"/>.</summary>
-    public float EffectiveMoveSpeed { get; private set; }
+    /// <summary>Max configured horizontal speed this step (move speed x scale x water). Written by the DOTS writeback.</summary>
+    public float EffectiveMoveSpeed => _cachedEffectiveMoveSpeed;
 
-    /// <summary>When true, horizontal velocity is zeroed each step (e.g. ranged draw/release).</summary>
-    public void SetRangedMovementLock(bool locked) => _rangedMovementLock = locked;
+    /// <summary>Smoothed horizontal velocity from the DOTS integration. Consumed by <c>LocomotionAnimatorDriver</c>.</summary>
+    public Vector3 CurrentHorizontalVelocity => _cachedHorizontalVelocity;
 
-    /// <summary>Face this direction on the XZ plane instead of velocity (cleared next frame if not set again).</summary>
-    public void SetOverrideFacingTowardWorldPoint(Vector3 worldPosition)
-    {
-        Vector3 d = worldPosition - transform.position;
-        d.y = 0f;
-        if (d.sqrMagnitude > 1e-6f)
-            _overrideFacingFlatDirection = d.normalized;
-        else
-            _overrideFacingFlatDirection = null;
-    }
+    public TargetSteeringSeparationGroup SeparationGroup => separationGroup;
 
-    public void ClearOverrideFacing() => _overrideFacingFlatDirection = null;
+    public bool CanScheduleRangedDodge => Time.time >= _lastDodgeApplyTime + rangedDodgeCooldown;
+
+    public bool HasPendingRangedDodge => _cachedHasPendingDodge;
 
     public Transform AnchorTarget
     {
@@ -134,7 +129,6 @@ public class TargetSteeringMotor : MonoBehaviour
         set => anchorTarget = value;
     }
 
-    /// <summary>When set, goal position follows this transform (cleared when null).</summary>
     public Transform SeekOverride
     {
         get => seekOverride;
@@ -144,500 +138,334 @@ public class TargetSteeringMotor : MonoBehaviour
     public float SeekHoldDistance
     {
         get => seekHoldDistance;
-        set => seekHoldDistance = value;
+        set
+        {
+            seekHoldDistance = value;
+            PushSeekOverride();
+        }
     }
 
-    /// <summary>Scales base move speed (e.g. from Character dexterity). Clamped to a small positive minimum.</summary>
     public float MoveSpeedScale
     {
         get => moveSpeedScale;
-        set => moveSpeedScale = Mathf.Max(0.05f, value);
+        set
+        {
+            moveSpeedScale = Mathf.Max(0.05f, value);
+            PushConfig();
+        }
     }
 
     public TargetSteeringMovementMode Mode
     {
         get => mode;
-        set => mode = value;
+        set
+        {
+            mode = value;
+            PushModeAndGroup();
+        }
     }
 
-    public TargetSteeringSeparationGroup SeparationGroup => separationGroup;
+    public void SetRangedMovementLock(bool locked)
+    {
+        if (!TryGetEntityManager(out EntityManager em) || !em.HasComponent<NpcMovementState>(_entity))
+            return;
+        NpcMovementState s = em.GetComponentData<NpcMovementState>(_entity);
+        s.RangedMovementLock = (byte)(locked ? 1 : 0);
+        em.SetComponentData(_entity, s);
+    }
 
-    /// <summary>Whether another ranged dodge can be scheduled (cooldown after the last applied dodge).</summary>
-    public bool CanScheduleRangedDodge => Time.time >= _lastRangedDodgeApplyTime + rangedDodgeCooldown;
+    public void SetOverrideFacingTowardWorldPoint(Vector3 worldPosition)
+    {
+        Vector3 d = worldPosition - transform.position;
+        d.y = 0f;
+        if (d.sqrMagnitude > 1e-6f)
+            _overrideFacingFlatDirection = d.normalized;
+        else
+            _overrideFacingFlatDirection = null;
+        PushOverrideFacing();
+    }
 
-    /// <summary>True while a dodge impulse is queued but not yet applied.</summary>
-    public bool HasPendingRangedDodge => _pendingDodgeReferencePosition.HasValue;
+    public void ClearOverrideFacing()
+    {
+        _overrideFacingFlatDirection = null;
+        PushOverrideFacing();
+    }
 
-    /// <summary>Queues a dodge after <see cref="postRangedDodgeDelay"/>; replaces any pending dodge.</summary>
     public void ScheduleRangedDodgeImpulse(Vector3 dodgeReferenceWorldPosition)
     {
-        if (postRangedDodgeDelay <= 0f)
+        if (!TryGetEntityManager(out EntityManager em) || !em.HasComponent<NpcPendingDodge>(_entity))
+            return;
+        float delay = Mathf.Max(0f, postRangedDodgeDelay);
+        em.SetComponentData(_entity, new NpcPendingDodge
         {
-            ApplyRangedDodgeImpulse(dodgeReferenceWorldPosition);
-            return;
-        }
-
-        _pendingDodgeReferencePosition = dodgeReferenceWorldPosition;
-        _pendingDodgeTime = Time.time + postRangedDodgeDelay;
-    }
-
-    /// <summary>Small random sideways nudge on the horizontal plane after firing at <paramref name="targetPosition"/>.</summary>
-    public void ApplyRangedDodgeImpulse(Vector3 targetPosition)
-    {
-        if (postRangedDodgeImpulse <= 0f || _rb == null)
-            return;
-
-        _lastRangedDodgeApplyTime = Time.time;
-
-        Vector3 flat = targetPosition - transform.position;
-        flat.y = 0f;
-        if (flat.sqrMagnitude < 1e-4f)
-            return;
-        flat.Normalize();
-        Vector3 perp = Vector3.Cross(Vector3.up, flat);
-        if (perp.sqrMagnitude < 1e-6f)
-            return;
-        perp.Normalize();
-        if (Random.value < 0.5f)
-            perp = -perp;
-
-        Vector3 retreat = -flat * (postRangedDodgeImpulse * postRangedDodgeRetreatRatio);
-        Vector3 add = perp * postRangedDodgeImpulse + retreat;
-        Vector3 v = _rb.linearVelocity;
-        v.x += add.x;
-        v.z += add.z;
-        Vector3 h = new Vector3(v.x, 0f, v.z);
-        float cap = ComputeEffectiveMoveSpeed() * 2.05f;
-        if (h.sqrMagnitude > cap * cap)
-            h = h.normalized * cap;
-        v.x = h.x;
-        v.z = h.z;
-        _rb.linearVelocity = v;
-        _dodgeImpulseThisFixed = true;
+            ReferencePosition = new float3(dodgeReferenceWorldPosition.x, dodgeReferenceWorldPosition.y, dodgeReferenceWorldPosition.z),
+            FireTime = Time.time + delay,
+            HasPending = 1
+        });
+        _cachedHasPendingDodge = true;
     }
 
     public void InitializeOrbitRandom()
     {
-        _baseAngle = Random.Range(0f, Mathf.PI * 2f);
-        _baseRadius = Random.Range(minLoiterRadius, maxLoiterRadius);
-        _noiseA = Random.Range(0f, 100f);
-        _noiseB = Random.Range(0f, 100f);
+        _pendingBaseAngle = Random.Range(0f, Mathf.PI * 2f);
+        _pendingBaseRadius = Random.Range(minLoiterRadius, maxLoiterRadius);
+        _pendingNoiseA = Random.Range(0f, 100f);
+        _pendingNoiseB = Random.Range(0f, 100f);
         _orbitInitialized = true;
+        ApplyInitializationToEntity();
     }
 
     public void InitializeWanderAroundAnchor(Transform campAnchor, bool randomizeTimer = true)
     {
         anchorTarget = campAnchor;
-        _baseAngle = Random.Range(0f, Mathf.PI * 2f);
-        _baseRadius = Random.Range(0f, wanderRadius);
-        _noiseA = Random.Range(0f, 100f);
-        _noiseB = Random.Range(0f, 100f);
-        _nextWanderPickTime = Time.time + (randomizeTimer ? Random.Range(0f, 1f) : 0f);
+        _pendingBaseAngle = Random.Range(0f, Mathf.PI * 2f);
+        _pendingBaseRadius = Random.Range(0f, wanderRadius);
+        _pendingNoiseA = Random.Range(0f, 100f);
+        _pendingNoiseB = Random.Range(0f, 100f);
+        _pendingNextWanderPickTime = (Application.isPlaying ? Time.time : 0f)
+                                     + (randomizeTimer ? Random.Range(0f, 1f) : 0f);
         _wanderInitialized = true;
+        ApplyInitializationToEntity();
+    }
+
+    void ApplyInitializationToEntity()
+    {
+        if (!TryGetEntityManager(out EntityManager em) || !em.HasComponent<NpcMovementState>(_entity))
+            return;
+        NpcMovementState s = em.GetComponentData<NpcMovementState>(_entity);
+        if (_orbitInitialized || _wanderInitialized)
+        {
+            s.BaseAngle = _pendingBaseAngle;
+            s.BaseRadius = _pendingBaseRadius;
+            s.NoiseA = _pendingNoiseA;
+            s.NoiseB = _pendingNoiseB;
+        }
+        if (_wanderInitialized)
+            s.NextWanderPickTime = _pendingNextWanderPickTime;
+        em.SetComponentData(_entity, s);
     }
 
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
+        _rb.isKinematic = true;
+        _rb.interpolation = RigidbodyInterpolation.None;
+        _rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
         _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
-        _navPath = new NavMeshPath();
-        EffectiveMoveSpeed = ComputeEffectiveMoveSpeed();
-    }
-
-    void OnEnable()
-    {
-        switch (separationGroup)
-        {
-            case TargetSteeringSeparationGroup.Followers:
-                FollowerMotors.Add(this);
-                break;
-            case TargetSteeringSeparationGroup.Bandits:
-                BanditMotors.Add(this);
-                break;
-        }
-    }
-
-    void OnDisable()
-    {
-        _rangedMovementLock = false;
-        _overrideFacingFlatDirection = null;
-        _pendingDodgeReferencePosition = null;
-        switch (separationGroup)
-        {
-            case TargetSteeringSeparationGroup.Followers:
-                RemoveMotorSwap(FollowerMotors, this);
-                break;
-            case TargetSteeringSeparationGroup.Bandits:
-                RemoveMotorSwap(BanditMotors, this);
-                break;
-        }
-    }
-
-    static void RemoveMotorSwap(List<TargetSteeringMotor> list, TargetSteeringMotor item)
-    {
-        int i = list.IndexOf(item);
-        if (i < 0)
-            return;
-        int last = list.Count - 1;
-        if (i != last)
-            list[i] = list[last];
-        list.RemoveAt(last);
     }
 
     void Start()
     {
+        EnsureEntity();
+
         if (mode == TargetSteeringMovementMode.Orbit && !_orbitInitialized)
             InitializeOrbitRandom();
         if (mode == TargetSteeringMovementMode.WanderAroundTarget && !_wanderInitialized && anchorTarget != null)
             InitializeWanderAroundAnchor(anchorTarget, randomizeTimer: true);
     }
 
+    void OnDisable()
+    {
+        if (TryGetEntityManager(out EntityManager em) && em.HasComponent<NpcMovementState>(_entity))
+        {
+            NpcMovementState s = em.GetComponentData<NpcMovementState>(_entity);
+            s.RangedMovementLock = 0;
+            em.SetComponentData(_entity, s);
+            em.SetComponentData(_entity, new NpcOverrideFacing());
+            em.SetComponentData(_entity, new NpcPendingDodge());
+        }
+        _overrideFacingFlatDirection = null;
+        _cachedHasPendingDodge = false;
+    }
+
+    void OnDestroy()
+    {
+        NpcMovementEntityFactory.Destroy(_entity);
+        _entity = Entity.Null;
+        _entityCreated = false;
+    }
+
     void FixedUpdate()
     {
-        _effectiveMoveSpeedThisFixed = ComputeEffectiveMoveSpeed();
-        EffectiveMoveSpeed = _effectiveMoveSpeedThisFixed;
-
-        if (_pendingDodgeReferencePosition.HasValue && Time.time >= _pendingDodgeTime)
-        {
-            Vector3 dodgeRef = _pendingDodgeReferencePosition.Value;
-            _pendingDodgeReferencePosition = null;
-            ApplyRangedDodgeImpulse(dodgeRef);
-        }
-
-        if (_rangedMovementLock)
-        {
-            Vector3 vLock = _rb.linearVelocity;
-            vLock.x = 0f;
-            vLock.z = 0f;
-            _rb.linearVelocity = vLock;
-            ApplyFacing();
-            _dodgeImpulseThisFixed = false;
+        if (!TryGetEntityManager(out EntityManager em))
             return;
-        }
 
-        if (seekOverride != null)
-        {
-            Vector3 goal = seekOverride.position;
-            if (seekHoldDistance > 0f)
-            {
-                Vector3 flat = goal - transform.position;
-                flat.y = 0f;
-                if (flat.sqrMagnitude <= seekHoldDistance * seekHoldDistance)
-                {
-                    ApplySteering(transform.position);
-                    return;
-                }
-            }
+        PushAnchor(em);
+        PushSeekOverride(em);
+    }
 
-            ApplySteering(goal);
+    void EnsureEntity()
+    {
+        if (_entityCreated)
             return;
-        }
-
-        if (anchorTarget == null)
+        NpcMovementConfig cfg = BuildConfig();
+        _entity = NpcMovementEntityFactory.Create(
+            transform,
+            _rb,
+            this,
+            cfg,
+            (NpcMovementMode)mode,
+            (NpcSeparationGroup)separationGroup);
+        _entityCreated = _entity != Entity.Null;
+        if (_entityCreated)
         {
-            _dodgeImpulseThisFixed = false;
+            ApplyInitializationToEntity();
+            PushOverrideFacing();
+            PushAnchor();
+            PushSeekOverride();
+        }
+    }
+
+    NpcMovementConfig BuildConfig()
+    {
+        return new NpcMovementConfig
+        {
+            MoveSpeed = moveSpeed,
+            MoveSpeedScale = Mathf.Max(0.05f, moveSpeedScale),
+            ArriveThreshold = arriveThreshold,
+            Acceleration = acceleration,
+            FacingTurnSpeedDegreesPerSecond = facingTurnSpeedDegreesPerSecond,
+            FacingMinHorizontalSpeed = facingMinHorizontalSpeed,
+            PostRangedDodgeImpulse = postRangedDodgeImpulse,
+            PostRangedDodgeRetreatRatio = postRangedDodgeRetreatRatio,
+            PostRangedDodgeDelay = postRangedDodgeDelay,
+            RangedDodgeCooldown = rangedDodgeCooldown,
+            MinLoiterRadius = minLoiterRadius,
+            MaxLoiterRadius = maxLoiterRadius,
+            TrailBehindStrength = trailBehindStrength,
+            MaxTrailOffset = maxTrailOffset,
+            WanderRadius = wanderRadius,
+            RepickWanderInterval = repickWanderInterval,
+            TargetSmoothTime = targetSmoothTime,
+            NoiseFrequency = noiseFrequency,
+            AngleWobbleDegrees = angleWobbleDegrees,
+            RadiusWobble = radiusWobble,
+            UseNavMeshWhenAvailable = (byte)(useNavMeshWhenAvailable ? 1 : 0),
+            NavMeshSampleMaxDistance = navMeshSampleMaxDistance,
+            MinCornerAdvanceDistance = minCornerAdvanceDistance,
+            SeparationRadius = separationRadius,
+            SeparationStrength = separationStrength,
+            ObstacleProbeRadius = obstacleProbeRadius,
+            ObstacleProbeDistance = obstacleProbeDistance,
+            RepathInterval = Mathf.Max(0.05f, repathInterval),
+            RepathGoalShiftSqr = repathGoalShiftDistance * repathGoalShiftDistance
+        };
+    }
+
+    bool TryGetEntityManager(out EntityManager em)
+    {
+        em = default;
+        if (!_entityCreated)
+            return false;
+        World w = World.DefaultGameObjectInjectionWorld;
+        if (w == null || !w.IsCreated)
+            return false;
+        em = w.EntityManager;
+        return em.Exists(_entity);
+    }
+
+    void PushConfig()
+    {
+        if (!TryGetEntityManager(out EntityManager em) || !em.HasComponent<NpcMovementConfig>(_entity))
             return;
-        }
-
-        CacheAnchorRigidbody();
-
-        Vector3 rawTarget;
-        switch (mode)
-        {
-            case TargetSteeringMovementMode.Orbit:
-                rawTarget = ComputeOrbitTarget();
-                break;
-            case TargetSteeringMovementMode.MoveTowards:
-                rawTarget = anchorTarget.position;
-                break;
-            case TargetSteeringMovementMode.WanderAroundTarget:
-                rawTarget = ComputeWanderTarget();
-                break;
-            default:
-                rawTarget = anchorTarget.position;
-                break;
-        }
-
-        ApplySteering(rawTarget);
+        em.SetComponentData(_entity, BuildConfig());
     }
 
-    void CacheAnchorRigidbody()
+    void PushModeAndGroup()
     {
-        if (_anchorRb == null && anchorTarget != null)
-            _anchorRb = anchorTarget.GetComponent<Rigidbody>();
+        if (!TryGetEntityManager(out EntityManager em) || !em.HasComponent<NpcMovementState>(_entity))
+            return;
+        NpcMovementState s = em.GetComponentData<NpcMovementState>(_entity);
+        s.Mode = (NpcMovementMode)mode;
+        s.Group = (NpcSeparationGroup)separationGroup;
+        em.SetComponentData(_entity, s);
     }
 
-    Vector3 ComputeOrbitTarget()
+    void PushOverrideFacing()
     {
-        float t = Time.time * noiseFrequency;
-        float angleJitter = (Mathf.PerlinNoise(_noiseA, t) - 0.5f) * 2f * (angleWobbleDegrees * Mathf.Deg2Rad);
-        float r = _baseRadius + (Mathf.PerlinNoise(t, _noiseB) - 0.5f) * 2f * radiusWobble;
-        float angle = _baseAngle + angleJitter;
-        Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * r;
-
-        Vector3 trail = Vector3.zero;
-        if (_anchorRb != null && trailBehindStrength > 0f)
-        {
-            Vector3 pv = _anchorRb.linearVelocity;
-            pv.y = 0f;
-            float mag = pv.magnitude;
-            if (mag > 0.05f)
-                trail = -pv.normalized * Mathf.Min(mag * trailBehindStrength, maxTrailOffset);
-        }
-
-        return anchorTarget.position + trail + offset;
-    }
-
-    Vector3 ComputeWanderTarget()
-    {
-        if (Time.time >= _nextWanderPickTime)
-        {
-            _nextWanderPickTime = Time.time + repickWanderInterval * Random.Range(0.7f, 1.3f);
-            Vector3 disk = SpawnPlacementUtility.RandomUniformDiskOffsetXZ_SinXCosZ(wanderRadius);
-            _baseRadius = disk.magnitude;
-            _baseAngle = _baseRadius > 1e-5f ? Mathf.Atan2(disk.x, disk.z) : 0f;
-        }
-
-        float t = Time.time * noiseFrequency;
-        float angleJitter = (Mathf.PerlinNoise(_noiseA, t) - 0.5f) * 2f * (angleWobbleDegrees * Mathf.Deg2Rad);
-        float rWobble = (Mathf.PerlinNoise(t, _noiseB) - 0.5f) * 2f * radiusWobble;
-        float angle = _baseAngle + angleJitter;
-        float r = Mathf.Clamp(_baseRadius + rWobble, 0f, wanderRadius);
-        Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * r;
-        return anchorTarget.position + offset;
-    }
-
-    void ApplySteering(Vector3 rawTarget)
-    {
-        if (!_hasSmoothTarget)
-        {
-            _smoothTarget = rawTarget;
-            _hasSmoothTarget = true;
-        }
-        else
-        {
-            _smoothTarget = Vector3.SmoothDamp(_smoothTarget, rawTarget, ref _smoothTargetVel, targetSmoothTime);
-        }
-
-        Vector3 seekPoint = GetSeekPoint(_smoothTarget);
-
-        Vector3 flat = seekPoint - transform.position;
-        flat.y = 0f;
-
-        Vector3 velocity = _rb.linearVelocity;
-        Vector3 horizontal = new Vector3(velocity.x, 0f, velocity.z);
-
-        if (flat.sqrMagnitude > arriveThreshold * arriveThreshold)
-        {
-            Vector3 desiredDir = flat.normalized;
-            desiredDir = AdjustForObstacles(desiredDir);
-            Vector3 desired = desiredDir * _effectiveMoveSpeedThisFixed;
-            desired += ComputeSeparation();
-            float maxHorizSpeed = _effectiveMoveSpeedThisFixed;
-            if (desired.sqrMagnitude > maxHorizSpeed * maxHorizSpeed)
-                desired = desired.normalized * maxHorizSpeed;
-
-            float maxDelta = acceleration * Time.fixedDeltaTime;
-            Vector3 newHorizontal = Vector3.MoveTowards(horizontal, desired, maxDelta);
-            velocity.x = newHorizontal.x;
-            velocity.z = newHorizontal.z;
-        }
-        else
-        {
-            Vector3 newHorizontal = Vector3.MoveTowards(horizontal, Vector3.zero, acceleration * Time.fixedDeltaTime);
-            velocity.x = newHorizontal.x;
-            velocity.z = newHorizontal.z;
-        }
-
-        ClampHorizontalWater(ref velocity);
-        _rb.linearVelocity = velocity;
-        ApplyFacing();
-    }
-
-    void ApplyFacing()
-    {
+        if (!TryGetEntityManager(out EntityManager em) || !em.HasComponent<NpcOverrideFacing>(_entity))
+            return;
         if (_overrideFacingFlatDirection.HasValue)
         {
-            Quaternion targetRot = Quaternion.LookRotation(_overrideFacingFlatDirection.Value, Vector3.up);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot,
-                facingTurnSpeedDegreesPerSecond * Time.fixedDeltaTime);
+            Vector3 d = _overrideFacingFlatDirection.Value;
+            em.SetComponentData(_entity, new NpcOverrideFacing
+            {
+                FlatDirection = new float3(d.x, 0f, d.z),
+                HasOverride = 1
+            });
+        }
+        else
+        {
+            em.SetComponentData(_entity, new NpcOverrideFacing());
+        }
+    }
+
+    void PushAnchor()
+    {
+        if (!TryGetEntityManager(out EntityManager em))
+            return;
+        PushAnchor(em);
+    }
+
+    void PushAnchor(EntityManager em)
+    {
+        if (!em.HasComponent<NpcAnchorTarget>(_entity))
+            return;
+        if (anchorTarget == null)
+        {
+            em.SetComponentData(_entity, new NpcAnchorTarget());
             return;
         }
 
-        ApplyFacingFromHorizontalVelocity();
+        Vector3 p = anchorTarget.position;
+        Vector3 v = Vector3.zero;
+        var rb = anchorTarget.GetComponent<Rigidbody>();
+        if (rb != null)
+            v = rb.linearVelocity;
+        em.SetComponentData(_entity, new NpcAnchorTarget
+        {
+            Position = new float3(p.x, p.y, p.z),
+            LinearVelocity = new float3(v.x, v.y, v.z),
+            HasAnchor = 1
+        });
     }
 
-    void ApplyFacingFromHorizontalVelocity()
+    void PushSeekOverride()
     {
-        Vector3 h = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
-        float minSqr = facingMinHorizontalSpeed * facingMinHorizontalSpeed;
-        if (h.sqrMagnitude < minSqr)
+        if (!TryGetEntityManager(out EntityManager em))
             return;
-        Quaternion targetRot = Quaternion.LookRotation(h.normalized, Vector3.up);
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot,
-            facingTurnSpeedDegreesPerSecond * Time.fixedDeltaTime);
+        PushSeekOverride(em);
     }
 
-    float ComputeEffectiveMoveSpeed() =>
-        moveSpeed * moveSpeedScale * WaterMovement.SpeedMultiplier(transform.position.y);
-
-    void ClampHorizontalWater(ref Vector3 velocity)
+    void PushSeekOverride(EntityManager em)
     {
-        if (WaterMovement.SpeedMultiplier(transform.position.y) >= 1f)
+        if (!em.HasComponent<NpcSeekOverride>(_entity))
+            return;
+        if (seekOverride == null)
         {
-            _dodgeImpulseThisFixed = false;
+            em.SetComponentData(_entity, new NpcSeekOverride
+            {
+                Position = default,
+                SeekHoldDistance = seekHoldDistance,
+                HasOverride = 0
+            });
             return;
         }
-
-        bool allowDodgeBurst = _dodgeImpulseThisFixed;
-        _dodgeImpulseThisFixed = false;
-
-        float cap = _effectiveMoveSpeedThisFixed;
-        if (allowDodgeBurst)
-            cap *= 2.05f;
-
-        Vector3 h = new Vector3(velocity.x, 0f, velocity.z);
-        if (h.sqrMagnitude > cap * cap)
-            h = h.normalized * cap;
-        velocity.x = h.x;
-        velocity.z = h.z;
+        Vector3 p = seekOverride.position;
+        em.SetComponentData(_entity, new NpcSeekOverride
+        {
+            Position = new float3(p.x, p.y, p.z),
+            SeekHoldDistance = seekHoldDistance,
+            HasOverride = 1
+        });
     }
 
-    Vector3 GetSeekPoint(Vector3 goal)
+    void INpcFacade.OnMovementStateSynced(float3 horizontalVelocity, float effectiveMoveSpeed, bool hasPendingDodge)
     {
-        if (!useNavMeshWhenAvailable)
-            return goal;
-
-        Vector3 origin = transform.position;
-        if (!NavMesh.SamplePosition(origin, out NavMeshHit startHit, navMeshSampleMaxDistance, NavMesh.AllAreas))
-            return goal;
-        if (!NavMesh.SamplePosition(goal, out NavMeshHit goalHit, navMeshSampleMaxDistance, NavMesh.AllAreas))
-            return goal;
-
-        if (!NavMesh.CalculatePath(startHit.position, goalHit.position, NavMesh.AllAreas, _navPath))
-            return goal;
-
-        if (_navPath.status == NavMeshPathStatus.PathInvalid)
-            return goal;
-
-        if (_navPath.corners == null || _navPath.corners.Length < 2)
-            return goal;
-
-        for (int i = 1; i < _navPath.corners.Length; i++)
-        {
-            Vector3 c = _navPath.corners[i];
-            c.y = origin.y;
-            if ((c - origin).sqrMagnitude > minCornerAdvanceDistance * minCornerAdvanceDistance)
-                return c;
-        }
-
-        return _navPath.corners[_navPath.corners.Length - 1];
-    }
-
-    Vector3 AdjustForObstacles(Vector3 desiredDir)
-    {
-        if (desiredDir.sqrMagnitude < 1e-6f)
-            return desiredDir;
-
-        Vector3 origin = transform.position + Vector3.up * 0.1f;
-        if (Physics.SphereCast(origin, obstacleProbeRadius, desiredDir, out RaycastHit hit, obstacleProbeDistance,
-                obstacleLayers, QueryTriggerInteraction.Ignore) && !IsAgentCollider(hit.collider))
-        {
-            Vector3 n = hit.normal;
-            n.y = 0f;
-            if (n.sqrMagnitude < 1e-6f)
-                return desiredDir;
-            n.Normalize();
-
-            Vector3 tangent = Vector3.Cross(Vector3.up, n);
-            if (tangent.sqrMagnitude < 1e-6f)
-                return desiredDir;
-            tangent.Normalize();
-            if (Vector3.Dot(tangent, desiredDir) < 0f)
-                tangent = -tangent;
-
-            return (desiredDir * 0.35f + tangent * 0.65f).normalized;
-        }
-
-        return desiredDir;
-    }
-
-    bool IsAgentCollider(Collider col)
-    {
-        if (col == null)
-            return false;
-
-        // Other steered agents are handled by NavMesh + physics; treating them as "walls" here causes
-        // opposing tangent escapes and jams at corners (notably villagers with separationGroup None).
-        var otherMotor = col.GetComponentInParent<TargetSteeringMotor>();
-        if (otherMotor != null && otherMotor != this)
-            return true;
-
-        if (ignoreFollowerCollidersForObstacles && col.GetComponentInParent<FollowerController>() != null)
-            return true;
-
-        if (anchorTarget != null && (col.transform == anchorTarget || col.transform.IsChildOf(anchorTarget)))
-            return true;
-
-        return false;
-    }
-
-    Vector3 ComputeSeparation()
-    {
-        float r = separationRadius;
-        float rSq = r * r;
-        Vector3 sum = Vector3.zero;
-        Vector3 p = transform.position;
-
-        if (separationGroup == TargetSteeringSeparationGroup.Followers && anchorTarget != null)
-        {
-            float sq = SpatialMath.FlatSqrDistance(p, anchorTarget.position);
-            Vector3 d = p - anchorTarget.position;
-            d.y = 0f;
-            if (sq > 1e-6f && sq < rSq)
-            {
-                float dist = Mathf.Sqrt(sq);
-                sum += d.normalized * (separationStrength * (1f - dist / r));
-            }
-
-            for (int i = 0; i < FollowerMotors.Count; i++)
-            {
-                TargetSteeringMotor other = FollowerMotors[i];
-                if (other == null || other == this)
-                    continue;
-
-                float osq = SpatialMath.FlatSqrDistance(p, other.transform.position);
-                Vector3 od = p - other.transform.position;
-                od.y = 0f;
-                if (osq > 1e-6f && osq < rSq)
-                {
-                    float dist = Mathf.Sqrt(osq);
-                    sum += od.normalized * (separationStrength * (1f - dist / r));
-                }
-            }
-
-            return sum;
-        }
-
-        if (separationGroup == TargetSteeringSeparationGroup.Bandits)
-        {
-            for (int i = 0; i < BanditMotors.Count; i++)
-            {
-                TargetSteeringMotor other = BanditMotors[i];
-                if (other == null || other == this)
-                    continue;
-
-                float sq = SpatialMath.FlatSqrDistance(p, other.transform.position);
-                Vector3 d = p - other.transform.position;
-                d.y = 0f;
-                if (sq > 1e-6f && sq < rSq)
-                {
-                    float dist = Mathf.Sqrt(sq);
-                    sum += d.normalized * (separationStrength * (1f - dist / r));
-                }
-            }
-        }
-
-        return sum;
+        _cachedHorizontalVelocity = new Vector3(horizontalVelocity.x, horizontalVelocity.y, horizontalVelocity.z);
+        _cachedEffectiveMoveSpeed = effectiveMoveSpeed;
+        if (_cachedHasPendingDodge && !hasPendingDodge)
+            _lastDodgeApplyTime = Time.time;
+        _cachedHasPendingDodge = hasPendingDodge;
     }
 }

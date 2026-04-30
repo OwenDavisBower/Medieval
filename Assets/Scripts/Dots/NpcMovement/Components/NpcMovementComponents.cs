@@ -1,0 +1,140 @@
+using Unity.Entities;
+using Unity.Mathematics;
+
+namespace Medieval.NpcMovement
+{
+    public enum NpcMovementMode : byte
+    {
+        Orbit = 0,
+        MoveTowards = 1,
+        WanderAroundTarget = 2
+    }
+
+    public enum NpcSeparationGroup : byte
+    {
+        None = 0,
+        Followers = 1,
+        Bandits = 2
+    }
+
+    public struct NpcMovementTag : IComponentData
+    {
+    }
+
+    /// <summary>Static per-entity tuning mirrored from <c>TargetSteeringMotor</c> serialized fields.</summary>
+    public struct NpcMovementConfig : IComponentData
+    {
+        public float MoveSpeed;
+        public float MoveSpeedScale;
+        public float ArriveThreshold;
+        public float Acceleration;
+        public float FacingTurnSpeedDegreesPerSecond;
+        public float FacingMinHorizontalSpeed;
+
+        public float PostRangedDodgeImpulse;
+        public float PostRangedDodgeRetreatRatio;
+        public float PostRangedDodgeDelay;
+        public float RangedDodgeCooldown;
+
+        public float MinLoiterRadius;
+        public float MaxLoiterRadius;
+        public float TrailBehindStrength;
+        public float MaxTrailOffset;
+
+        public float WanderRadius;
+        public float RepickWanderInterval;
+
+        public float TargetSmoothTime;
+        public float NoiseFrequency;
+        public float AngleWobbleDegrees;
+        public float RadiusWobble;
+
+        public byte UseNavMeshWhenAvailable;
+        public float NavMeshSampleMaxDistance;
+        public float MinCornerAdvanceDistance;
+
+        public float SeparationRadius;
+        public float SeparationStrength;
+
+        public float ObstacleProbeRadius;
+        public float ObstacleProbeDistance;
+
+        /// <summary>Seconds between repath attempts when the goal has not moved significantly.</summary>
+        public float RepathInterval;
+        /// <summary>Squared distance the goal must move before forcing an early repath.</summary>
+        public float RepathGoalShiftSqr;
+    }
+
+    /// <summary>Runtime scratch updated every frame by steering/integration systems.</summary>
+    public struct NpcMovementState : IComponentData
+    {
+        public NpcMovementMode Mode;
+        public NpcSeparationGroup Group;
+
+        public byte HasSmoothTarget;
+        public byte RangedMovementLock;
+        public byte DodgeImpulseThisFrame;
+
+        public float BaseAngle;
+        public float BaseRadius;
+        public float NoiseA;
+        public float NoiseB;
+        public float NextWanderPickTime;
+
+        public float EffectiveMoveSpeed;
+        public float LastDodgeApplyTime;
+
+        public float3 SmoothTarget;
+        public float3 SmoothTargetVel;
+        public float3 CurrentHorizontalVelocity;
+
+        /// <summary>Separation repulsion accumulated by <c>NpcSeparationSystem</c> and consumed by <c>NpcSteeringSystem</c>.</summary>
+        public float3 SeparationAccum;
+
+        /// <summary>Normalized deflection direction from the obstacle probe; zero when no deflection needed.</summary>
+        public float3 ObstacleDeflectDir;
+
+        /// <summary>Per-entity RNG used for wander re-picks. Seeded by the entity factory / baker.</summary>
+        public Unity.Mathematics.Random Rng;
+    }
+
+    public struct NpcAnchorTarget : IComponentData
+    {
+        public float3 Position;
+        public float3 LinearVelocity;
+        public byte HasAnchor;
+    }
+
+    public struct NpcSeekOverride : IComponentData
+    {
+        public float3 Position;
+        public float SeekHoldDistance;
+        public byte HasOverride;
+    }
+
+    public struct NpcOverrideFacing : IComponentData
+    {
+        public float3 FlatDirection;
+        public byte HasOverride;
+    }
+
+    public struct NpcPendingDodge : IComponentData
+    {
+        public float3 ReferencePosition;
+        public float FireTime;
+        public byte HasPending;
+    }
+
+    public struct NpcPathCorner : IBufferElementData
+    {
+        public float3 Value;
+    }
+
+    public struct NpcPathState : IComponentData
+    {
+        public int CurrentCorner;
+        public float LastPathTime;
+        public float3 LastPathGoal;
+        public byte PathValid;
+    }
+}

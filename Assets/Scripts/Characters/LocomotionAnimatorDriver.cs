@@ -34,7 +34,7 @@ public sealed class LocomotionAnimatorDriver : MonoBehaviour
 
     void LateUpdate()
     {
-        if (animator == null || _rigidbody == null)
+        if (animator == null)
             return;
 
         float maxSpeed = ResolveEffectiveMaxSpeed();
@@ -43,7 +43,7 @@ public sealed class LocomotionAnimatorDriver : MonoBehaviour
 
         LocomotionAnimatorDriverUtil.Apply(
             animator,
-            _rigidbody.linearVelocity,
+            ResolveHorizontalVelocity(),
             maxSpeed,
             stopSpeedThreshold,
             animationSpeedScale
@@ -57,6 +57,15 @@ public sealed class LocomotionAnimatorDriver : MonoBehaviour
         if (_player != null)
             return _player.GetEffectiveMaxMoveSpeed();
         return 0f;
+    }
+
+    Vector3 ResolveHorizontalVelocity()
+    {
+        if (_motor != null)
+            return _motor.CurrentHorizontalVelocity;
+        if (_rigidbody != null)
+            return _rigidbody.linearVelocity;
+        return Vector3.zero;
     }
 }
 
