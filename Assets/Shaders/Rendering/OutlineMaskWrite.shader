@@ -24,11 +24,14 @@ Shader "Hidden/Medieval/OutlineMaskWrite"
             ColorMask RGB
 
             HLSLPROGRAM
+            #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_instancing
+            #pragma multi_compile _ DOTS_INSTANCING_ON
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityDOTSInstancing.hlsl"
 
             struct Attributes
             {
@@ -48,6 +51,14 @@ Shader "Hidden/Medieval/OutlineMaskWrite"
                 float _CreaseWeight;
             CBUFFER_END
 
+            #ifdef UNITY_DOTS_INSTANCING_ENABLED
+                // Optional per-entity overrides (falls back to per-material values).
+                UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
+                    UNITY_DOTS_INSTANCED_PROP(float, _SilhouetteWeight_Instanced)
+                    UNITY_DOTS_INSTANCED_PROP(float, _CreaseWeight_Instanced)
+                UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
+            #endif
+
             Varyings vert(Attributes input)
             {
                 Varyings o;
@@ -62,7 +73,15 @@ Shader "Hidden/Medieval/OutlineMaskWrite"
             {
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-                return float4(saturate(_SilhouetteWeight), saturate(_CreaseWeight), 0, 1);
+                #ifdef UNITY_DOTS_INSTANCING_ENABLED
+                    float silhouette = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_CUSTOM_DEFAULT(float, _SilhouetteWeight_Instanced, _SilhouetteWeight);
+                    float crease = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_CUSTOM_DEFAULT(float, _CreaseWeight_Instanced, _CreaseWeight);
+                #else
+                    float silhouette = _SilhouetteWeight;
+                    float crease = _CreaseWeight;
+                #endif
+
+                return float4(saturate(silhouette), saturate(crease), 0, 1);
             }
             ENDHLSL
         }
