@@ -364,7 +364,7 @@ MonoBehaviour:
   anchorTarget: {fileID: 0}
   seekOverride: {fileID: 0}
   seekHoldDistance: 0
-  moveSpeed: 6
+  moveSpeed: 12
   moveSpeedScale: 1
   arriveThreshold: 0.15
   acceleration: 14
