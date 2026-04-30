@@ -25,6 +25,21 @@ public sealed class ProceduralPlacementMask : IDisposable
     public float WorldSize => _worldSize;
     public Vector3 WorldOrigin => _worldOrigin;
 
+    /// <summary>32-bit word count for combined path|dynamic occupancy bits (for Burst jobs).</summary>
+    public int OccupancyWordCount => WordsAllocated ? _wordCount : 0;
+
+    /// <summary>Copies combined blocked bits (path ∪ dynamic) into <paramref name="destination"/> for use in jobs.</summary>
+    public bool TryCopyCombinedOccupancyWords(NativeArray<uint> destination)
+    {
+        if (!WordsAllocated || !destination.IsCreated || destination.Length != _wordCount)
+            return false;
+
+        for (int i = 0; i < _wordCount; i++)
+            destination[i] = _pathWords[i] | _dynamicWords[i];
+
+        return true;
+    }
+
     bool WordsAllocated => _pathWords.IsCreated && _dynamicWords.IsCreated;
 
     /// <summary>Lazily allocates and uploads from the current bit mask. Prefer <see cref="SampleFree01WorldXZ"/> for hot-path sampling.</summary>

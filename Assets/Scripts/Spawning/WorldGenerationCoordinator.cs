@@ -29,8 +29,6 @@ public class WorldGenerationCoordinator : MonoBehaviour
     [SerializeField] BanditCampSpawnConfig banditCampSpawn;
     [SerializeField, FormerlySerializedAs("rockSpawn")]
     MeshSpawnConfig meshSpawn;
-    [Tooltip("Optional parent for instantiated trees; may be null.")]
-    [SerializeField] Transform treeSpawnParent;
     [Tooltip("When >= 0, path corridor stamped into the placement mask uses at least this many meters from the path centerline. When -1, uses the max of bandit/tree/mesh auto clearances.")]
     [SerializeField] float pathOccupancyStampMeters = -1f;
     [SerializeField] GameObject bridgePrefab;
@@ -47,8 +45,10 @@ public class WorldGenerationCoordinator : MonoBehaviour
     readonly List<Vector3> _plannedSettlementCenters = new List<Vector3>();
     readonly Dictionary<int, GameObject> _streamingSettlements = new Dictionary<int, GameObject>();
 
-    readonly List<PlannedTreeSpawn> _plannedTrees = new List<PlannedTreeSpawn>();
-    readonly Dictionary<int, GameObject> _streamingTrees = new Dictionary<int, GameObject>();
+    readonly List<TreeInstanceData> _plannedTrees = new List<TreeInstanceData>();
+    readonly List<TreeInstanceData> _streamingTreesScratch = new List<TreeInstanceData>();
+    TreeIndirectRenderer _treeIndirectRenderer;
+    TreeColliderPool _treeColliderPool;
 
     readonly List<Vector3> _plannedBanditCenters = new List<Vector3>();
     readonly Dictionary<int, GameObject> _streamingBandits = new Dictionary<int, GameObject>();
@@ -146,13 +146,11 @@ public class WorldGenerationCoordinator : MonoBehaviour
 
         _streamingSettlements.Clear();
 
-        foreach (var kv in _streamingTrees)
-        {
-            if (kv.Value != null)
-                Destroy(kv.Value);
-        }
-
-        _streamingTrees.Clear();
+        _streamingTreesScratch.Clear();
+        _treeIndirectRenderer ??= GetComponent<TreeIndirectRenderer>();
+        _treeIndirectRenderer?.Initialize(null, null);
+        _treeColliderPool ??= GetComponent<TreeColliderPool>();
+        _treeColliderPool?.ClearAll();
 
         foreach (var kv in _streamingBandits)
         {
@@ -246,26 +244,27 @@ public class WorldGenerationCoordinator : MonoBehaviour
             }
         }
 
-        for (int i = 0; i < _plannedTrees.Count; i++)
+        _treeIndirectRenderer ??= GetComponent<TreeIndirectRenderer>();
+        _treeColliderPool ??= GetComponent<TreeColliderPool>();
+        if (treeSpawn != null && treeSpawn.HasSpawnableTreePrefab() && _plannedTrees.Count > 0)
         {
-            PlannedTreeSpawn planned = _plannedTrees[i];
-            var home = TerrainLogicalChunkWindow.WorldXZToChunk(origin, ws, axis, planned.Position.x, planned.Position.z);
-            bool inWin = _streamingWindowChunksScratch.Contains(home);
+            _streamingTreesScratch.Clear();
+            for (int i = 0; i < _plannedTrees.Count; i++)
+            {
+                TreeInstanceData t = _plannedTrees[i];
+                var home = TerrainLogicalChunkWindow.WorldXZToChunk(origin, ws, axis, t.Position.x, t.Position.z);
+                if (_streamingWindowChunksScratch.Contains(home))
+                    _streamingTreesScratch.Add(t);
+            }
 
-            if (_streamingTrees.TryGetValue(i, out var tgo) && tgo != null)
-            {
-                if (!inWin)
-                {
-                    Destroy(tgo);
-                    _streamingTrees.Remove(i);
-                }
-            }
-            else if (inWin)
-            {
-                GameObject spawned = TreeSpawning.SpawnTreeAt(planned, treeSpawnParent);
-                if (spawned != null)
-                    _streamingTrees[i] = spawned;
-            }
+            if (_treeIndirectRenderer != null)
+                _treeIndirectRenderer.Initialize(treeSpawn, _streamingTreesScratch);
+            _treeColliderPool?.Sync(treeSpawn, _streamingTreesScratch);
+        }
+        else
+        {
+            _treeIndirectRenderer?.Initialize(null, null);
+            _treeColliderPool?.ClearAll();
         }
 
         if (banditCampSpawn != null)
@@ -394,6 +393,8 @@ public class WorldGenerationCoordinator : MonoBehaviour
         _rockPlannedChunks.Clear();
 
         _rockIndirectRenderer = GetComponent<RockIndirectRenderer>();
+        _treeIndirectRenderer = GetComponent<TreeIndirectRenderer>();
+        _treeColliderPool = GetComponent<TreeColliderPool>();
         if (meshSpawn != null && meshSpawn.HasRenderableVariants)
         {
             if (_rockIndirectRenderer == null)
@@ -406,6 +407,14 @@ public class WorldGenerationCoordinator : MonoBehaviour
             _plannedRockSeeds.Clear();
             _meshVariantIndicesForStreaming = null;
             _rockIndirectRenderer?.Initialize(null, null);
+        }
+
+        if (treeSpawn != null && treeSpawn.HasSpawnableTreePrefab())
+        {
+            if (_treeIndirectRenderer == null)
+                _treeIndirectRenderer = gameObject.AddComponent<TreeIndirectRenderer>();
+            if (_treeColliderPool == null)
+                _treeColliderPool = gameObject.AddComponent<TreeColliderPool>();
         }
 
         _lastStreamAnchor = new Vector3(float.NaN, float.NaN, float.NaN);

@@ -1,24 +1,17 @@
 using System.Collections.Generic;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
 using UnityEngine;
-
-public struct PlannedTreeSpawn
-{
-    public Vector3 Position;
-    public float YawDegrees;
-    public GameObject Prefab;
-}
 
 public class TreeSpawning
 {
     public void Reset() { }
 
-    static int ChunkRngSeed(int worldSeed, int chunkX, int chunkZ) =>
-        unchecked(worldSeed * 73856093 ^ chunkX * 19349663 ^ chunkZ * 83492791);
-
     /// <summary>
     /// Plans trees for one logical chunk; appends to <paramref name="appendPlanned"/> and <paramref name="acceptedSeparation"/>.
-    /// Uses a per-chunk RNG derived from <paramref name="worldSeed"/> (restores global <see cref="Random.state"/>).
-    /// Burns disks onto <paramref name="placementMask"/> for this chunk's trees.
+    /// Uses Burst <see cref="TreeSpawnBurstJobs.PlanTreesForChunkPositionsBurstJob"/> plus
+    /// <see cref="TreeSpawnBurstJobs.FinalizeTreeInstancesParallelJob"/> for placement and instance data.
     /// </summary>
     public void PlanTreesForChunk(
         TreeSpawnConfig config,
@@ -28,81 +21,24 @@ public class TreeSpawning
         int chunkX,
         int chunkZ,
         List<Vector3> acceptedSeparation,
-        List<PlannedTreeSpawn> appendPlanned)
+        List<TreeInstanceData> appendPlanned)
     {
         if (config == null || !config.HasSpawnableTreePrefab())
             return;
         if (gen == null || !gen.IsTerrainReady || placementMask == null || acceptedSeparation == null || appendPlanned == null)
             return;
 
-        float minPathClearance = config.PathClearance >= 0f
-            ? config.PathClearance
-            : gen.flatRadius + 2f;
-        float treeBurnR = Mathf.Max(0.1f, config.OccupationFootprintRadius);
-        float minSepSq = config.MinSeparation * config.MinSeparation;
-        int capPerChunk = config.TreeCount * config.MaxAttemptsPerTree;
-        var newInChunk = new List<Vector3>(config.TreeCount);
-
-        var prev = Random.state;
-        Random.InitState(ChunkRngSeed(worldSeed, chunkX, chunkZ));
-        try
-        {
-            int chunkAttempts = 0;
-            int chunkAccepted = 0;
-            while (chunkAccepted < config.TreeCount && chunkAttempts < capPerChunk)
-            {
-                chunkAttempts++;
-
-                if (!SpawnPlacementUtility.TryRandomUniformWorldXZInTerrainChunk(gen, chunkX, chunkZ, config.TerrainEdgeMargin, out Vector3 xz))
-                    break;
-
-                Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(xz);
-                if (p.y < 0f)
-                    continue;
-
-                if (!placementMask.IsDiskFreeWorldXZ(p.x, p.z, minPathClearance))
-                    continue;
-
-                if (SpawnPlacementUtility.IsFarEnoughFromAllXZ(p, acceptedSeparation, minSepSq))
-                {
-                    acceptedSeparation.Add(p);
-                    newInChunk.Add(p);
-                    chunkAccepted++;
-                }
-            }
-
-            for (int i = 0; i < newInChunk.Count; i++)
-            {
-                GameObject prefab = config.PickTreePrefab();
-                if (prefab == null)
-                    continue;
-
-                float yaw = Random.Range(0f, 360f);
-                appendPlanned.Add(new PlannedTreeSpawn
-                {
-                    Position = newInChunk[i],
-                    YawDegrees = yaw,
-                    Prefab = prefab
-                });
-            }
-        }
-        finally
-        {
-            Random.state = prev;
-        }
-
-        if (newInChunk.Count > 0)
-            placementMask.BurnDisksWorldXZ(newInChunk, treeBurnR);
-    }
-
-    /// <summary>Computes tree layout and burns the placement mask; streaming instantiates from <paramref name="outPlanned"/>. <see cref="TreeSpawnConfig.TreeCount"/> is per logical terrain chunk.</summary>
-    public void PlanTrees(TreeSpawnConfig config, TerrainGenerator gen, ProceduralPlacementMask placementMask, List<PlannedTreeSpawn> outPlanned)
-    {
-        outPlanned.Clear();
-        if (config == null || !config.HasSpawnableTreePrefab())
+        int vCount = config.GetBurstVariantCount();
+        if (vCount < 1)
             return;
 
-        if (gen == null || !gen.IsTerrainReady || placementMask == null)
+        int wordCount = placementMask.OccupancyWordCount;
+        if (wordCount < 1)
+            return;
+
+        int hr = gen.worldResolution;
+        int heightLen = hr * hr;
+        if (heightLen < 1)
             return;
 
         float minPathClearance = config.PathClearance >= 0f
@@ -110,63 +46,116 @@ public class TreeSpawning
             : gen.flatRadius + 2f;
         float treeBurnR = Mathf.Max(0.1f, config.OccupationFootprintRadius);
         float minSepSq = config.MinSeparation * config.MinSeparation;
-        int axis = Mathf.Max(1, gen.chunkCount);
-        int maxTrees = config.TreeCount * axis * axis;
-        var accepted = new List<Vector3>(maxTrees);
-        int capPerChunk = config.TreeCount * config.MaxAttemptsPerTree;
 
-        for (int cz = 0; cz < axis; cz++)
+        var globalSnap = new NativeArray<float3>(acceptedSeparation.Count, Allocator.TempJob);
+        for (int i = 0; i < acceptedSeparation.Count; i++)
         {
-            for (int cx = 0; cx < axis; cx++)
+            Vector3 p = acceptedSeparation[i];
+            globalSnap[i] = new float3(p.x, p.y, p.z);
+        }
+
+        var occ = new NativeArray<uint>(wordCount, Allocator.TempJob);
+        if (!placementMask.TryCopyCombinedOccupancyWords(occ))
+        {
+            globalSnap.Dispose();
+            occ.Dispose();
+            return;
+        }
+
+        var heights = new NativeArray<float>(heightLen, Allocator.TempJob);
+        if (!gen.TryCopyHeightmap(heights))
+        {
+            globalSnap.Dispose();
+            occ.Dispose();
+            heights.Dispose();
+            return;
+        }
+
+        var weights = new NativeArray<float>(vCount, Allocator.TempJob);
+        config.CopyBurstVariantWeights(weights);
+
+        var newAccepted = new NativeList<float3>(config.TreeCount, Allocator.TempJob);
+
+        float3 origin = new float3(
+            placementMask.WorldOrigin.x,
+            placementMask.WorldOrigin.y,
+            placementMask.WorldOrigin.z);
+
+        var planJob = new TreeSpawnBurstJobs.PlanTreesForChunkPositionsBurstJob
+        {
+            GlobalAcceptedSnapshot = globalSnap,
+            OccupancyWords = occ,
+            OccupancyWordCount = wordCount,
+            OccResolution = placementMask.Resolution,
+            LogicalChunkAxis = Mathf.Max(1, gen.chunkCount),
+            WorldSize = placementMask.WorldSize,
+            WorldOrigin = origin,
+            Heightmap = heights,
+            HeightmapResolution = hr,
+            TerrainHeightOffset = config.TerrainHeightOffset,
+            WorldSeed = worldSeed,
+            ChunkX = chunkX,
+            ChunkZ = chunkZ,
+            TreesTarget = config.TreeCount,
+            MaxAttemptsPerTree = config.MaxAttemptsPerTree,
+            TerrainEdgeMargin = config.TerrainEdgeMargin,
+            MinPathClearance = minPathClearance,
+            MinSeparationSq = minSepSq,
+            NewAcceptedWorld = newAccepted
+        };
+
+        planJob.Schedule().Complete();
+
+        if (newAccepted.Length > 0)
+        {
+            var positions = new NativeArray<float3>(newAccepted.Length, Allocator.TempJob);
+            for (int i = 0; i < newAccepted.Length; i++)
+                positions[i] = newAccepted[i];
+
+            var outChunk = new NativeArray<TreeInstanceData>(newAccepted.Length, Allocator.TempJob);
+            var finalizeJob = new TreeSpawnBurstJobs.FinalizeTreeInstancesParallelJob
             {
-                int chunkAttempts = 0;
-                int chunkAccepted = 0;
-                while (chunkAccepted < config.TreeCount && chunkAttempts < capPerChunk)
-                {
-                    chunkAttempts++;
+                Positions = positions,
+                Out = outChunk,
+                WorldSeed = worldSeed,
+                ChunkX = chunkX,
+                ChunkZ = chunkZ,
+                VariantCount = vCount,
+                VariantWeights = weights,
+                ScaleMin = config.InstanceScaleMin,
+                ScaleMax = config.InstanceScaleMax
+            };
+            finalizeJob.Schedule(newAccepted.Length, 32).Complete();
 
-                    if (!SpawnPlacementUtility.TryRandomUniformWorldXZInTerrainChunk(gen, cx, cz, config.TerrainEdgeMargin, out Vector3 xz))
-                        break;
+            for (int i = 0; i < outChunk.Length; i++)
+                appendPlanned.Add(outChunk[i]);
 
-                    Vector3 p = TerrainSpawnUtility.GetWorldPositionOnTerrain(xz);
-                    if (p.y < 0f)
-                        continue;
+            outChunk.Dispose();
+            positions.Dispose();
+        }
 
-                    if (!placementMask.IsDiskFreeWorldXZ(p.x, p.z, minPathClearance))
-                        continue;
+        for (int i = 0; i < newAccepted.Length; i++)
+        {
+            float3 p = newAccepted[i];
+            acceptedSeparation.Add(new Vector3(p.x, p.y, p.z));
+        }
 
-                    if (SpawnPlacementUtility.IsFarEnoughFromAllXZ(p, accepted, minSepSq))
-                    {
-                        accepted.Add(p);
-                        chunkAccepted++;
-                    }
-                }
+        if (newAccepted.Length > 0)
+        {
+            var burnScratch = new List<Vector3>(newAccepted.Length);
+            for (int i = 0; i < newAccepted.Length; i++)
+            {
+                float3 p = newAccepted[i];
+                burnScratch.Add(new Vector3(p.x, p.y, p.z));
             }
+
+            placementMask.BurnDisksWorldXZ(burnScratch, treeBurnR);
         }
 
-        for (int i = 0; i < accepted.Count; i++)
-        {
-            GameObject prefab = config.PickTreePrefab();
-            if (prefab == null)
-                continue;
-
-            float yaw = Random.Range(0f, 360f);
-            outPlanned.Add(new PlannedTreeSpawn
-            {
-                Position = accepted[i],
-                YawDegrees = yaw,
-                Prefab = prefab
-            });
-        }
-
-        placementMask.BurnDisksWorldXZ(accepted, treeBurnR);
-    }
-
-    public static GameObject SpawnTreeAt(PlannedTreeSpawn planned, Transform parent)
-    {
-        if (planned.Prefab == null)
-            return null;
-        var rot = Quaternion.Euler(0f, planned.YawDegrees, 0f);
-        return Object.Instantiate(planned.Prefab, planned.Position, rot, parent);
+        newAccepted.Dispose();
+        weights.Dispose();
+        heights.Dispose();
+        occ.Dispose();
+        globalSnap.Dispose();
     }
 }

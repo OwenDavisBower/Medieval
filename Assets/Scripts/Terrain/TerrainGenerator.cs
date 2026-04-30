@@ -254,6 +254,19 @@ public sealed class TerrainGenerator : MonoBehaviour
         return Mathf.Lerp(Mathf.Lerp(h00, h10, tx), Mathf.Lerp(h01, h11, tx), tz);
     }
 
+    /// <summary>Heightmap texel count (<see cref="worldResolution"/>²); valid when <see cref="IsTerrainReady"/>.</summary>
+    public int HeightmapTexelCount => worldResolution * worldResolution;
+
+    /// <summary>Copies the procedural heightmap for Burst sampling; fails if terrain is not ready or length mismatches.</summary>
+    public bool TryCopyHeightmap(NativeArray<float> destination)
+    {
+        if (!_heightmap.IsCreated || !destination.IsCreated || destination.Length != _heightmap.Length)
+            return false;
+
+        NativeArray<float>.Copy(_heightmap, destination);
+        return true;
+    }
+
     /// <summary>
     /// Bilinear sample of distance to the nearest path spline sample in world XZ (same space as <see cref="SampleHeightWorldXZ"/>).
     /// </summary>
