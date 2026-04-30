@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
 
 /// <summary>
@@ -34,8 +35,20 @@ public sealed class ProceduralPlacementMask : IDisposable
         if (!WordsAllocated || !destination.IsCreated || destination.Length != _wordCount)
             return false;
 
-        for (int i = 0; i < _wordCount; i++)
-            destination[i] = _pathWords[i] | _dynamicWords[i];
+        if (ProceduralPlacementMaskJobs.ShouldParallelOrCopyWords(_wordCount))
+        {
+            new ProceduralPlacementMaskJobs.OrMergeOccupancyWordsParallelJob
+            {
+                PathWords = _pathWords,
+                DynamicWords = _dynamicWords,
+                Destination = destination
+            }.Schedule(_wordCount, 64).Complete();
+        }
+        else
+        {
+            for (int i = 0; i < _wordCount; i++)
+                destination[i] = _pathWords[i] | _dynamicWords[i];
+        }
 
         return true;
     }
@@ -84,11 +97,7 @@ public sealed class ProceduralPlacementMask : IDisposable
             int n = _resolution * _resolution;
             using var blocked = new NativeArray<byte>(n, Allocator.TempJob);
             gen.WritePathBlockedBytes(blocked, clearanceWorldMeters);
-            for (int i = 0; i < n; i++)
-            {
-                if (blocked[i] != 0)
-                    SetPathBlockedByLinearIndex(i);
-            }
+            StampPathBitsFromBlockedBytes(blocked, n);
         }
 
         MarkWordsChanged();
@@ -315,10 +324,48 @@ public sealed class ProceduralPlacementMask : IDisposable
             return;
 
         int n = _resolution * _resolution;
-        for (int i = 0; i < n; i++)
-            _cpuFreeBytes[i] = IsCellBlockedByLinearIndex(i) ? (byte)0 : (byte)255;
+        if (ProceduralPlacementMaskJobs.ShouldParallelRebuildCpuFreeBytes(n))
+        {
+            new ProceduralPlacementMaskJobs.RebuildCpuFreeBytesParallelJob
+            {
+                PathWords = _pathWords,
+                DynamicWords = _dynamicWords,
+                CpuFreeBytes = _cpuFreeBytes
+            }.Schedule(n, 64).Complete();
+        }
+        else
+        {
+            for (int i = 0; i < n; i++)
+                _cpuFreeBytes[i] = IsCellBlockedByLinearIndex(i) ? (byte)0 : (byte)255;
+        }
 
         _cpuFreeBytesStale = false;
+    }
+
+    /// <summary>ORs path bits from a dense blocked-byte grid (one pass per 32 cells reduces writes).</summary>
+    void StampPathBitsFromBlockedBytes(NativeArray<byte> blocked, int n)
+    {
+        int fullGroups = n >> 5;
+        for (int w = 0; w < fullGroups; w++)
+        {
+            int baseLin = w << 5;
+            uint mask = 0;
+            for (int b = 0; b < 32; b++)
+            {
+                if (blocked[baseLin + b] != 0)
+                    mask |= 1u << b;
+            }
+
+            if (mask != 0)
+                _pathWords[w] |= mask;
+        }
+
+        int remStart = fullGroups << 5;
+        for (int i = remStart; i < n; i++)
+        {
+            if (blocked[i] != 0)
+                SetPathBlockedByLinearIndex(i);
+        }
     }
 
     /// <summary>Matches <see cref="Texture2D.GetPixelBilinear"/> on an R8 grid laid out row-major with the same indexing as occupancy bits.</summary>
