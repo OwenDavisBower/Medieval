@@ -55,10 +55,10 @@ Material:
     - _PathTiling: 0.11
     - _RockTiling: 1.05
     m_Colors:
-    - _GrassColorA: {r: 0.45490196, g: 0.54901963, b: 0.27058825, a: 1}
-    - _GrassColorB: {r: 0.041444488, g: 0.21698111, b: 0, a: 1}
-    - _PathColorA: {r: 0.6313726, g: 0.49411765, b: 0.3372549, a: 1}
-    - _PathColorB: {r: 0.26415092, g: 0.18388356, b: 0.10590956, a: 1}
+    - _GrassColorA: {r: 0.4398538, g: 0.5283019, b: 0.26664296, a: 1}
+    - _GrassColorB: {r: 0, g: 0, b: 0, a: 1}
+    - _PathColorA: {r: 0.5647059, g: 0.4776048, b: 0.31764707, a: 1}
+    - _PathColorB: {r: 0.21568628, g: 0.16870321, b: 0.08627452, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &3922063015719540400
