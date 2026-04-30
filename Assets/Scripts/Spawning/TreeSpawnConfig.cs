@@ -162,6 +162,12 @@ public class TreeSpawnConfig : ScriptableObject
     public float InstanceScaleMin => instanceScaleMin;
     public float InstanceScaleMax => instanceScaleMax;
 
+    /// <summary>
+    /// Applied in mesh local space after instance position/yaw/scale (e.g. -90° X for models authored in Z-up).
+    /// Used by <see cref="TreeIndirectRenderer"/> and <see cref="TreeColliderPool"/>.
+    /// </summary>
+    public Quaternion InstanceMeshRotationOffset => Quaternion.Euler(-90f, 0f, 0f);
+
     public bool HasSpawnableTreePrefab()
     {
         if (weightedTreeVariants != null)

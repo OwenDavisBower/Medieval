@@ -22,6 +22,7 @@ public class TreeIndirectRenderer : MonoBehaviour
     }
 
     TreeSpawnConfig _config;
+    Matrix4x4 _instanceMeshRotationMatrix = Matrix4x4.identity;
     TreeInstanceData[] _snapshot;
     Bounds _worldBounds;
     List<VariantBatch> _batches;
@@ -40,6 +41,7 @@ public class TreeIndirectRenderer : MonoBehaviour
             return;
 
         _config = config;
+        _instanceMeshRotationMatrix = Matrix4x4.Rotate(config.InstanceMeshRotationOffset);
         _snapshot = new TreeInstanceData[instances.Count];
         for (int i = 0; i < instances.Count; i++)
             _snapshot[i] = instances[i];
@@ -149,7 +151,7 @@ public class TreeIndirectRenderer : MonoBehaviour
         for (int i = 0; i < batch.Matrices.Length; i++)
         {
             int si = batch.InstanceIndices[i];
-            batch.Matrices[i] = MatrixFromInstance(in _snapshot[si]);
+            batch.Matrices[i] = MatrixFromInstance(in _snapshot[si]) * _instanceMeshRotationMatrix;
         }
     }
 
@@ -242,6 +244,7 @@ public class TreeIndirectRenderer : MonoBehaviour
         Unhook();
         _active = false;
         _config = null;
+        _instanceMeshRotationMatrix = Matrix4x4.identity;
         _batches = null;
         _snapshot = null;
         if (_instancingMaterialCopies != null)

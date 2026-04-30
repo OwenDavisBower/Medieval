@@ -69,7 +69,9 @@ public class TreeColliderPool : MonoBehaviour
             cap.center = new Vector3(0f, cap.height * 0.5f, 0f);
 
             Transform tr = _entries[i];
-            tr.SetPositionAndRotation((Vector3)d.Position, (Quaternion)d.Rotation);
+            tr.SetPositionAndRotation(
+                (Vector3)d.Position,
+                (Quaternion)d.Rotation * config.InstanceMeshRotationOffset);
             cap.enabled = true;
         }
 
