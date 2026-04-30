@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+---
+
+1. Versioning & API Standards
+Target: Unity 6 LTS / Entities 6.4.0.
+
+Modern Syntax: Use ISystem (struct-based) and IJobEntity (Source Generator style). Always mark Systems and Jobs with [BurstCompile].
+
+2. Movement & Transforms (No Physics)
+LocalTransform Based: Do not use Rigidbody, PhysicsBody, or CapsuleCollider.
+
+Direct Updates: Update LocalTransform components directly within Systems.
+
+Interpolation: Use SystemAPI.Time.DeltaTime to ensure smooth, frame-rate independent movement for iOS (Metal).
+
+3. Navigation (NavMeshQuery)
+Thread-Safe Pathfinding: Use the NavMeshQuery API within IJobEntity.
+
+Spatial Analysis: For NPC logic (like "Is my target still on a valid walk area?"), use NavMeshQuery.BeginLocation and NavMeshQuery.Raycast within jobs to avoid main-thread bottlenecks.
+
+Avoid: Do not use UnityEngine.AI.NavMesh (the managed API) inside Jobs.
+
+4. Rendering (Entities Graphics)
+GPU-Driven: Use Entities Graphics for all NPC rendering to leverage GPU instancing and efficient culling.
+
+Animations: Implement animations using Skinned Mesh Entities (GPU Skinning).
+
+Baking: Ensure all NPCs use RenderMesh and MaterialMeshInfo components generated during the baking process via IBaker.
+
+5. Data Structure (Components)
+Blittable Structs: Only use IComponentData.
+
+Tag Components: Use empty structs (e.g., struct NPCTag : IComponentData {}) for efficient query filtering.
+
+Buffers: Use DynamicBuffer<T> for lists of data (like a path of waypoints) instead of NativeList inside components.
+
+6. The Baking Pattern
+Auto-Generation: When I request a new NPC feature, generate both the IComponentData and the corresponding IBaker<TAuthoring> in the same file.
+
+Clean Mapping: Map Vector3 to float3 and Quaternion to quaternion automatically.
