@@ -44,5 +44,11 @@ namespace Medieval.Dots.VAT
     {
         public float Value;
     }
+
+    [MaterialProperty("_VatScale")]
+    public struct VatScaleProperty : IComponentData
+    {
+        public float Value;
+    }
 }
 

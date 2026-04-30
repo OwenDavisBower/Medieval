@@ -513,6 +513,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Medieval.Dots.VAT.VatAnimatorAuthoring
   atlas: {fileID: 11400000, guid: 47521ca79ed5941439c7d3b9fcabbbdd, type: 2}
+  vatScale: 0.01
   defaultClipName: Idle
   defaultClipIndex: 0
   speed: 1

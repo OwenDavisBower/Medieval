@@ -11,6 +11,7 @@ Shader "Medieval/VAT/Unlit"
         _VatVertexCount("VAT Vertex Count", Float) = 0
         _VatTotalFrames("VAT Total Frames", Float) = 0
         _VatFrame("VAT Frame (per-instance)", Float) = 0
+        _VatScale("VAT Scale (per-instance)", Float) = 1
         _VatUseNormals("VAT Use Normals", Float) = 0
     }
 
@@ -52,6 +53,7 @@ Shader "Medieval/VAT/Unlit"
 
                 float _VatVertexCount;
                 float _VatTotalFrames;
+                float _VatScale;
                 float _VatUseNormals;
                 #ifndef UNITY_DOTS_INSTANCING_ENABLED
                     float _VatFrame; // non-DOTS fallback (material/global)
@@ -61,6 +63,7 @@ Shader "Medieval/VAT/Unlit"
             #ifdef UNITY_DOTS_INSTANCING_ENABLED
                 UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
                     UNITY_DOTS_INSTANCED_PROP(float, _VatFrame)
+                    UNITY_DOTS_INSTANCED_PROP(float, _VatScale)
                 UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
             #endif
 
@@ -98,14 +101,16 @@ Shader "Medieval/VAT/Unlit"
 
                 #ifdef UNITY_DOTS_INSTANCING_ENABLED
                     float frame = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_CUSTOM_DEFAULT(float, _VatFrame, 0.0);
+                    float vatScale = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_CUSTOM_DEFAULT(float, _VatScale, 1.0);
                 #else
                     float frame = _VatFrame;
+                    float vatScale = _VatScale;
                 #endif
                 float2 vatUV = VatUV(input.vertexID, frame, _VatVertexCount, _VatTotalFrames);
 
                 // Vertex stage needs explicit LOD on some platforms (e.g. Metal).
                 float3 vatPos = SAMPLE_TEXTURE2D_LOD(_VatPosTex, sampler_VatPosTex, vatUV, 0).xyz;
-                float3 posOS = vatPos;
+                float3 posOS = vatPos * vatScale;
 
                 output.positionHCS = TransformObjectToHClip(posOS);
                 output.uv = TRANSFORM_TEX(input.uv, _BaseMap);

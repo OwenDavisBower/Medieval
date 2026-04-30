@@ -12,6 +12,11 @@ namespace Medieval.Dots.VAT
         [Header("VAT Atlas")]
         public VatAtlasAsset? atlas;
 
+        [Header("Scale")]
+        [Tooltip("Uniform scale applied to VAT vertex positions before object->world transform. Use this to match your model import scale (e.g. 0.01 for cm-authored rigs).")]
+        [Min(0.0001f)]
+        public float vatScale = 1f;
+
         [Header("Playback")]
         [Tooltip("If set, selects the first clip whose name matches. Otherwise uses Default Clip Index.")]
         public string defaultClipName = "";
@@ -32,6 +37,10 @@ namespace Medieval.Dots.VAT
                 var atlas = authoring.atlas;
                 var entity = GetEntity(TransformUsageFlags.Renderable);
 
+                var vatScale = authoring.vatScale;
+                if (!(vatScale > 0f))
+                    vatScale = 1f;
+
                 var bounds = atlas.bounds;
                 AddComponent(entity, new VatAtlasInfo
                 {
@@ -46,8 +55,8 @@ namespace Medieval.Dots.VAT
                 {
                     Value = new AABB
                     {
-                        Center = (float3)bounds.center,
-                        Extents = (float3)bounds.extents
+                        Center = (float3)bounds.center * vatScale,
+                        Extents = (float3)bounds.extents * vatScale
                     }
                 });
 
@@ -77,6 +86,7 @@ namespace Medieval.Dots.VAT
 
                 // Initialize material property so Entities Graphics has a value immediately.
                 AddComponent(entity, new VatFrameProperty { Value = 0f });
+                AddComponent(entity, new VatScaleProperty { Value = vatScale });
             }
 
             private static int ResolveDefaultClipIndex(VatAtlasAsset atlas, string clipName, int fallbackIndex)
