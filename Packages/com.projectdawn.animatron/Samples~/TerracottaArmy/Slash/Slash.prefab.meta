@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 981fe22c7c2cf074db2bac06c10acc9e
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/Samples~/TerracottaArmy/Slash/Slash.prefab
+  uploadId: 808296

@@ -1,0 +1,190 @@
+fileFormatVersion: 2
+guid: eae6cfb2aa9f2514a873608f1cab6bd3
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 53fd01ce4939a0646ac1d7d002f4ace1, type: 3}
+  Prefab: {fileID: 100120, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  Animations:
+  - Name: Run
+    Clip: {fileID: 7400000, guid: 9036a6ceca0561746b9d59ea8ce8a1ed, type: 3}
+    Speed: 1
+    Events: []
+  - Name: Idle
+    Clip: {fileID: 7400000, guid: a0ae68810c6a3a74595d4601ab012307, type: 3}
+    Speed: 1
+    Events: []
+  - Name: Waving
+    Clip: {fileID: -203655887218126122, guid: e4020c8d12c04014796e8086d179b3a2, type: 3}
+    Speed: 1
+    Events: []
+  - Name: Attack
+    Clip: {fileID: 7400000, guid: e6e7f9bded976a947bd91b9d33eba3ba, type: 3}
+    Speed: 1
+    Events:
+    - TypeName: SwingEvent
+      Offset: 14
+      Length: 1
+      Data:
+        rid: 6985149620788133897
+  AnimationNames: 1
+  Skins:
+  - Enabled: 1
+    SkinnedMeshRenderer: {fileID: 13700000, guid: e934f6416297df446bfde0881f9f094c,
+      type: 3}
+  - Enabled: 1
+    SkinnedMeshRenderer: {fileID: 13700002, guid: e934f6416297df446bfde0881f9f094c,
+      type: 3}
+  Force4BlendWeights: 1
+  Joints:
+  - Enabled: 1
+    Transform: {fileID: 400114, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400004, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400058, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400032, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400014, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400054, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400110, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400084, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400066, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400106, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400112, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400000, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400116, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400046, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400056, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400030, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400016, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400022, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400020, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400018, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400028, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400026, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400024, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400038, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400036, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400034, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400044, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400042, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400040, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400052, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400050, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400048, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400060, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400002, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400006, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400008, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400012, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400064, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400098, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400108, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400082, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400068, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400074, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400072, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400070, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400080, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400078, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400076, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400090, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400088, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400086, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400096, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400094, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400092, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400104, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400102, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400100, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400010, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400062, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 400128, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 0
+    Transform: {fileID: 400124, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 0
+    Transform: {fileID: 400118, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 0
+    Transform: {fileID: 400122, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  - Enabled: 0
+    Transform: {fileID: 400126, guid: e934f6416297df446bfde0881f9f094c, type: 3}
+  JointNames: 1
+  PrefabMode: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 6985149620788133897
+      type: {class: SwingEvent, ns: ProjectDawn.Sample, asm: ProjectDawn.Animator.Samples.Survivor}
+      data:
+        Offset:
+          x: 0
+          y: 0.8
+          z: 0
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/Samples~/TerracottaArmy/Warrior/Model/Warrior_bindpose.rig
+  uploadId: 808296

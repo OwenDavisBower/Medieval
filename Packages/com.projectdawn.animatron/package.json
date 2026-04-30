@@ -1,0 +1,32 @@
+{
+  "name": "com.projectdawn.animatron",
+  "displayName": "Animatron",
+  "version": "1.5.0",
+  "unity": "2022.3",
+  "keywords": [
+    "animation",
+    "skinning",
+    "rendering"
+  ],
+  "samples": [
+    {
+      "displayName": "TerracottaArmy",
+      "description": "Contains small isolated test scenes that showcases some common animation features and stress test.",
+      "path": "Samples~/TerracottaArmy"
+    }
+  ],
+  "dependencies": {
+    "com.unity.entities.graphics": "1.4.12",
+    "com.unity.shadergraph": "14.0.10"
+  },
+  "description": "High performance, modular, scalable and lightweight animation system.",
+  "type": "tool",
+  "unityRelease": "62f1",
+  "author": {
+    "name": "Lukas Chodosevicius",
+    "email": "lukaschodosevicius@gmail.com",
+    "url": "https://assetstore.unity.com/publishers/62140"
+  },
+  "documentationUrl": "https://lukaschod.github.io/animatron-docs/manual/index.html",
+  "changelogUrl": "https://lukaschod.github.io/animatron-docs/changelog.html"
+}

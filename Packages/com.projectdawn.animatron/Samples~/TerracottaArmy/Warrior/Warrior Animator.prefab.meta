@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: c451775dee266444e8e8ca78bca060df
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/Samples~/TerracottaArmy/Warrior/Warrior
+    Animator.prefab
+  uploadId: 808296

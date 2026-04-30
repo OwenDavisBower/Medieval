@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 62d1471d31a36284f8c29391b8e2301f
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/Samples~/TerracottaArmy/Runtime/AnimatorPlayAnimation.cs
+  uploadId: 808296

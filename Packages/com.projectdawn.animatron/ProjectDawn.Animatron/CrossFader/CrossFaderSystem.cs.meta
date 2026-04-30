@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: fce4a4278cd9e7e46a98f0d47065faf1
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/ProjectDawn.Animatron/CrossFader/CrossFaderSystem.cs
+  uploadId: 808296

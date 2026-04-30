@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 62fc3a0b1d8f20045bbeb87b5f59c4e1
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/Samples~/TerracottaArmy/GridBox/Grid_Grey_Mat.mat
+  uploadId: 808296

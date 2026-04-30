@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: dafba2d84b8c62f4399644ae631807f7
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/Samples~/TerracottaArmy/TerracottaArmyAnimator.unity
+  uploadId: 808296

@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 2c78640155d331a44b8f97dd57c4b021
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/Samples~/TerracottaArmy/Warrior/Materials/Warrior
+    Animatron.mat
+  uploadId: 808296

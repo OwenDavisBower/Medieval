@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 1e0ac0373dfc38f4e8f68749fd720ade
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/ProjectDawn.Animatron/Inertializer/Inertialization.cs
+  uploadId: 808296

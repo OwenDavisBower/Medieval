@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: ad393486402aa0c46911aa8ffbce6e3f
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/ProjectDawn.Animatron.Entities.Graphics/RenderMeshUtility.cs
+  uploadId: 808296

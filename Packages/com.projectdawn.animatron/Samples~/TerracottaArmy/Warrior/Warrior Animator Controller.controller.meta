@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 95868b58646bb564e8612959c5eb45d3
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 9100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/Samples~/TerracottaArmy/Warrior/Warrior
+    Animator Controller.controller
+  uploadId: 808296

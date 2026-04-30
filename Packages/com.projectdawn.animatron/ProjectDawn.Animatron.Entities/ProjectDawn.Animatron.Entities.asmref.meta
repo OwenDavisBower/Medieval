@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: d4e4376d5dc5575408d9e17a92b8ae11
+AssemblyDefinitionReferenceImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/ProjectDawn.Animatron.Entities/ProjectDawn.Animatron.Entities.asmref
+  uploadId: 808296

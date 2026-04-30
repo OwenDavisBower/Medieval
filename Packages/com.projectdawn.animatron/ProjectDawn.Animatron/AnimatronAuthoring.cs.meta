@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 4438f5ff992eada4b9c7c6942249e3e3
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {fileID: 2800000, guid: b2fe9b6083048d64898ce347799b65e3, type: 3}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/ProjectDawn.Animatron/AnimatronAuthoring.cs
+  uploadId: 808296

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 3a59ac2c436c4b34b8fb50d1a3df1096
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 314750
+  packageName: Animatron
+  packageVersion: 1.5.0
+  assetPath: Packages/com.projectdawn.animatron/ProjectDawn.Animatron.ShaderGraph.Editor/AnimatronLinearBlendSkinningNode.cs
+  uploadId: 808296
