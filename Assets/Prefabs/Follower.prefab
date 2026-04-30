@@ -53,6 +53,9 @@ GameObject:
   - component: {fileID: 557766011}
   - component: {fileID: 557766012}
   - component: {fileID: 7382168756703781075}
+  - component: {fileID: 2382994884337799888}
+  - component: {fileID: 3375596268546690685}
+  - component: {fileID: -4906426753829488454}
   m_Layer: 7
   m_Name: Follower
   m_TagString: Untagged
@@ -351,6 +354,54 @@ MonoBehaviour:
   GroundSnapLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &2382994884337799888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06830f8311f7d411b91a1928ab5f82d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Medieval.DotsCombatAuthoring.HealthAuthoring
+  maxHealth: 100
+  minRandomMaxHealth: 0
+  despawnDelaySeconds: 3
+--- !u!114 &3375596268546690685
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90cd1e45a4dcd4dba82344b59f252429, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Medieval.DotsCombatAuthoring.FactionAuthoring
+  factionId: 0
+--- !u!114 &-4906426753829488454
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdacdd7b3270540c3b7a05464b576eec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Medieval.DotsCombatAuthoring.NpcCombatAiAuthoring
+  role: 0
+  aggroRadius: 50
+  combatRange: 20
+  attackInterval: 1.1
+  damage: 14
+  rangedWindupSeconds: 0.12
+  meleeRange: 1.12
+  meleeStunSeconds: 0.28
 --- !u!1001 &1878961294193693465
 PrefabInstance:
   m_ObjectHideFlags: 0
