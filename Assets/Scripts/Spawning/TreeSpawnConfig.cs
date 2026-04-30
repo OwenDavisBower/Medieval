@@ -20,7 +20,7 @@ public struct TreeSpawnWeightedVariant
     [SerializeField, Min(0.1f)] float capsuleHeight;
     [Tooltip("World-space capsule radius for TreeColliderPool (matches CapsuleCollider.radius).")]
     [SerializeField, Min(0.05f)] float capsuleRadius;
-    [Tooltip("Extra world-space Y for this variant after terrain placement (pivot / sink adjustment).")]
+    [Tooltip("Extra world-space Y for the rendered mesh after terrain placement (pivot / sink). Does not move the capsule collider.")]
     [SerializeField] float meshWorldYOffset;
 
     [SerializeField, HideInInspector]
@@ -132,7 +132,7 @@ public class TreeSpawnConfig : ScriptableObject
     TreeSpawnWeightedVariant[] weightedTreeVariants;
     [Tooltip("Used when weighted variants are empty, or as fallback when no variant applies. Mesh/material are read from this prefab.")]
     [SerializeField] GameObject treePrefab;
-    [Tooltip("World-space Y offset for the Tree Prefab path only (weighted variants use each entry's mesh Y offset).")]
+    [Tooltip("World-space Y offset for the Tree Prefab mesh only (weighted variants use each entry's mesh Y offset). Does not move colliders.")]
     [SerializeField] float treePrefabMeshWorldYOffset;
     [Tooltip("Target trees per logical terrain chunk (TerrainGenerator.chunkCount grid), not world total.")]
     [SerializeField] int treeCount = 200;
@@ -170,7 +170,7 @@ public class TreeSpawnConfig : ScriptableObject
 
     /// <summary>
     /// Applied in mesh local space after instance position/yaw/scale (e.g. -90° X for models authored in Z-up).
-    /// Used by <see cref="TreeIndirectRenderer"/> and <see cref="TreeColliderPool"/>.
+    /// Colliders use terrain placement pose only; see <see cref="TreeIndirectRenderer"/>.
     /// </summary>
     public Quaternion InstanceMeshRotationOffset => Quaternion.Euler(-90f, 0f, 0f);
 
