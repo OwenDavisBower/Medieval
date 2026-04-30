@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f5bf7fe829434a60a1c68b8e57c2708, type: 3}
+  m_Name: Villager_VAT
+  m_EditorClassIdentifier: Assembly-CSharp::Medieval.VAT.VatAtlasAsset
+  sourcePrefab: {fileID: 8980714304071168946, guid: f1e2d3c4b5a697887766554433221100, type: 3}
+  sourceMesh: {fileID: -6734620852318575487, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  vertexCount: 797
+  fps: 20
+  totalFrames: 407
+  posTex: {fileID: 2800000, guid: 4c4d3d4c6496d43d18fdb16ed21537c7, type: 2}
+  nrmTex: {fileID: 0}
+  bounds:
+    m_Center: {x: -0.29049683, y: 92.24265, z: -0.24596405}
+    m_Extent: {x: 102.05191, y: 108.98052, z: 34.87893}
+  clips:
+  - name: Idle
+    startFrame: 0
+    frameCount: 122
+    length: 6.0000005
+    loop: 1
+  - name: Walking
+    startFrame: 122
+    frameCount: 22
+    length: 1.0333334
+    loop: 1
+  - name: ShootArrow
+    startFrame: 144
+    frameCount: 64
+    length: 3.1333334
+    loop: 0
+  - name: DeathBackward
+    startFrame: 208
+    frameCount: 53
+    length: 2.5666668
+    loop: 0
+  - name: DeathBackward2
+    startFrame: 261
+    frameCount: 74
+    length: 3.6333334
+    loop: 0
+  - name: DeathRight
+    startFrame: 335
+    frameCount: 72
+    length: 3.5000002
+    loop: 0
