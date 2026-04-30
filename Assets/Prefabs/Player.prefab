@@ -46,7 +46,6 @@ GameObject:
   - component: {fileID: 5955185648169749553}
   - component: {fileID: 7483920156483920156}
   - component: {fileID: 6048110813309676061}
-  - component: {fileID: 8598736387419282416}
   - component: {fileID: 1998080611009367954}
   - component: {fileID: 7822334455667788990}
   - component: {fileID: 557766001}
@@ -170,22 +169,6 @@ MonoBehaviour:
   followerCount: 20
   spawnRadiusMin: 1.5
   spawnRadiusMax: 4
---- !u!208 &8598736387419282416
-NavMeshObstacle:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8134341599606891099}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Shape: 1
-  m_Extents: {x: 0.5, y: 0.5, z: 0.5}
-  m_MoveThreshold: 0.1
-  m_Carve: 0
-  m_CarveOnlyStationary: 1
-  m_Center: {x: 0, y: 0, z: 0}
-  m_TimeToStationary: 0.5
 --- !u!114 &1998080611009367954
 MonoBehaviour:
   m_ObjectHideFlags: 0

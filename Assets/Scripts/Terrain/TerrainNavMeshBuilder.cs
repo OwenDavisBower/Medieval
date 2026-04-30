@@ -18,6 +18,7 @@ using UnityEditor;
 public sealed class TerrainNavMeshBuilder : MonoBehaviour
 {
     const string NavMeshWaterLevelVolumeObjectName = "NavMeshWaterLevelVolume";
+    const string NavMeshBakeExcludeLayerName = "Character";
 
     /// <summary>Must match Project Settings &gt; AI Navigation &gt; Areas (e.g. cost 3 for water).</summary>
     public const string DefaultNavMeshWaterAreaName = "Water";
@@ -231,6 +232,10 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
 
         navMeshSurface.center = navMeshSurface.transform.InverseTransformPoint(worldCenter);
         navMeshSurface.size = new Vector3(half * 2f, ySize, half * 2f);
+
+        int characterLayer = LayerMask.NameToLayer(NavMeshBakeExcludeLayerName);
+        if (characterLayer >= 0 && characterLayer < 32)
+            navMeshSurface.layerMask = Physics.AllLayers & ~(1 << characterLayer);
     }
 
     void RebuildNavMesh()
