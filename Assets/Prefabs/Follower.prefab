@@ -256,6 +256,7 @@ GameObject:
   - component: {fileID: 5555830013420853836}
   - component: {fileID: 557766011}
   - component: {fileID: 557766012}
+  - component: {fileID: 7382168756703781075}
   m_Layer: 7
   m_Name: Follower
   m_TagString: Untagged
@@ -369,42 +370,7 @@ MonoBehaviour:
   seekHoldDistance: 0
   moveSpeed: 12
   moveSpeedScale: 1
-  arriveThreshold: 0.15
-  acceleration: 14
-  facingTurnSpeedDegreesPerSecond: 720
-  facingMinHorizontalSpeed: 1
-  postRangedDodgeImpulse: 3.6
-  postRangedDodgeRetreatRatio: 0.28
-  postRangedDodgeDelay: 0.14
   rangedDodgeCooldown: 0.42
-  minLoiterRadius: 2
-  maxLoiterRadius: 5.5
-  trailBehindStrength: 0.35
-  maxTrailOffset: 2
-  wanderRadius: 20
-  repickWanderInterval: 4
-  targetSmoothTime: 0.35
-  noiseFrequency: 0.22
-  angleWobbleDegrees: 40
-  radiusWobble: 1.4
-  useNavMeshWhenAvailable: 1
-  navMeshSampleMaxDistance: 2
-  minCornerAdvanceDistance: 0.35
-  separationGroup: 1
-  separationRadius: 1.1
-  separationStrength: 4
-  obstacleProbeRadius: 0.35
-  obstacleProbeDistance: 1.25
-  repathInterval: 0.35
-  repathGoalShiftDistance: 2
-  groundSnapEnabled: 1
-  groundRaycastStartHeight: 1.25
-  groundRaycastMaxDistance: 5
-  groundSnapHeightOffset: 0
-  groundSnapSmoothTime: 0.1
-  groundSnapLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
 --- !u!114 &7720116209973403168
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -417,7 +383,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4e5f678901234567890abcdef4512ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RangedCombat
-  arrowPrefab: {fileID: 7100000001000001, guid: f678901234567890abcdef4512abcdef, type: 3}
   arrowDamage: 25
   arrowMaxLifetime: 12
   arrowHitRadius: 0.08
@@ -539,6 +504,57 @@ MonoBehaviour:
   scanInterval: 0.2
   overlapBufferSize: 48
   periodicScanInUpdate: 0
+--- !u!114 &7382168756703781075
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8227085b89bda4fbe8936214dd063912, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NpcMovement::Medieval.NpcMovement.NpcMovementAuthoring
+  Mode: 0
+  SeparationGroup: 1
+  MoveSpeed: 5
+  MoveSpeedScale: 1
+  ArriveThreshold: 0.15
+  Acceleration: 14
+  FacingTurnSpeedDegreesPerSecond: 720
+  FacingMinHorizontalSpeed: 1
+  PostRangedDodgeImpulse: 3.6
+  PostRangedDodgeRetreatRatio: 0.28
+  PostRangedDodgeDelay: 0.14
+  RangedDodgeCooldown: 0.42
+  MinLoiterRadius: 2.5
+  MaxLoiterRadius: 5.5
+  TrailBehindStrength: 0.35
+  MaxTrailOffset: 2
+  WanderRadius: 20
+  RepickWanderInterval: 4
+  TargetSmoothTime: 0.35
+  NoiseFrequency: 0.2
+  AngleWobbleDegrees: 38
+  RadiusWobble: 2
+  UseNavMeshWhenAvailable: 1
+  NavMeshSampleMaxDistance: 2
+  MinCornerAdvanceDistance: 0.35
+  SeparationRadius: 1.1
+  SeparationStrength: 4
+  ObstacleProbeRadius: 0.35
+  ObstacleProbeDistance: 1.25
+  RepathInterval: 0.35
+  RepathGoalShiftDistance: 2
+  GroundSnapEnabled: 1
+  GroundRaycastStartHeight: 1.25
+  GroundRaycastMaxDistance: 5
+  GroundSnapHeightOffset: 0
+  GroundSnapSmoothTime: 0.1
+  GroundSnapLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!1001 &864812465427588103
 PrefabInstance:
   m_ObjectHideFlags: 0
