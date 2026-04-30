@@ -93,6 +93,17 @@ public class TargetSteeringMotor : MonoBehaviour, INpcFacade
     [Tooltip("Distance the goal must move before forcing an early repath.")]
     [SerializeField] float repathGoalShiftDistance = 2f;
 
+    [Header("Ground alignment")]
+    [SerializeField] bool groundSnapEnabled = true;
+    [Tooltip("Ray origin lift above current position before casting down.")]
+    [SerializeField] float groundRaycastStartHeight = 1.25f;
+    [SerializeField] float groundRaycastMaxDistance = 5f;
+    [Tooltip("Added to hit point Y (e.g. pivot at hips vs feet).")]
+    [SerializeField] float groundSnapHeightOffset;
+    [Tooltip("0 = snap instantly; higher = smoother vertical following.")]
+    [SerializeField] float groundSnapSmoothTime = 0.1f;
+    [SerializeField] LayerMask groundSnapLayers = -1;
+
     Rigidbody _rb;
     Entity _entity = Entity.Null;
     bool _entityCreated;
@@ -349,7 +360,13 @@ public class TargetSteeringMotor : MonoBehaviour, INpcFacade
             ObstacleProbeRadius = obstacleProbeRadius,
             ObstacleProbeDistance = obstacleProbeDistance,
             RepathInterval = Mathf.Max(0.05f, repathInterval),
-            RepathGoalShiftSqr = repathGoalShiftDistance * repathGoalShiftDistance
+            RepathGoalShiftSqr = repathGoalShiftDistance * repathGoalShiftDistance,
+            GroundSnapEnabled = (byte)(groundSnapEnabled ? 1 : 0),
+            GroundRaycastStartHeight = groundRaycastStartHeight,
+            GroundRaycastMaxDistance = groundRaycastMaxDistance,
+            GroundSnapHeightOffset = groundSnapHeightOffset,
+            GroundSnapSmoothTime = groundSnapSmoothTime,
+            GroundSnapLayerMask = groundSnapLayers.value != 0 ? groundSnapLayers.value : -1
         };
     }
 

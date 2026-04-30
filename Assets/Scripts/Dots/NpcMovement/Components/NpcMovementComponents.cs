@@ -63,6 +63,16 @@ namespace Medieval.NpcMovement
         public float RepathInterval;
         /// <summary>Squared distance the goal must move before forcing an early repath.</summary>
         public float RepathGoalShiftSqr;
+
+        /// <summary>When non-zero, raycast down each frame and align Y to ground (see writeback system).</summary>
+        public byte GroundSnapEnabled;
+        public float GroundRaycastStartHeight;
+        public float GroundRaycastMaxDistance;
+        /// <summary>Added to hit point Y (pivot-to-feet offset).</summary>
+        public float GroundSnapHeightOffset;
+        /// <summary>Vertical SmoothDamp time; 0 or less snaps instantly.</summary>
+        public float GroundSnapSmoothTime;
+        public int GroundSnapLayerMask;
     }
 
     /// <summary>Runtime scratch updated every frame by steering/integration systems.</summary>
@@ -96,6 +106,9 @@ namespace Medieval.NpcMovement
 
         /// <summary>Per-entity RNG used for wander re-picks. Seeded by the entity factory / baker.</summary>
         public Unity.Mathematics.Random Rng;
+
+        /// <summary>Scratch for <see cref="NpcTransformWritebackSystem"/> vertical SmoothDamp.</summary>
+        public float GroundSnapYVelocity;
     }
 
     public struct NpcAnchorTarget : IComponentData

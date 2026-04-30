@@ -91,7 +91,6 @@ namespace Medieval.NpcMovement
                     for (int i = 0; i < corners.Length; i++)
                     {
                         float3 c = corners[i].Value;
-                        c.y = selfPos.y;
                         float3 diff = c - selfPos;
                         diff.y = 0f;
                         if (math.lengthsq(diff) > minSq)

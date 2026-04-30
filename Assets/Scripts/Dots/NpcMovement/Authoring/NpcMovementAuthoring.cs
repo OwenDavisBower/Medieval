@@ -62,6 +62,14 @@ namespace Medieval.NpcMovement
         [Tooltip("Distance the goal must move before forcing an early repath.")]
         public float RepathGoalShiftDistance = 2f;
 
+        [Header("Ground alignment")]
+        public bool GroundSnapEnabled = true;
+        public float GroundRaycastStartHeight = 1.25f;
+        public float GroundRaycastMaxDistance = 5f;
+        public float GroundSnapHeightOffset;
+        public float GroundSnapSmoothTime = 0.1f;
+        public LayerMask GroundSnapLayers = -1;
+
         public NpcMovementConfig ToConfig()
         {
             return new NpcMovementConfig
@@ -94,7 +102,13 @@ namespace Medieval.NpcMovement
                 ObstacleProbeRadius = ObstacleProbeRadius,
                 ObstacleProbeDistance = ObstacleProbeDistance,
                 RepathInterval = math.max(0.05f, RepathInterval),
-                RepathGoalShiftSqr = RepathGoalShiftDistance * RepathGoalShiftDistance
+                RepathGoalShiftSqr = RepathGoalShiftDistance * RepathGoalShiftDistance,
+                GroundSnapEnabled = (byte)(GroundSnapEnabled ? 1 : 0),
+                GroundRaycastStartHeight = GroundRaycastStartHeight,
+                GroundRaycastMaxDistance = GroundRaycastMaxDistance,
+                GroundSnapHeightOffset = GroundSnapHeightOffset,
+                GroundSnapSmoothTime = GroundSnapSmoothTime,
+                GroundSnapLayerMask = GroundSnapLayers.value != 0 ? GroundSnapLayers.value : -1
             };
         }
 
