@@ -12,11 +12,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5e6f708192a3b4c5d6e7f8091a2b3c4, type: 3}
   m_Name: TreeSpawn
   m_EditorClassIdentifier: 
-  weightedTreePrefabs:
-  - prefab: {fileID: 343138504714799944, guid: 92daf5674a7784361899e62590c7b70d, type: 3}
+  weightedTreeVariants:
+  - mesh: {fileID: 7027636043351174211, guid: d65b6a69cabb34a399debff4b9604746, type: 3}
+    material: {fileID: 2100000, guid: 9eedf9a3b260649c99b879e798c9892c, type: 2}
     weight: 3
-  - prefab: {fileID: 2221739865789624798, guid: c7f2c34b7cfd646a4bb6998b820f7cfa, type: 3}
+    layer: 9
+    shadowCastingMode: 1
+    receiveShadows: 1
+    lightProbeUsage: 1
+    capsuleHeight: 5.2071333
+    capsuleRadius: 0.52
+    authoringPrefab: {fileID: 0}
+  - mesh: {fileID: 5461320835613783329, guid: 21800da2ab3fd435ab10698e54d5bb11, type: 3}
+    material: {fileID: 2100000, guid: bef2a5a71b7654e2b9a723448d437fe2, type: 2}
     weight: 1
+    layer: 9
+    shadowCastingMode: 1
+    receiveShadows: 1
+    lightProbeUsage: 1
+    capsuleHeight: 5.2071333
+    capsuleRadius: 1.0440187
+    authoringPrefab: {fileID: 0}
   treePrefab: {fileID: 343138504714799944, guid: 92daf5674a7784361899e62590c7b70d, type: 3}
   treeCount: 100
   terrainEdgeMargin: 8
@@ -24,3 +40,6 @@ MonoBehaviour:
   maxAttemptsPerTree: 80
   pathClearance: 4
   occupationFootprintRadius: 2.5
+  terrainHeightOffset: 0.05
+  instanceScaleMin: 0.9
+  instanceScaleMax: 1.1

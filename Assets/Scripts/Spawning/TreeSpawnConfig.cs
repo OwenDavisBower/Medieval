@@ -1,23 +1,133 @@
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Serialization;
 
 [System.Serializable]
-public struct TreeSpawnWeightedPrefab
+public struct TreeSpawnWeightedVariant
 {
-    [SerializeField] GameObject prefab;
+    [Tooltip("Mesh drawn for this tree variant (GPU instancing / indirect draw).")]
+    [SerializeField] Mesh mesh;
+    [Tooltip("Material paired with Mesh (same slot as MeshRenderer.sharedMaterial).")]
+    [SerializeField] Material material;
     [SerializeField, Min(0f)] float weight;
+    [Tooltip("Layer used for rendering (matches MeshRenderer.gameObject.layer).")]
+    [SerializeField] int layer;
+    [SerializeField] ShadowCastingMode shadowCastingMode;
+    [SerializeField] bool receiveShadows;
+    [SerializeField] LightProbeUsage lightProbeUsage;
+    [Tooltip("World-space capsule height for TreeColliderPool (matches CapsuleCollider.height on tree prefab).")]
+    [SerializeField, Min(0.1f)] float capsuleHeight;
+    [Tooltip("World-space capsule radius for TreeColliderPool (matches CapsuleCollider.radius).")]
+    [SerializeField, Min(0.05f)] float capsuleRadius;
 
-    public GameObject Prefab => prefab;
+    [SerializeField, HideInInspector]
+    [FormerlySerializedAs("prefab")]
+    GameObject authoringPrefab;
+
+    public Mesh Mesh => mesh;
+    public Material Material => material;
     public float Weight => weight;
+    public int Layer => layer;
+    public ShadowCastingMode ShadowCastingMode => shadowCastingMode;
+    public bool ReceiveShadows => receiveShadows;
+    public LightProbeUsage LightProbeUsage => lightProbeUsage;
+    public float CapsuleHeight => capsuleHeight;
+    public float CapsuleRadius => capsuleRadius;
+
+    public bool IsSpawnable => mesh != null && material != null;
+
+    public bool ShouldMigrateAuthoringPrefab => authoringPrefab != null && (mesh == null || material == null);
+
+    /// <summary>Fills mesh/material/render/capsule from <see cref="authoringPrefab"/> when those are unset; clears authoring prefab after success.</summary>
+    public TreeSpawnWeightedVariant WithMigratedFromAuthoringPrefabIfNeeded()
+    {
+        if (authoringPrefab == null || (mesh != null && material != null))
+            return this;
+
+        var next = this;
+        FillFromGameObjectInto(ref next, authoringPrefab);
+        next.authoringPrefab = null;
+        return next;
+    }
+
+    static void FillFromGameObjectInto(ref TreeSpawnWeightedVariant v, GameObject prefab)
+    {
+        Mesh meshOut = null;
+        Material materialOut = null;
+        MeshRenderer mrSettings = null;
+        var renderers = prefab.GetComponentsInChildren<MeshRenderer>(true);
+        for (int r = 0; r < renderers.Length; r++)
+        {
+            var mr = renderers[r];
+            if (mr == null || !mr.enabled)
+                continue;
+            var mf = mr.GetComponent<MeshFilter>();
+            if (mf == null || mf.sharedMesh == null)
+                continue;
+            meshOut = mf.sharedMesh;
+            materialOut = mr.sharedMaterial;
+            mrSettings = mr;
+            break;
+        }
+
+        if (meshOut == null)
+        {
+            var mf = prefab.GetComponentInChildren<MeshFilter>(true);
+            if (mf != null)
+            {
+                meshOut = mf.sharedMesh;
+                var mr = mf.GetComponent<MeshRenderer>();
+                if (mr != null)
+                {
+                    materialOut = mr.sharedMaterial;
+                    mrSettings = mr;
+                }
+            }
+        }
+
+        if (mrSettings == null)
+            mrSettings = prefab.GetComponentInChildren<MeshRenderer>(true);
+
+        v.mesh = meshOut;
+        v.material = materialOut;
+        if (mrSettings != null)
+        {
+            v.layer = mrSettings.gameObject.layer;
+            v.shadowCastingMode = mrSettings.shadowCastingMode;
+            v.receiveShadows = mrSettings.receiveShadows;
+            v.lightProbeUsage = mrSettings.lightProbeUsage;
+        }
+        else
+        {
+            v.layer = prefab.layer;
+            v.shadowCastingMode = ShadowCastingMode.On;
+            v.receiveShadows = true;
+            v.lightProbeUsage = LightProbeUsage.Off;
+        }
+
+        var cap = prefab.GetComponentInChildren<CapsuleCollider>(true);
+        if (cap != null)
+        {
+            v.capsuleHeight = Mathf.Max(0.1f, cap.height);
+            v.capsuleRadius = Mathf.Max(0.05f, cap.radius);
+        }
+        else
+        {
+            v.capsuleHeight = 8f;
+            v.capsuleRadius = 0.6f;
+        }
+    }
 }
 
 [CreateAssetMenu(fileName = "TreeSpawnConfig", menuName = "Medieval/Spawning/Tree Spawn Config")]
 public class TreeSpawnConfig : ScriptableObject
 {
-    [Tooltip("Several tree prefabs with relative spawn weights. Leave empty to use Tree Prefab only.")]
-    [SerializeField] TreeSpawnWeightedPrefab[] weightedTreePrefabs;
-    [Tooltip("Used when Weighted Tree Prefabs is empty, or as fallback when no variant applies.")]
+    [Tooltip("Weighted tree variants (mesh + material + collider sizing). Leave empty to use Tree Prefab only.")]
+    [SerializeField]
+    [FormerlySerializedAs("weightedTreePrefabs")]
+    TreeSpawnWeightedVariant[] weightedTreeVariants;
+    [Tooltip("Used when weighted variants are empty, or as fallback when no variant applies. Mesh/material are read from this prefab.")]
     [SerializeField] GameObject treePrefab;
     [Tooltip("Target trees per logical terrain chunk (TerrainGenerator.chunkCount grid), not world total.")]
     [SerializeField] int treeCount = 200;
@@ -46,7 +156,7 @@ public class TreeSpawnConfig : ScriptableObject
     public GameObject TreePrefab => treePrefab;
 
     /// <summary>Weighted entries; when empty or invalid, <see cref="TreePrefab"/> is used for every tree.</summary>
-    public TreeSpawnWeightedPrefab[] WeightedTreePrefabs => weightedTreePrefabs;
+    public TreeSpawnWeightedVariant[] WeightedTreeVariants => weightedTreeVariants;
 
     public float TerrainHeightOffset => terrainHeightOffset;
     public float InstanceScaleMin => instanceScaleMin;
@@ -54,11 +164,11 @@ public class TreeSpawnConfig : ScriptableObject
 
     public bool HasSpawnableTreePrefab()
     {
-        if (weightedTreePrefabs != null)
+        if (weightedTreeVariants != null)
         {
-            for (int i = 0; i < weightedTreePrefabs.Length; i++)
+            for (int i = 0; i < weightedTreeVariants.Length; i++)
             {
-                if (weightedTreePrefabs[i].Prefab != null)
+                if (weightedTreeVariants[i].IsSpawnable)
                     return true;
             }
         }
@@ -66,15 +176,15 @@ public class TreeSpawnConfig : ScriptableObject
         return treePrefab != null;
     }
 
-    /// <summary>Variant count matching Burst weights and instancing indices (sequential non-null prefabs).</summary>
+    /// <summary>Variant count matching Burst weights and instancing indices (sequential spawnable variants).</summary>
     public int GetBurstVariantCount()
     {
-        if (weightedTreePrefabs != null && weightedTreePrefabs.Length > 0)
+        if (weightedTreeVariants != null && weightedTreeVariants.Length > 0)
         {
             int c = 0;
-            for (int i = 0; i < weightedTreePrefabs.Length; i++)
+            for (int i = 0; i < weightedTreeVariants.Length; i++)
             {
-                if (weightedTreePrefabs[i].Prefab != null)
+                if (weightedTreeVariants[i].IsSpawnable)
                     c++;
             }
 
@@ -92,14 +202,14 @@ public class TreeSpawnConfig : ScriptableObject
         if (!destination.IsCreated || destination.Length != n)
             throw new System.ArgumentException("Destination length must match GetBurstVariantCount().", nameof(destination));
 
-        if (weightedTreePrefabs != null && weightedTreePrefabs.Length > 0)
+        if (weightedTreeVariants != null && weightedTreeVariants.Length > 0)
         {
             int vi = 0;
-            for (int i = 0; i < weightedTreePrefabs.Length; i++)
+            for (int i = 0; i < weightedTreeVariants.Length; i++)
             {
-                if (weightedTreePrefabs[i].Prefab == null)
+                if (!weightedTreeVariants[i].IsSpawnable)
                     continue;
-                destination[vi++] = Mathf.Max(0f, weightedTreePrefabs[i].Weight);
+                destination[vi++] = Mathf.Max(0f, weightedTreeVariants[i].Weight);
             }
 
             if (vi > 0)
@@ -145,53 +255,6 @@ public class TreeSpawnConfig : ScriptableObject
         return mesh != null && material != null;
     }
 
-    /// <summary>Picks a tree prefab using relative weights; if all weights are zero, picks uniformly among non-null prefabs; otherwise uses <see cref="TreePrefab"/>.</summary>
-    public GameObject PickTreePrefab()
-    {
-        if (weightedTreePrefabs != null && weightedTreePrefabs.Length > 0)
-        {
-            float total = 0f;
-            int nonNullCount = 0;
-            for (int i = 0; i < weightedTreePrefabs.Length; i++)
-            {
-                var e = weightedTreePrefabs[i];
-                if (e.Prefab == null)
-                    continue;
-                nonNullCount++;
-                if (e.Weight > 0f)
-                    total += e.Weight;
-            }
-
-            if (nonNullCount > 0 && total > 0f)
-            {
-                float r = Random.Range(0f, total);
-                for (int i = 0; i < weightedTreePrefabs.Length; i++)
-                {
-                    var e = weightedTreePrefabs[i];
-                    if (e.Prefab == null || e.Weight <= 0f)
-                        continue;
-                    r -= e.Weight;
-                    if (r <= 0f)
-                        return e.Prefab;
-                }
-            }
-            else if (nonNullCount > 0)
-            {
-                int pick = Random.Range(0, nonNullCount);
-                for (int i = 0; i < weightedTreePrefabs.Length; i++)
-                {
-                    if (weightedTreePrefabs[i].Prefab == null)
-                        continue;
-                    if (pick == 0)
-                        return weightedTreePrefabs[i].Prefab;
-                    pick--;
-                }
-            }
-        }
-
-        return treePrefab;
-    }
-
     public int TreeCount => treeCount;
     public float TerrainEdgeMargin => terrainEdgeMargin;
     public float MinSeparation => minSeparation;
@@ -204,6 +267,24 @@ public class TreeSpawnConfig : ScriptableObject
         terrainEdgeMargin = Mathf.Max(0f, terrainEdgeMargin);
         instanceScaleMin = Mathf.Max(0.01f, instanceScaleMin);
         instanceScaleMax = Mathf.Max(instanceScaleMin, instanceScaleMax);
+
+#if UNITY_EDITOR
+        if (weightedTreeVariants != null)
+        {
+            bool dirty = false;
+            for (int i = 0; i < weightedTreeVariants.Length; i++)
+            {
+                if (!weightedTreeVariants[i].ShouldMigrateAuthoringPrefab)
+                    continue;
+                weightedTreeVariants[i] = weightedTreeVariants[i].WithMigratedFromAuthoringPrefabIfNeeded();
+                dirty = true;
+            }
+
+            if (dirty)
+                UnityEditor.EditorUtility.SetDirty(this);
+        }
+#endif
+
         RebuildVariantInstancingCache();
     }
 
@@ -241,15 +322,15 @@ public class TreeSpawnConfig : ScriptableObject
         _instancingCapsuleHeight = new float[n];
         _instancingCapsuleRadius = new float[n];
 
-        if (weightedTreePrefabs != null && weightedTreePrefabs.Length > 0)
+        if (weightedTreeVariants != null && weightedTreeVariants.Length > 0)
         {
             int vi = 0;
-            for (int i = 0; i < weightedTreePrefabs.Length; i++)
+            for (int i = 0; i < weightedTreeVariants.Length; i++)
             {
-                GameObject p = weightedTreePrefabs[i].Prefab;
-                if (p == null)
+                var e = weightedTreeVariants[i];
+                if (!e.IsSpawnable)
                     continue;
-                FillInstancingFromPrefab(vi++, p);
+                FillInstancingFromVariant(vi++, e);
             }
 
             if (vi != 0)
@@ -260,18 +341,65 @@ public class TreeSpawnConfig : ScriptableObject
             FillInstancingFromPrefab(0, treePrefab);
     }
 
+    void FillInstancingFromVariant(int index, TreeSpawnWeightedVariant e)
+    {
+        _instancingMeshes[index] = e.Mesh;
+        _instancingMaterials[index] = e.Material;
+        _instancingLayers[index] = e.Layer;
+        _instancingShadows[index] = e.ShadowCastingMode;
+        _instancingReceiveShadows[index] = e.ReceiveShadows;
+        _instancingProbes[index] = e.LightProbeUsage;
+        // Match former struct field defaults (C# 9 has no struct field initializers).
+        _instancingCapsuleHeight[index] = e.CapsuleHeight > 0f ? e.CapsuleHeight : 8f;
+        _instancingCapsuleRadius[index] = e.CapsuleRadius > 0f ? e.CapsuleRadius : 0.6f;
+    }
+
     void FillInstancingFromPrefab(int index, GameObject prefab)
     {
-        var mf = prefab.GetComponentInChildren<MeshFilter>(true);
-        var mr = prefab.GetComponentInChildren<MeshRenderer>(true);
-        _instancingMeshes[index] = mf != null ? mf.sharedMesh : null;
-        _instancingMaterials[index] = mr != null ? mr.sharedMaterial : null;
-        if (mr != null)
+        Mesh mesh = null;
+        Material material = null;
+        MeshRenderer mrSettings = null;
+        var renderers = prefab.GetComponentsInChildren<MeshRenderer>(true);
+        for (int r = 0; r < renderers.Length; r++)
         {
-            _instancingLayers[index] = mr.gameObject.layer;
-            _instancingShadows[index] = mr.shadowCastingMode;
-            _instancingReceiveShadows[index] = mr.receiveShadows;
-            _instancingProbes[index] = mr.lightProbeUsage;
+            var mr = renderers[r];
+            if (mr == null || !mr.enabled)
+                continue;
+            var mf = mr.GetComponent<MeshFilter>();
+            if (mf == null || mf.sharedMesh == null)
+                continue;
+            mesh = mf.sharedMesh;
+            material = mr.sharedMaterial;
+            mrSettings = mr;
+            break;
+        }
+
+        if (mesh == null)
+        {
+            var mf = prefab.GetComponentInChildren<MeshFilter>(true);
+            if (mf != null)
+            {
+                mesh = mf.sharedMesh;
+                var mr = mf.GetComponent<MeshRenderer>();
+                if (mr != null)
+                {
+                    material = mr.sharedMaterial;
+                    mrSettings = mr;
+                }
+            }
+        }
+
+        if (mrSettings == null)
+            mrSettings = prefab.GetComponentInChildren<MeshRenderer>(true);
+
+        _instancingMeshes[index] = mesh;
+        _instancingMaterials[index] = material;
+        if (mrSettings != null)
+        {
+            _instancingLayers[index] = mrSettings.gameObject.layer;
+            _instancingShadows[index] = mrSettings.shadowCastingMode;
+            _instancingReceiveShadows[index] = mrSettings.receiveShadows;
+            _instancingProbes[index] = mrSettings.lightProbeUsage;
         }
         else
         {
