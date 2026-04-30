@@ -1,3 +1,4 @@
+using Medieval.Projectiles;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -159,7 +160,7 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
     void TryScheduleRangedDodge()
     {
         if (Motor.CanScheduleRangedDodge && !Motor.HasPendingRangedDodge &&
-            ArrowProjectile.TryGetIncomingDodgeReference(transform.root, out Vector3 dodgeRef))
+            ProjectileDodgeBridge.TryGetIncomingDodgeReference(transform.root, out Vector3 dodgeRef))
             Motor.ScheduleRangedDodgeImpulse(dodgeRef);
     }
 

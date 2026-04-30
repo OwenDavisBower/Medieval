@@ -1,12 +1,17 @@
 using System.Collections;
 using UnityEngine;
 
-/// <summary>Lobs physics-based arrows toward a target with intentional inaccuracy.</summary>
+using Medieval.Projectiles;
+
+/// <summary>Lobs ECS-simulated arrows toward a target with intentional inaccuracy.</summary>
 public class RangedCombat : MonoBehaviour
 {
     static readonly int ShootArrowHash = Animator.StringToHash("ShootArrow");
 
-    [SerializeField] Rigidbody arrowPrefab;
+    [SerializeField] GameObject arrowPrefab;
+    [SerializeField] float arrowDamage = 25f;
+    [SerializeField] float arrowMaxLifetime = 12f;
+    [SerializeField] float arrowHitRadius = 0.08f;
     [SerializeField] float fireInterval = 1.15f;
     [SerializeField] float launchHeight = 1.45f;
     [SerializeField] float targetAimHeight = 1f;
@@ -102,26 +107,8 @@ public class RangedCombat : MonoBehaviour
 
         Vector3 velocity = ProjectileBallistics.LobbedLaunchVelocity(origin, aim);
 
-        Rigidbody arrow = Instantiate(arrowPrefab, origin, Quaternion.identity);
-        arrow.linearVelocity = velocity;
-
-        var projectile = arrow.GetComponent<ArrowProjectile>();
-        if (projectile != null)
-            projectile.SetShooterRoot(transform.root);
-
-        if (velocity.sqrMagnitude > 0.01f)
-        {
-            Vector3 forward = velocity.normalized;
-            if (forward.sqrMagnitude > 0.99f)
-                arrow.MoveRotation(Quaternion.LookRotation(forward));
-        }
-
-        if (_ownerCollider != null)
-        {
-            var ac = arrow.GetComponent<Collider>();
-            if (ac != null)
-                Physics.IgnoreCollision(_ownerCollider, ac, true);
-        }
+        ProjectileSpawnApi.Spawn(arrowPrefab, origin, velocity, arrowDamage, arrowMaxLifetime, transform.root,
+            _ownerCollider, arrowHitRadius);
     }
 
     

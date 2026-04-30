@@ -349,6 +349,8 @@ MonoBehaviour:
     m_Bits: 4294967295
   aggroRadius: 50
   maxDistanceFromLeader: 25
+  teleportBackDistance: 80
+  teleportBackTargetDistance: 50
 --- !u!114 &8820116209973403167
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -393,10 +395,16 @@ MonoBehaviour:
   separationStrength: 4
   obstacleProbeRadius: 0.35
   obstacleProbeDistance: 1.25
-  obstacleLayers:
+  repathInterval: 0.35
+  repathGoalShiftDistance: 2
+  groundSnapEnabled: 1
+  groundRaycastStartHeight: 1.25
+  groundRaycastMaxDistance: 5
+  groundSnapHeightOffset: 0
+  groundSnapSmoothTime: 0.1
+  groundSnapLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  ignoreFollowerCollidersForObstacles: 0
 --- !u!114 &7720116209973403168
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -409,7 +417,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4e5f678901234567890abcdef4512ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RangedCombat
-  arrowPrefab: {fileID: 7100000006000006, guid: f678901234567890abcdef4512abcdef, type: 3}
+  arrowPrefab: {fileID: 7100000001000001, guid: f678901234567890abcdef4512abcdef, type: 3}
+  arrowDamage: 25
+  arrowMaxLifetime: 12
+  arrowHitRadius: 0.08
   fireInterval: 1.15
   launchHeight: 1.45
   targetAimHeight: 1
@@ -447,6 +458,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c9d8e7f6a5b4039281706152435a6b7c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character
+  deathAnimCrossFadeSeconds: 0.12
   minHealth: 70
   maxHealth: 100
   minStrength: 5

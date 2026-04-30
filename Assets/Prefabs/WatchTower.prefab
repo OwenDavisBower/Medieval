@@ -72,7 +72,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7f8e9d0c1b2a3948574635241506978b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WatchTowerArrowDefense
-  arrowPrefab: {fileID: 7100000006000006, guid: f678901234567890abcdef4512abcdef, type: 3}
+  arrowPrefab: {fileID: 7100000001000001, guid: f678901234567890abcdef4512abcdef, type: 3}
+  arrowDamage: 25
+  arrowMaxLifetime: 12
+  arrowHitRadius: 0.08
   fireIntervalMin: 0.2
   fireIntervalMax: 1.3
   combatRange: 20

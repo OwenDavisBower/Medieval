@@ -1,3 +1,4 @@
+using Medieval.Projectiles;
 using UnityEngine;
 
 /// <summary>
@@ -6,7 +7,10 @@ using UnityEngine;
 /// </summary>
 public class WatchTowerArrowDefense : MonoBehaviour
 {
-    [SerializeField] Rigidbody arrowPrefab;
+    [SerializeField] GameObject arrowPrefab;
+    [SerializeField] float arrowDamage = 25f;
+    [SerializeField] float arrowMaxLifetime = 12f;
+    [SerializeField] float arrowHitRadius = 0.08f;
     [SerializeField] float fireIntervalMin = 0.85f;
     [SerializeField] float fireIntervalMax = 1.25f;
     [SerializeField] float combatRange = 40f;
@@ -120,26 +124,8 @@ public class WatchTowerArrowDefense : MonoBehaviour
 
         Vector3 velocity = ProjectileBallistics.LobbedLaunchVelocity(origin, aim, out _);
 
-        Rigidbody arrow = Instantiate(arrowPrefab, origin, Quaternion.identity);
-        arrow.linearVelocity = velocity;
-
-        var projectile = arrow.GetComponent<ArrowProjectile>();
-        if (projectile != null)
-            projectile.SetShooterRoot(transform.root);
-
-        if (velocity.sqrMagnitude > 0.01f)
-        {
-            Vector3 forward = velocity.normalized;
-            if (forward.sqrMagnitude > 0.99f)
-                arrow.MoveRotation(Quaternion.LookRotation(forward));
-        }
-
-        if (_ownerCollider != null)
-        {
-            var ac = arrow.GetComponent<Collider>();
-            if (ac != null)
-                Physics.IgnoreCollision(_ownerCollider, ac, true);
-        }
+        ProjectileSpawnApi.Spawn(arrowPrefab, origin, velocity, arrowDamage, arrowMaxLifetime, transform.root,
+            _ownerCollider, arrowHitRadius);
 
         return true;
     }
