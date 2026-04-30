@@ -377,7 +377,7 @@ MonoBehaviour:
   postRangedDodgeRetreatRatio: 0.28
   postRangedDodgeDelay: 0.14
   rangedDodgeCooldown: 0.42
-  minLoiterRadius: 2.5
+  minLoiterRadius: 2
   maxLoiterRadius: 5.5
   trailBehindStrength: 0.35
   maxTrailOffset: 2

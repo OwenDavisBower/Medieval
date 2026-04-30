@@ -103,6 +103,10 @@ namespace Medieval.NpcMovement
                     }
                 }
 
+                if (anchor.HasAnchor != 0 && seek.HasOverride == 0)
+                    seekPoint = NpcMath.AdjustSeekAroundAnchorDisc(selfPos, seekPoint, anchor.Position, cfg.MinLoiterRadius,
+                        rawGoal);
+
                 float3 flat = seekPoint - selfPos;
                 flat.y = 0f;
 
@@ -172,63 +176,19 @@ namespace Medieval.NpcMovement
                 switch (mstate.Mode)
                 {
                     case NpcMovementMode.Orbit:
-                        rawGoal = ComputeOrbit(in mstate, in cfg, in anchor);
+                        rawGoal = NpcLoiterKernels.ComputeOrbit(in mstate, in cfg, in anchor, ElapsedTime);
                         return true;
                     case NpcMovementMode.MoveTowards:
                         rawGoal = anchor.Position;
                         return true;
                     case NpcMovementMode.WanderAroundTarget:
-                        rawGoal = ComputeWander(ref mstate, in cfg, in anchor);
+                        NpcLoiterKernels.AdvanceWanderRepick(ref mstate, in cfg, in anchor, ElapsedTime);
+                        rawGoal = NpcLoiterKernels.ComputeWanderPosition(in mstate, in cfg, in anchor, ElapsedTime);
                         return true;
                     default:
                         rawGoal = anchor.Position;
                         return true;
                 }
-            }
-
-            float3 ComputeOrbit(in NpcMovementState mstate, in NpcMovementConfig cfg, in NpcAnchorTarget anchor)
-            {
-                float t = ElapsedTime * cfg.NoiseFrequency;
-                float angleJitter = (NpcMath.Perlin01(mstate.NoiseA, t) - 0.5f) * 2f *
-                                    math.radians(cfg.AngleWobbleDegrees);
-                float r = mstate.BaseRadius +
-                          (NpcMath.Perlin01(t, mstate.NoiseB) - 0.5f) * 2f * cfg.RadiusWobble;
-                float angle = mstate.BaseAngle + angleJitter;
-                float3 offset = new float3(math.sin(angle), 0f, math.cos(angle)) * r;
-
-                float3 trail = float3.zero;
-                if (cfg.TrailBehindStrength > 0f)
-                {
-                    float3 pv = anchor.LinearVelocity;
-                    pv.y = 0f;
-                    float mag = math.length(pv);
-                    if (mag > 0.05f)
-                        trail = -math.normalize(pv) * math.min(mag * cfg.TrailBehindStrength, cfg.MaxTrailOffset);
-                }
-
-                return anchor.Position + trail + offset;
-            }
-
-            float3 ComputeWander(ref NpcMovementState mstate, in NpcMovementConfig cfg, in NpcAnchorTarget anchor)
-            {
-                if (ElapsedTime >= mstate.NextWanderPickTime)
-                {
-                    float jitter = 0.7f + mstate.Rng.NextFloat() * 0.6f;
-                    mstate.NextWanderPickTime = ElapsedTime + cfg.RepickWanderInterval * jitter;
-
-                    float2 disk = mstate.Rng.NextFloat2Direction() * mstate.Rng.NextFloat() * cfg.WanderRadius;
-                    mstate.BaseRadius = math.length(disk);
-                    mstate.BaseAngle = mstate.BaseRadius > 1e-5f ? math.atan2(disk.x, disk.y) : 0f;
-                }
-
-                float t = ElapsedTime * cfg.NoiseFrequency;
-                float angleJitter = (NpcMath.Perlin01(mstate.NoiseA, t) - 0.5f) * 2f *
-                                    math.radians(cfg.AngleWobbleDegrees);
-                float rWobble = (NpcMath.Perlin01(t, mstate.NoiseB) - 0.5f) * 2f * cfg.RadiusWobble;
-                float angle = mstate.BaseAngle + angleJitter;
-                float r = math.clamp(mstate.BaseRadius + rWobble, 0f, cfg.WanderRadius);
-                float3 offset = new float3(math.sin(angle), 0f, math.cos(angle)) * r;
-                return anchor.Position + offset;
             }
         }
     }

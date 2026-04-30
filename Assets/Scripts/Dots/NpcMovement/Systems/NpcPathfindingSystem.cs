@@ -44,8 +44,8 @@ namespace Medieval.NpcMovement
                     continue;
                 }
 
-                if (!TryResolveGoal(stateRW.ValueRO, seek.ValueRO, anchor.ValueRO, transformRO.ValueRO.Position,
-                        out float3 goal))
+                if (!TryResolveGoal(stateRW.ValueRO, cfg.ValueRO, seek.ValueRO, anchor.ValueRO,
+                        transformRO.ValueRO.Position, elapsed, out float3 goal))
                 {
                     corners.Clear();
                     pathStateRW.ValueRW.PathValid = 0;
@@ -136,21 +136,32 @@ namespace Medieval.NpcMovement
             query.Dispose();
         }
 
-        static bool TryResolveGoal(in NpcMovementState state, in NpcSeekOverride seek, in NpcAnchorTarget anchor,
-            in float3 selfPos, out float3 goal)
+        static bool TryResolveGoal(in NpcMovementState state, in NpcMovementConfig cfg, in NpcSeekOverride seek,
+            in NpcAnchorTarget anchor, in float3 selfPos, float elapsedTime, out float3 goal)
         {
             if (seek.HasOverride != 0)
             {
                 goal = seek.Position;
                 return true;
             }
-            if (anchor.HasAnchor != 0)
+            if (anchor.HasAnchor == 0)
             {
-                goal = anchor.Position;
-                return true;
+                goal = selfPos;
+                return false;
             }
-            goal = selfPos;
-            return false;
+
+            switch (state.Mode)
+            {
+                case NpcMovementMode.Orbit:
+                    goal = NpcLoiterKernels.ComputeOrbit(in state, in cfg, in anchor, elapsedTime);
+                    return true;
+                case NpcMovementMode.WanderAroundTarget:
+                    goal = NpcLoiterKernels.ComputeWanderPosition(in state, in cfg, in anchor, elapsedTime);
+                    return true;
+                default:
+                    goal = anchor.Position;
+                    return true;
+            }
         }
     }
 }
