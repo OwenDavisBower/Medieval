@@ -19,6 +19,7 @@ public class TreeIndirectRenderer : MonoBehaviour
         public ShadowCastingMode ShadowCastingMode;
         public bool ReceiveShadows;
         public LightProbeUsage LightProbeUsage;
+        public float MeshWorldYOffset;
     }
 
     TreeSpawnConfig _config;
@@ -91,7 +92,8 @@ public class TreeIndirectRenderer : MonoBehaviour
                     out bool receiveShadows,
                     out LightProbeUsage probes,
                     out _,
-                    out _))
+                    out _,
+                    out float meshWorldYOffset))
                 continue;
 
             if (mesh == null || material == null)
@@ -106,7 +108,8 @@ public class TreeIndirectRenderer : MonoBehaviour
                 Layer = layer,
                 ShadowCastingMode = shadow,
                 ReceiveShadows = receiveShadows,
-                LightProbeUsage = probes
+                LightProbeUsage = probes,
+                MeshWorldYOffset = meshWorldYOffset
             };
             batches.Add(batch);
         }
@@ -151,15 +154,17 @@ public class TreeIndirectRenderer : MonoBehaviour
         for (int i = 0; i < batch.Matrices.Length; i++)
         {
             int si = batch.InstanceIndices[i];
-            batch.Matrices[i] = MatrixFromInstance(in _snapshot[si]) * _instanceMeshRotationMatrix;
+            batch.Matrices[i] = MatrixFromInstance(in _snapshot[si], batch.MeshWorldYOffset) * _instanceMeshRotationMatrix;
         }
     }
 
-    public static Matrix4x4 MatrixFromInstance(in TreeInstanceData d)
+    public static Matrix4x4 MatrixFromInstance(in TreeInstanceData d, float worldYOffset = 0f)
     {
         var s = math.max(d.Scale, 1e-4f);
         var scale = new Vector3(s, s, s);
-        return Matrix4x4.TRS((Vector3)d.Position, (Quaternion)d.Rotation, scale);
+        var p = (Vector3)d.Position;
+        p.y += worldYOffset;
+        return Matrix4x4.TRS(p, (Quaternion)d.Rotation, scale);
     }
 
     static Bounds EncapsulateInstances(TreeSpawnConfig config, IReadOnlyList<TreeInstanceData> instances)
@@ -169,7 +174,20 @@ public class TreeIndirectRenderer : MonoBehaviour
         for (int i = 0; i < instances.Count; i++)
         {
             float3 p = instances[i].Position;
-            var wp = new Vector3(p.x, p.y, p.z);
+            float yOff = 0f;
+            _ = config.TryGetVariantInstancing(
+                instances[i].VariantId,
+                out _,
+                out _,
+                out _,
+                out _,
+                out _,
+                out _,
+                out _,
+                out _,
+                out yOff);
+
+            var wp = new Vector3(p.x, p.y + yOff, p.z);
             min = Vector3.Min(min, wp);
             max = Vector3.Max(max, wp);
         }
@@ -180,6 +198,7 @@ public class TreeIndirectRenderer : MonoBehaviour
             if (!config.TryGetVariantInstancing(
                     instances[i].VariantId,
                     out Mesh mesh,
+                    out _,
                     out _,
                     out _,
                     out _,

@@ -20,6 +20,8 @@ public struct TreeSpawnWeightedVariant
     [SerializeField, Min(0.1f)] float capsuleHeight;
     [Tooltip("World-space capsule radius for TreeColliderPool (matches CapsuleCollider.radius).")]
     [SerializeField, Min(0.05f)] float capsuleRadius;
+    [Tooltip("Extra world-space Y for this variant after terrain placement (pivot / sink adjustment).")]
+    [SerializeField] float meshWorldYOffset;
 
     [SerializeField, HideInInspector]
     [FormerlySerializedAs("prefab")]
@@ -34,6 +36,7 @@ public struct TreeSpawnWeightedVariant
     public LightProbeUsage LightProbeUsage => lightProbeUsage;
     public float CapsuleHeight => capsuleHeight;
     public float CapsuleRadius => capsuleRadius;
+    public float MeshWorldYOffset => meshWorldYOffset;
 
     public bool IsSpawnable => mesh != null && material != null;
 
@@ -129,6 +132,8 @@ public class TreeSpawnConfig : ScriptableObject
     TreeSpawnWeightedVariant[] weightedTreeVariants;
     [Tooltip("Used when weighted variants are empty, or as fallback when no variant applies. Mesh/material are read from this prefab.")]
     [SerializeField] GameObject treePrefab;
+    [Tooltip("World-space Y offset for the Tree Prefab path only (weighted variants use each entry's mesh Y offset).")]
+    [SerializeField] float treePrefabMeshWorldYOffset;
     [Tooltip("Target trees per logical terrain chunk (TerrainGenerator.chunkCount grid), not world total.")]
     [SerializeField] int treeCount = 200;
     [Tooltip("Inset from procedural terrain edges when sampling tree positions (XZ).")]
@@ -152,6 +157,7 @@ public class TreeSpawnConfig : ScriptableObject
     LightProbeUsage[] _instancingProbes;
     float[] _instancingCapsuleHeight;
     float[] _instancingCapsuleRadius;
+    float[] _instancingMeshWorldYOffset;
 
     public GameObject TreePrefab => treePrefab;
 
@@ -235,7 +241,8 @@ public class TreeSpawnConfig : ScriptableObject
         out bool receiveShadows,
         out LightProbeUsage lightProbeUsage,
         out float capsuleHeight,
-        out float capsuleRadius)
+        out float capsuleRadius,
+        out float meshWorldYOffset)
     {
         EnsureInstancingCache();
         mesh = null;
@@ -246,6 +253,7 @@ public class TreeSpawnConfig : ScriptableObject
         lightProbeUsage = LightProbeUsage.Off;
         capsuleHeight = 8f;
         capsuleRadius = 0.6f;
+        meshWorldYOffset = 0f;
 
         if (_instancingMeshes == null || (uint)variantId >= (uint)_instancingMeshes.Length)
             return false;
@@ -258,6 +266,7 @@ public class TreeSpawnConfig : ScriptableObject
         lightProbeUsage = _instancingProbes != null ? _instancingProbes[variantId] : LightProbeUsage.Off;
         capsuleHeight = _instancingCapsuleHeight != null ? _instancingCapsuleHeight[variantId] : 8f;
         capsuleRadius = _instancingCapsuleRadius != null ? _instancingCapsuleRadius[variantId] : 0.6f;
+        meshWorldYOffset = _instancingMeshWorldYOffset != null ? _instancingMeshWorldYOffset[variantId] : 0f;
         return mesh != null && material != null;
     }
 
@@ -316,6 +325,7 @@ public class TreeSpawnConfig : ScriptableObject
             _instancingProbes = null;
             _instancingCapsuleHeight = null;
             _instancingCapsuleRadius = null;
+            _instancingMeshWorldYOffset = null;
             return;
         }
 
@@ -327,6 +337,7 @@ public class TreeSpawnConfig : ScriptableObject
         _instancingProbes = new LightProbeUsage[n];
         _instancingCapsuleHeight = new float[n];
         _instancingCapsuleRadius = new float[n];
+        _instancingMeshWorldYOffset = new float[n];
 
         if (weightedTreeVariants != null && weightedTreeVariants.Length > 0)
         {
@@ -358,6 +369,7 @@ public class TreeSpawnConfig : ScriptableObject
         // Match former struct field defaults (C# 9 has no struct field initializers).
         _instancingCapsuleHeight[index] = e.CapsuleHeight > 0f ? e.CapsuleHeight : 8f;
         _instancingCapsuleRadius[index] = e.CapsuleRadius > 0f ? e.CapsuleRadius : 0.6f;
+        _instancingMeshWorldYOffset[index] = e.MeshWorldYOffset;
     }
 
     void FillInstancingFromPrefab(int index, GameObject prefab)
@@ -426,5 +438,7 @@ public class TreeSpawnConfig : ScriptableObject
             _instancingCapsuleHeight[index] = 8f;
             _instancingCapsuleRadius[index] = 0.6f;
         }
+
+        _instancingMeshWorldYOffset[index] = treePrefabMeshWorldYOffset;
     }
 }

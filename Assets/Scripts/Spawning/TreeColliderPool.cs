@@ -56,7 +56,8 @@ public class TreeColliderPool : MonoBehaviour
                     out _,
                     out _,
                     out float capsuleHeight,
-                    out float capsuleRadius))
+                    out float capsuleRadius,
+                    out float meshWorldYOffset))
             {
                 _capsules[i].enabled = false;
                 continue;
@@ -69,8 +70,10 @@ public class TreeColliderPool : MonoBehaviour
             cap.center = new Vector3(0f, cap.height * 0.5f, 0f);
 
             Transform tr = _entries[i];
+            var pos = (Vector3)d.Position;
+            pos.y += meshWorldYOffset;
             tr.SetPositionAndRotation(
-                (Vector3)d.Position,
+                pos,
                 (Quaternion)d.Rotation * config.InstanceMeshRotationOffset);
             cap.enabled = true;
         }

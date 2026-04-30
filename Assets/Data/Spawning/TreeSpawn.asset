@@ -22,6 +22,7 @@ MonoBehaviour:
     lightProbeUsage: 1
     capsuleHeight: 5.2071333
     capsuleRadius: 0.52
+    meshWorldYOffset: 2
     authoringPrefab: {fileID: 0}
   - mesh: {fileID: 5461320835613783329, guid: 21800da2ab3fd435ab10698e54d5bb11, type: 3}
     material: {fileID: 2100000, guid: bef2a5a71b7654e2b9a723448d437fe2, type: 2}
@@ -32,8 +33,10 @@ MonoBehaviour:
     lightProbeUsage: 1
     capsuleHeight: 5.2071333
     capsuleRadius: 1.0440187
+    meshWorldYOffset: 3
     authoringPrefab: {fileID: 0}
   treePrefab: {fileID: 343138504714799944, guid: 92daf5674a7784361899e62590c7b70d, type: 3}
+  treePrefabMeshWorldYOffset: 0
   treeCount: 100
   terrainEdgeMargin: 8
   minSeparation: 3
