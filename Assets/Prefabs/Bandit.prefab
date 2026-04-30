@@ -396,7 +396,13 @@ MonoBehaviour:
   combatRange: 20
   attackInterval: 1.1
   damage: 14
+  rangedMode: 1
   rangedWindupSeconds: 0.12
+  projectilePrefab: {fileID: 7100000001000001, guid: f678901234567890abcdef4512abcdef, type: 3}
+  projectileSpeed: 24
+  projectileHitRadius: 0.35
+  projectileMaxLifetimeSeconds: 4
+  projectileSpawnOffset: {x: 0, y: 1.35, z: 0.5}
   meleeRange: 1.12
   meleeStunSeconds: 0.28
 --- !u!1001 &604132291877291529

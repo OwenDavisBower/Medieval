@@ -206,7 +206,26 @@ namespace Medieval.DotsCombatSystems
                 {
                     if (now >= st.RangedFireTime && target.ValueRO.HasTarget != 0 && target.ValueRO.Value != Entity.Null)
                     {
-                        DamageApi.Enqueue(ecb, target.ValueRO.Value, cfg.ValueRO.Damage, entity);
+                        if (cfg.ValueRO.RangedMode == RangedAttackMode.Projectile && cfg.ValueRO.ProjectilePrefab != Entity.Null)
+                        {
+                            Entity p = ecb.Instantiate(cfg.ValueRO.ProjectilePrefab);
+                            float3 spawnPos = myTf.ValueRO.Position + math.rotate(myTf.ValueRO.Rotation, cfg.ValueRO.ProjectileSpawnOffset);
+                            ecb.SetComponent(p, LocalTransform.FromPositionRotation(spawnPos, myTf.ValueRO.Rotation));
+                            ecb.AddComponent(p, new CombatProjectile
+                            {
+                                Target = target.ValueRO.Value,
+                                LastKnownTargetPosition = target.ValueRO.LastKnownPosition,
+                                Source = entity,
+                                Damage = cfg.ValueRO.Damage,
+                                Speed = cfg.ValueRO.ProjectileSpeed,
+                                HitRadius = cfg.ValueRO.ProjectileHitRadius,
+                                ExpireAtTime = now + cfg.ValueRO.ProjectileMaxLifetimeSeconds
+                            });
+                        }
+                        else
+                        {
+                            DamageApi.Enqueue(ecb, target.ValueRO.Value, cfg.ValueRO.Damage, entity);
+                        }
                         st.RangedShotQueued = 0;
                     }
                 }
@@ -249,7 +268,6 @@ namespace Medieval.DotsCombatSystems
                 }
                 else
                 {
-                    // Ranged placeholder: windup then direct damage (VAT/projectile integration later).
                     st.NextAttackTime = now + math.max(0.02f, cfg.ValueRO.AttackInterval);
                     st.RangedShotQueued = 1;
                     st.RangedFireTime = now + math.max(0f, cfg.ValueRO.RangedWindupSeconds);

@@ -9,10 +9,17 @@ namespace Medieval.DotsCombat
         Melee = 1
     }
 
+    public enum RangedAttackMode : byte
+    {
+        DirectDamage = 0,
+        Projectile = 1
+    }
+
     /// <summary>Static tuning for target acquisition and attacks.</summary>
     public struct NpcCombatConfig : IComponentData
     {
         public CombatRole Role;
+        public RangedAttackMode RangedMode;
 
         public float AggroRadius;
         public float CombatRange;
@@ -20,8 +27,13 @@ namespace Medieval.DotsCombat
         public float AttackInterval;
         public float Damage;
 
-        // Ranged (direct-damage placeholder until VAT/projectile integration).
+        // Ranged.
         public float RangedWindupSeconds;
+        public Entity ProjectilePrefab;
+        public float ProjectileSpeed;
+        public float ProjectileHitRadius;
+        public float ProjectileMaxLifetimeSeconds;
+        public float3 ProjectileSpawnOffset;
 
         // Melee.
         public float MeleeRange;
