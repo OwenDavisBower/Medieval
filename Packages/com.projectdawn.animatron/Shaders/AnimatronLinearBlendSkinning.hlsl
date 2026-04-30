@@ -22,8 +22,8 @@ void Animatron_LinearBlendSkinning_float(uint skinMatrixIndex, uint4 indices, fl
     tangentOut = 0;
     for (int i = 0; i < 4; ++i)
     {
-        uint skinMatrixIndex = indices[i] + skinMatrixIndex;
-        float3x4 skinMatrix = LoadSkinMatrix(skinMatrixIndex);
+        uint skinIndex = indices[i] + skinMatrixIndex;
+        float3x4 skinMatrix = LoadSkinMatrix(skinIndex);
         float3 vtransformed = mul(skinMatrix, float4(positionIn, 1));
         float3 ntransformed = mul(skinMatrix, float4(normalIn, 0));
         float3 ttransformed = mul(skinMatrix, float4(tangentIn, 0));
@@ -41,8 +41,8 @@ void Animatron_LinearBlendSkinning_dynamic_float(uint skinMatrixIndex, int blend
     tangentOut = 0;
     for (int i = 0; i < blendWeightCount; ++i)
     {
-        uint skinMatrixIndex = indices[i] + skinMatrixIndex;
-        float3x4 skinMatrix = LoadSkinMatrix(skinMatrixIndex);
+        uint skinIndex = indices[i] + skinMatrixIndex;
+        float3x4 skinMatrix = LoadSkinMatrix(skinIndex);
         float3 vtransformed = mul(skinMatrix, float4(positionIn, 1));
         float3 ntransformed = mul(skinMatrix, float4(normalIn, 0));
         float3 ttransformed = mul(skinMatrix, float4(tangentIn, 0));

@@ -3,7 +3,12 @@ guid: 695722a5675fd4b69b037abe9e8f1a21
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Material_1
+    second: {fileID: 2100000, guid: 2cb5c60f9e17044e78cc2afa383e541f, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -272,7 +277,7 @@ ModelImporter:
       scale: {x: 0.01, y: 0.01, z: 0.01}
     - name: Hips
       parentName: Armature
-      position: {x: -0.43556288, y: -3.8026054, z: 103.146965}
+      position: {x: -0.4355629, y: -3.8026054, z: 103.146965}
       rotation: {x: 0.073504545, y: -0.1299728, z: 0.7268434, w: 0.67037517}
       scale: {x: 1, y: 1, z: 1}
     - name: LeftUpLeg
@@ -317,7 +322,7 @@ ModelImporter:
       scale: {x: 1.0000001, y: 1.0000002, z: 1.0000005}
     - name: Spine02
       parentName: Hips
-      position: {x: 4.834355, y: -1.4569902, z: 13.91719}
+      position: {x: 4.834355, y: -1.4569902, z: 13.917191}
       rotation: {x: 0.41179004, y: -0.40489304, z: -0.6161459, w: 0.5355884}
       scale: {x: 0.9999998, y: 0.9999999, z: 0.9999996}
     - name: Spine01
@@ -347,7 +352,7 @@ ModelImporter:
       scale: {x: 1.0000008, y: 1.0000002, z: 1.0000001}
     - name: LeftHand
       parentName: LeftForeArm
-      position: {x: -0.0000025749207, y: 26.440123, z: 0.0000035136939}
+      position: {x: -0.0000025749207, y: 26.440125, z: 0.0000035136939}
       rotation: {x: 0.025869638, y: -0.025921717, z: -0.031980116, w: 0.9988174}
       scale: {x: 0.9999998, y: 1.0000002, z: 0.99999994}
     - name: RightShoulder

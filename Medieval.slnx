@@ -6,6 +6,7 @@
   <Project Path="ProjectDawn.Animatron.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Samples.Runtime.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="ProjectDawn.Animator.Samples.Survivor.csproj" />
   <Project Path="ProjectDawn.Animatron.Editor.csproj" />
   <Project Path="NpcMovement.csproj" />
   <Project Path="ProjectDawn.Animatron.Tests.csproj" />
