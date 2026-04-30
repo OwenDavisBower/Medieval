@@ -191,7 +191,8 @@ public class RockIndirectRenderer : MonoBehaviour
         for (int c = 0; c < cameras.Count; c++)
         {
             Camera cam = cameras[c];
-            if (cam == null || !cam.isActiveAndEnabled)
+            // Scene View cameras are still rendered by URP but may report inactive; skip only truly inactive non-Scene cameras.
+            if (cam == null || (!cam.isActiveAndEnabled && cam.cameraType != CameraType.SceneView))
                 continue;
 
             for (int b = 0; b < _batches.Count; b++)
