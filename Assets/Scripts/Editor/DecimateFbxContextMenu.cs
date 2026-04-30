@@ -11,6 +11,30 @@ using Debug = UnityEngine.Debug;
 /// </summary>
 public static class DecimateFbxContextMenu
 {
+    [MenuItem("Assets/Decimate FBX/Decimate 10", false, 1203)]
+    static void Decimate10() => RunDecimate(10);
+
+    [MenuItem("Assets/Decimate FBX/Decimate 10", true)]
+    static bool Validate10() => HasFbxSelection();
+
+    [MenuItem("Assets/Decimate FBX/Decimate 20", false, 1204)]
+    static void Decimate20() => RunDecimate(20);
+
+    [MenuItem("Assets/Decimate FBX/Decimate 20", true)]
+    static bool Validate20() => HasFbxSelection();
+
+    [MenuItem("Assets/Decimate FBX/Decimate 50", false, 1205)]
+    static void Decimate50() => RunDecimate(50);
+
+    [MenuItem("Assets/Decimate FBX/Decimate 50", true)]
+    static bool Validate50() => HasFbxSelection();
+
+    [MenuItem("Assets/Decimate FBX/Decimate 100", false, 1206)]
+    static void Decimate100() => RunDecimate(100);
+
+    [MenuItem("Assets/Decimate FBX/Decimate 100", true)]
+    static bool Validate100() => HasFbxSelection();
+
     [MenuItem("Assets/Decimate FBX/Decimate 200", false, 1210)]
     static void Decimate200() => RunDecimate(200);
 
