@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Medieval.Npcs;
+using Unity.Mathematics;
+using Random = UnityEngine.Random;
 
 /// <summary>
 /// Places configured building prefabs on flat terrain (near <see cref="TerrainGenerator.baseHeight"/>).
@@ -458,6 +461,11 @@ public class SettlementBuilder : MonoBehaviour
                 continue;
 
             float vyaw = Random.Range(0f, 360f);
+            // If a baked Entities Graphics villager prefab is registered, prefer spawning DOTS villagers.
+            // (Minimal mode: no per-villager initialization/wander anchor yet.)
+            if (NpcSpawnApi.SpawnVillager(vpos, quaternion.Euler(0f, math.radians(vyaw), 0f)))
+                continue;
+
             GameObject villagerGo = Instantiate(villagerPrefab, vpos, Quaternion.Euler(0f, vyaw, 0f), transform);
             var villager = villagerGo.GetComponent<VillagerController>();
             if (villager != null)

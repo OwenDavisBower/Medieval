@@ -1,4 +1,7 @@
 using UnityEngine;
+using Medieval.Npcs;
+using Unity.Mathematics;
+using URandom = UnityEngine.Random;
 
 public class FollowerSpawner : MonoBehaviour
 {
@@ -34,13 +37,17 @@ public class FollowerSpawner : MonoBehaviour
 
         for (int i = 0; i < followerCount; i++)
         {
-            float angle = Random.Range(0f, Mathf.PI * 2f);
-            float rad = Random.Range(spawnRadiusMin, spawnRadiusMax);
+            float angle = URandom.Range(0f, Mathf.PI * 2f);
+            float rad = URandom.Range(spawnRadiusMin, spawnRadiusMax);
             Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * rad;
             Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(leaderWorldPosition + offset);
 
+            // If a baked Entities Graphics follower prefab is registered, prefer spawning DOTS followers.
+            if (NpcSpawnApi.SpawnFollower(pos, quaternion.identity))
+                continue;
+
             FollowerController follower = Instantiate(followerPrefab, pos, Quaternion.identity);
-            follower.ApplyCombatRole(Random.value < 0.5f);
+            follower.ApplyCombatRole(URandom.value < 0.5f);
             follower.Initialize();
         }
     }

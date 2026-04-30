@@ -1,4 +1,7 @@
 using UnityEngine;
+using Medieval.Npcs;
+using Unity.Mathematics;
+using Random = UnityEngine.Random;
 
 public class BanditCamp : MonoBehaviour
 {
@@ -90,6 +93,10 @@ public class BanditCamp : MonoBehaviour
             float rad = Random.Range(minR, maxR);
             Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * rad;
             Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(transform.position + offset);
+
+            // If a baked Entities Graphics bandit prefab is registered, prefer spawning DOTS bandits.
+            if (NpcSpawnApi.SpawnBandit(pos, quaternion.identity))
+                continue;
 
             BanditController bandit = Instantiate(banditPrefab, pos, Quaternion.identity);
             bandit.ApplyCombatRole(Random.value < 0.5f);

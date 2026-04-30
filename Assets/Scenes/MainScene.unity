@@ -500,7 +500,7 @@ GameObject:
   - component: {fileID: 738953565}
   - component: {fileID: 738953564}
   m_Layer: 0
-  m_Name: ProjectileSubScene
+  m_Name: PrefabSubScene
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
