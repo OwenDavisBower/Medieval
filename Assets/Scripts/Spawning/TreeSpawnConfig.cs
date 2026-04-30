@@ -144,6 +144,8 @@ public class TreeSpawnConfig : ScriptableObject
     [SerializeField] float pathClearance = -1f;
     [Tooltip("Radius burned into the procedural placement mask after each tree spawns (XZ).")]
     [SerializeField] float occupationFootprintRadius = 2.5f;
+    [Tooltip("Extra world-space radius on the NavMesh-only capsule in TreeColliderPool (physics capsule stays at variant radius × scale).")]
+    [SerializeField, Min(0f)] float navMeshCarveRadiusExtra = 1f;
     [Tooltip("Passed to height sampling (meters above terrain surface), same role as TerrainSpawnUtility.")]
     [SerializeField] float terrainHeightOffset = 0.05f;
     [SerializeField] float instanceScaleMin = 0.9f;
@@ -276,10 +278,12 @@ public class TreeSpawnConfig : ScriptableObject
     public int MaxAttemptsPerTree => maxAttemptsPerTree;
     public float PathClearance => pathClearance;
     public float OccupationFootprintRadius => occupationFootprintRadius;
+    public float NavMeshCarveRadiusExtra => navMeshCarveRadiusExtra;
 
     void OnValidate()
     {
         terrainEdgeMargin = Mathf.Max(0f, terrainEdgeMargin);
+        navMeshCarveRadiusExtra = Mathf.Max(0f, navMeshCarveRadiusExtra);
         instanceScaleMin = Mathf.Max(0.01f, instanceScaleMin);
         instanceScaleMax = Mathf.Max(instanceScaleMin, instanceScaleMax);
 

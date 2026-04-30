@@ -13,6 +13,7 @@ public class TreeColliderPool : MonoBehaviour
 
     Transform[] _entries;
     CapsuleCollider[] _capsules;
+    CapsuleCollider[] _navMeshCarveCapsules;
 
     void Awake()
     {
@@ -22,6 +23,7 @@ public class TreeColliderPool : MonoBehaviour
         poolSize = Mathf.Max(0, poolSize);
         _entries = new Transform[poolSize];
         _capsules = new CapsuleCollider[poolSize];
+        _navMeshCarveCapsules = new CapsuleCollider[poolSize];
 
         for (int i = 0; i < poolSize; i++)
         {
@@ -30,8 +32,12 @@ public class TreeColliderPool : MonoBehaviour
             go.hideFlags = HideFlags.HideInHierarchy;
             var cap = go.AddComponent<CapsuleCollider>();
             cap.enabled = false;
+            var navCap = go.AddComponent<CapsuleCollider>();
+            navCap.enabled = false;
+            navCap.excludeLayers = Physics.AllLayers;
             _entries[i] = go.transform;
             _capsules[i] = cap;
+            _navMeshCarveCapsules[i] = navCap;
         }
     }
 
@@ -43,6 +49,7 @@ public class TreeColliderPool : MonoBehaviour
         if (_capsules == null || config == null || instances == null)
             return;
 
+        float carveExtra = Mathf.Max(0f, config.NavMeshCarveRadiusExtra);
         int n = Mathf.Min(instances.Count, _capsules.Length);
         for (int i = 0; i < n; i++)
         {
@@ -60,6 +67,8 @@ public class TreeColliderPool : MonoBehaviour
                     out _))
             {
                 _capsules[i].enabled = false;
+                if (_navMeshCarveCapsules != null)
+                    _navMeshCarveCapsules[i].enabled = false;
                 continue;
             }
 
@@ -69,13 +78,30 @@ public class TreeColliderPool : MonoBehaviour
             cap.direction = 1;
             cap.center = new Vector3(0f, cap.height * 0.5f, 0f);
 
+            if (_navMeshCarveCapsules != null && carveExtra > 0f)
+            {
+                var navCap = _navMeshCarveCapsules[i];
+                float navR = cap.radius + carveExtra;
+                navCap.radius = navR;
+                navCap.height = Mathf.Max(cap.height, 2f * navR);
+                navCap.direction = 1;
+                navCap.center = new Vector3(0f, navCap.height * 0.5f, 0f);
+                navCap.enabled = true;
+            }
+            else if (_navMeshCarveCapsules != null)
+                _navMeshCarveCapsules[i].enabled = false;
+
             Transform tr = _entries[i];
             tr.SetPositionAndRotation((Vector3)d.Position, (Quaternion)d.Rotation);
             cap.enabled = true;
         }
 
         for (int i = n; i < _capsules.Length; i++)
+        {
             _capsules[i].enabled = false;
+            if (_navMeshCarveCapsules != null)
+                _navMeshCarveCapsules[i].enabled = false;
+        }
     }
 
     public void ClearAll()
@@ -84,6 +110,10 @@ public class TreeColliderPool : MonoBehaviour
             return;
 
         for (int i = 0; i < _capsules.Length; i++)
+        {
             _capsules[i].enabled = false;
+            if (_navMeshCarveCapsules != null)
+                _navMeshCarveCapsules[i].enabled = false;
+        }
     }
 }
