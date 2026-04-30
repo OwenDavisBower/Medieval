@@ -5,16 +5,13 @@ using UnityEngine;
 
 namespace Medieval.Projectiles
 {
-    /// <summary>Spawns DOTS-driven projectiles with a classic mesh <see cref="Transform"/> visual.</summary>
+    /// <summary>Spawns DOTS-driven projectiles using an Entities Graphics prefab.</summary>
     public static class ProjectileSpawnApi
     {
         const float DefaultHitRadius = 0.08f;
 
-        /// <summary>
-        /// Spawns a projectile. Disables physics colliders/rigidbodies on the visual so simulation uses ECS only.
-        /// </summary>
+        /// <summary>Spawns a projectile entity and sets initial state.</summary>
         public static void Spawn(
-            GameObject visualPrefab,
             Vector3 worldOrigin,
             Vector3 velocity,
             float damage,
@@ -23,69 +20,57 @@ namespace Medieval.Projectiles
             Collider ownerCollider,
             float hitRadius = DefaultHitRadius)
         {
-            if (visualPrefab == null)
-                return;
-
             World world = World.DefaultGameObjectInjectionWorld;
             if (world == null || !world.IsCreated)
                 return;
 
-            GameObject visual = Object.Instantiate(visualPrefab, worldOrigin, Quaternion.identity);
-            DisablePhysicsOnVisual(visual);
+            EntityManager em = world.EntityManager;
+            if (!TryGetArrowPrototypePrefab(em, out Entity prefab))
+                return;
 
+            float3 pos = new float3(worldOrigin.x, worldOrigin.y, worldOrigin.z);
+            quaternion rot = quaternion.identity;
             if (velocity.sqrMagnitude > 0.01f)
             {
-                Vector3 forward = velocity.normalized;
-                if (forward.sqrMagnitude > 0.99f)
-                    visual.transform.rotation = Quaternion.LookRotation(forward);
+                float3 v = new float3(velocity.x, velocity.y, velocity.z);
+                rot = quaternion.LookRotationSafe(math.normalize(v), new float3(0f, 1f, 0f));
             }
 
-            Transform vt = visual.transform;
-            Vector3 lossy = vt.lossyScale;
-            float uniform = math.max(lossy.x, math.max(lossy.y, lossy.z));
-            if (uniform < 1e-5f)
-                uniform = 1f;
-
-            quaternion rot = new quaternion(vt.rotation.x, vt.rotation.y, vt.rotation.z, vt.rotation.w);
-            float3 pos = new float3(worldOrigin.x, worldOrigin.y, worldOrigin.z);
-
-            EntityManager em = world.EntityManager;
-            Entity e = em.CreateEntity();
+            Entity e = em.Instantiate(prefab);
 
 #if UNITY_EDITOR
             em.SetName(e, "ProjectileArrow");
 #endif
 
+            // The prefab carries render components; we only need to author simulation state.
             em.AddComponent<ProjectileTag>(e);
-            em.AddComponentData(e, LocalTransform.FromPositionRotationScale(pos, rot, uniform));
+            em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, rot, 1f));
             em.AddComponentData(e, new ProjectileVelocity { Value = new float3(velocity.x, velocity.y, velocity.z) });
             em.AddComponentData(e, new ProjectileLifetime { SecondsRemaining = maxLifetimeSeconds });
             em.AddComponentData(e, new ProjectileDamage { Amount = damage });
             int shooterId = shooterRoot != null ? shooterRoot.root.GetInstanceID() : 0;
             em.AddComponentData(e, new ProjectileShooterId { RootInstanceId = shooterId });
+            int ownerColliderId = ownerCollider != null ? ownerCollider.GetInstanceID() : 0;
+            em.AddComponentData(e, new ProjectileOwnerColliderId { ColliderInstanceId = ownerColliderId });
             em.AddComponentData(e, new ProjectileHitSphere { Radius = hitRadius });
             em.AddComponentData(e, new ProjectileMotionState { PreviousPosition = pos });
-
-            em.AddComponentObject(e, new ProjectileVisualCompanion
-            {
-                Visual = vt,
-                ShooterRoot = shooterRoot != null ? shooterRoot.root : null,
-                OwnerCollider = ownerCollider
-            });
         }
 
-        static void DisablePhysicsOnVisual(GameObject root)
+        static bool TryGetArrowPrototypePrefab(EntityManager em, out Entity prefab)
         {
-            foreach (var c in root.GetComponentsInChildren<Collider>())
-                c.enabled = false;
+            prefab = Entity.Null;
 
-            foreach (var rb in root.GetComponentsInChildren<Rigidbody>())
-            {
-                rb.isKinematic = true;
-                rb.detectCollisions = false;
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
-            }
+            using var q = em.CreateEntityQuery(ComponentType.ReadOnly<ProjectilePrefabRegistry>());
+            if (q.CalculateEntityCount() == 0)
+                return false;
+
+            Entity reg = q.GetSingletonEntity();
+            ProjectilePrefabRegistry data = em.GetComponentData<ProjectilePrefabRegistry>(reg);
+            if (data.ArrowPrefab == Entity.Null || !em.Exists(data.ArrowPrefab))
+                return false;
+
+            prefab = data.ArrowPrefab;
+            return true;
         }
     }
 }

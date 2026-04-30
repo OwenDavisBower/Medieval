@@ -14,7 +14,8 @@ namespace Medieval.Projectiles
         struct PendingHit
         {
             public Entity Entity;
-            public ProjectileVisualCompanion Companion;
+            public int ShooterRootInstanceId;
+            public int OwnerColliderInstanceId;
             public ProjectileDamage Damage;
             public RaycastHit Hit;
         }
@@ -24,24 +25,12 @@ namespace Medieval.Projectiles
             var em = EntityManager;
             var pending = new List<PendingHit>(8);
 
-            foreach (var (tf, motion, hitSphere, damage, companion, entity) in SystemAPI
+            foreach (var (tf, motion, hitSphere, damage, shooter, owner, entity) in SystemAPI
                          .Query<RefRO<LocalTransform>, RefRO<ProjectileMotionState>, RefRO<ProjectileHitSphere>,
-                             RefRO<ProjectileDamage>, ProjectileVisualCompanion>()
+                             RefRO<ProjectileDamage>, RefRO<ProjectileShooterId>, RefRO<ProjectileOwnerColliderId>>()
                          .WithAll<ProjectileTag>()
                          .WithEntityAccess())
             {
-                if (companion.Visual == null)
-                {
-                    pending.Add(new PendingHit
-                    {
-                        Entity = entity,
-                        Companion = companion,
-                        Damage = default,
-                        Hit = default
-                    });
-                    continue;
-                }
-
                 Vector3 prev = motion.ValueRO.PreviousPosition;
                 Vector3 cur = tf.ValueRO.Position;
                 Vector3 disp = cur - prev;
@@ -55,12 +44,15 @@ namespace Medieval.Projectiles
                 if (hits == null || hits.Length == 0)
                     continue;
 
+                int shooterRootId = shooter.ValueRO.RootInstanceId;
+                int ownerColliderId = owner.ValueRO.ColliderInstanceId;
+
                 int best = -1;
                 float bestDist = float.MaxValue;
                 for (int i = 0; i < hits.Length; i++)
                 {
                     RaycastHit h = hits[i];
-                    if (ShouldIgnoreHit(in h, companion))
+                    if (ShouldIgnoreHit(in h, shooterRootId, ownerColliderId))
                         continue;
                     if (h.distance < bestDist)
                     {
@@ -75,7 +67,8 @@ namespace Medieval.Projectiles
                 pending.Add(new PendingHit
                 {
                     Entity = entity,
-                    Companion = companion,
+                    ShooterRootInstanceId = shooterRootId,
+                    OwnerColliderInstanceId = ownerColliderId,
                     Damage = damage.ValueRO,
                     Hit = hits[best]
                 });
@@ -84,56 +77,44 @@ namespace Medieval.Projectiles
             for (int i = 0; i < pending.Count; i++)
             {
                 PendingHit p = pending[i];
-                if (p.Companion.Visual == null)
-                {
-                    em.DestroyEntity(p.Entity);
-                    continue;
-                }
-
                 if (p.Hit.collider == null)
                 {
                     em.DestroyEntity(p.Entity);
                     continue;
                 }
 
-                ApplyHitAndDestroy(em, p.Entity, p.Companion, p.Damage, p.Hit);
+                ApplyHitAndDestroy(em, p.Entity, p.ShooterRootInstanceId, p.Damage, p.Hit);
             }
         }
 
-        static bool ShouldIgnoreHit(in RaycastHit hit, ProjectileVisualCompanion companion)
+        static bool ShouldIgnoreHit(in RaycastHit hit, int shooterRootInstanceId, int ownerColliderInstanceId)
         {
             if (hit.collider == null || hit.transform == null)
                 return true;
-            if (companion.OwnerCollider != null && hit.collider == companion.OwnerCollider)
+            if (ownerColliderInstanceId != 0 && hit.collider.GetInstanceID() == ownerColliderInstanceId)
                 return true;
-            if (companion.ShooterRoot != null && hit.transform.IsChildOf(companion.ShooterRoot))
+            if (shooterRootInstanceId != 0 && hit.transform.root.GetInstanceID() == shooterRootInstanceId)
                 return true;
             return false;
         }
 
-        static void ApplyHitAndDestroy(EntityManager em, Entity entity, ProjectileVisualCompanion companion,
-            ProjectileDamage damage, RaycastHit hit)
+        static void ApplyHitAndDestroy(EntityManager em, Entity entity, int shooterRootInstanceId, ProjectileDamage damage,
+            RaycastHit hit)
         {
             var victim = hit.collider.GetComponentInParent<IDamageableHealth>();
             if (victim != null && !victim.IsDead)
             {
                 var victimMb = victim as MonoBehaviour;
-                if (victimMb != null && companion.ShooterRoot != null && victimMb.transform.root == companion.ShooterRoot)
+                if (victimMb != null && shooterRootInstanceId != 0 &&
+                    victimMb.transform.root.GetInstanceID() == shooterRootInstanceId)
                 {
-                    DestroyProjectile(em, entity, companion);
+                    em.DestroyEntity(entity);
                     return;
                 }
 
                 victim.TakeDamage(damage.Amount);
             }
 
-            DestroyProjectile(em, entity, companion);
-        }
-
-        static void DestroyProjectile(EntityManager em, Entity entity, ProjectileVisualCompanion companion)
-        {
-            if (companion.Visual != null)
-                Object.Destroy(companion.Visual.gameObject);
             em.DestroyEntity(entity);
         }
     }

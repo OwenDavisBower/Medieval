@@ -8,7 +8,6 @@ public class RangedCombat : MonoBehaviour
 {
     static readonly int ShootArrowHash = Animator.StringToHash("ShootArrow");
 
-    [SerializeField] GameObject arrowPrefab;
     [SerializeField] float arrowDamage = 25f;
     [SerializeField] float arrowMaxLifetime = 12f;
     [SerializeField] float arrowHitRadius = 0.08f;
@@ -49,7 +48,7 @@ public class RangedCombat : MonoBehaviour
     /// <returns>True if a shot was started this call (animation + scheduled release).</returns>
     public bool TryFireAt(Transform target)
     {
-        if (arrowPrefab == null || target == null)
+        if (target == null)
             return false;
         var targetHealth = target.GetComponentInParent<IDamageableHealth>();
         if (targetHealth != null && targetHealth.IsDead)
@@ -89,7 +88,7 @@ public class RangedCombat : MonoBehaviour
     IEnumerator SpawnArrowAfterLead(Transform target, float aimScale, float lead)
     {
         yield return new WaitForSeconds(lead);
-        if (arrowPrefab != null && target != null && (_selfCharacter == null || _selfCharacter.CanAttack))
+        if (target != null && (_selfCharacter == null || _selfCharacter.CanAttack))
         {
             var h = target.GetComponentInParent<IDamageableHealth>();
             if (h == null || !h.IsDead)
@@ -107,8 +106,7 @@ public class RangedCombat : MonoBehaviour
 
         Vector3 velocity = ProjectileBallistics.LobbedLaunchVelocity(origin, aim);
 
-        ProjectileSpawnApi.Spawn(arrowPrefab, origin, velocity, arrowDamage, arrowMaxLifetime, transform.root,
-            _ownerCollider, arrowHitRadius);
+        ProjectileSpawnApi.Spawn(origin, velocity, arrowDamage, arrowMaxLifetime, transform.root, _ownerCollider, arrowHitRadius);
     }
 
     

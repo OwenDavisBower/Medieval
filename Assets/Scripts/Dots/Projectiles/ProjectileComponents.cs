@@ -1,6 +1,5 @@
 using Unity.Entities;
 using Unity.Mathematics;
-using UnityEngine;
 
 namespace Medieval.Projectiles
 {
@@ -27,6 +26,12 @@ namespace Medieval.Projectiles
         public int RootInstanceId;
     }
 
+    /// <summary>Unity instance ID of the shooter's collider to ignore self-hits.</summary>
+    public struct ProjectileOwnerColliderId : IComponentData
+    {
+        public int ColliderInstanceId;
+    }
+
     public struct ProjectileHitSphere : IComponentData
     {
         public float Radius;
@@ -49,13 +54,5 @@ namespace Medieval.Projectiles
         public float3 PositionFlat;
         public float3 VelocityFlat;
         public int ShooterRootInstanceId;
-    }
-
-    /// <summary>Managed link for GPU-style mesh rendering via classic <see cref="Transform"/>.</summary>
-    public class ProjectileVisualCompanion : IComponentData
-    {
-        public Transform Visual;
-        public Transform ShooterRoot;
-        public Collider OwnerCollider;
     }
 }

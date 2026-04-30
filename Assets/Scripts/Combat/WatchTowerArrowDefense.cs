@@ -7,7 +7,6 @@ using UnityEngine;
 /// </summary>
 public class WatchTowerArrowDefense : MonoBehaviour
 {
-    [SerializeField] GameObject arrowPrefab;
     [SerializeField] float arrowDamage = 25f;
     [SerializeField] float arrowMaxLifetime = 12f;
     [SerializeField] float arrowHitRadius = 0.08f;
@@ -37,7 +36,7 @@ public class WatchTowerArrowDefense : MonoBehaviour
 
     void Update()
     {
-        if (arrowPrefab == null || Time.time < _nextFireTime)
+        if (Time.time < _nextFireTime)
             return;
 
         Transform target = FindEnemyToShoot();
@@ -124,8 +123,7 @@ public class WatchTowerArrowDefense : MonoBehaviour
 
         Vector3 velocity = ProjectileBallistics.LobbedLaunchVelocity(origin, aim, out _);
 
-        ProjectileSpawnApi.Spawn(arrowPrefab, origin, velocity, arrowDamage, arrowMaxLifetime, transform.root,
-            _ownerCollider, arrowHitRadius);
+        ProjectileSpawnApi.Spawn(origin, velocity, arrowDamage, arrowMaxLifetime, transform.root, _ownerCollider, arrowHitRadius);
 
         return true;
     }

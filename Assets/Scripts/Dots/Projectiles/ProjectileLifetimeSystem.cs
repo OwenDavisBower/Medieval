@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using Unity.Entities;
-using UnityEngine;
 
 namespace Medieval.Projectiles
 {
@@ -12,23 +10,15 @@ namespace Medieval.Projectiles
         {
             float dt = SystemAPI.Time.DeltaTime;
             var em = EntityManager;
-            var expired = new List<(Entity entity, ProjectileVisualCompanion companion)>(4);
 
-            foreach (var (life, companion, entity) in SystemAPI.Query<RefRW<ProjectileLifetime>, ProjectileVisualCompanion>()
+            // Structural changes are small (arrows); keep it simple for now.
+            foreach (var (life, entity) in SystemAPI.Query<RefRW<ProjectileLifetime>>()
                          .WithAll<ProjectileTag>()
                          .WithEntityAccess())
             {
                 life.ValueRW.SecondsRemaining -= dt;
                 if (life.ValueRO.SecondsRemaining <= 0f)
-                    expired.Add((entity, companion));
-            }
-
-            for (int i = 0; i < expired.Count; i++)
-            {
-                (Entity entity, ProjectileVisualCompanion companion) = expired[i];
-                if (companion.Visual != null)
-                    Object.Destroy(companion.Visual.gameObject);
-                em.DestroyEntity(entity);
+                    em.DestroyEntity(entity);
             }
         }
     }
