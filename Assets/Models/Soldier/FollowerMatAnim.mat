@@ -20,7 +20,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: SoldierMatAnimatron
+  m_Name: FollowerMatAnim
   m_Shader: {fileID: 4800000, guid: 3b27ecd18242041bd96941914b7a2fa5, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0

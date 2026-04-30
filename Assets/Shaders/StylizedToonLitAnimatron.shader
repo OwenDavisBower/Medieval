@@ -27,10 +27,6 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
         [HideInInspector] _XRMotionVectorsPass("_XRMotionVectorsPass", Float) = 1.0
         _QueueOffset("Queue offset", Float) = 0.0
 
-        // Animatron (per-instance). Must be set by Animatron skinning renderer.
-        // Note: the instanced value is accessed in HLSL via DOTS instancing macros.
-        _SkinMatrixIndex("_SkinMatrixIndex", Float) = 0
-
         [HideInInspector][NoScaleOffset]unity_Lightmaps("unity_Lightmaps", 2DArray) = "" {}
         [HideInInspector][NoScaleOffset]unity_LightmapsInd("unity_LightmapsInd", 2DArray) = "" {}
         [HideInInspector][NoScaleOffset]unity_ShadowMasks("unity_ShadowMasks", 2DArray) = "" {}
