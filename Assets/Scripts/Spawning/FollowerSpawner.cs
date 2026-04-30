@@ -1,5 +1,6 @@
 using UnityEngine;
 using Medieval.Npcs;
+using Medieval.NpcMovement;
 using Unity.Mathematics;
 using URandom = UnityEngine.Random;
 
@@ -43,8 +44,14 @@ public class FollowerSpawner : MonoBehaviour
             Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(leaderWorldPosition + offset);
 
             // If a baked Entities Graphics follower prefab is registered, prefer spawning DOTS followers.
-            if (NpcSpawnApi.SpawnFollower(pos, quaternion.identity))
+            var e = NpcSpawnApi.SpawnFollower(pos, quaternion.identity);
+            if (e != Unity.Entities.Entity.Null)
+            {
+                var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
+                var em = world.EntityManager;
+                NpcMovementApi.SetAnchorPosition(em, e, new float3(leaderWorldPosition.x, leaderWorldPosition.y, leaderWorldPosition.z));
                 continue;
+            }
 
             FollowerController follower = Instantiate(followerPrefab, pos, Quaternion.identity);
             follower.ApplyCombatRole(URandom.value < 0.5f);

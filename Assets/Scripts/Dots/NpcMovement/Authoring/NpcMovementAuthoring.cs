@@ -123,6 +123,7 @@ namespace Medieval.NpcMovement
                     new quaternion(t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w),
                     1f));
                 AddComponent<NpcMovementTag>(entity);
+                AddComponent<NpcLoiterInitTag>(entity);
                 AddComponent(entity, authoring.ToConfig());
                 uint seed = (uint)authoring.GetInstanceID() ^ 0x9E3779B1u;
                 if (seed == 0u)

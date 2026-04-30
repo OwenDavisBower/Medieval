@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Medieval.Npcs;
+using Medieval.NpcMovement;
 using Unity.Mathematics;
 using Random = UnityEngine.Random;
 
@@ -463,8 +464,14 @@ public class SettlementBuilder : MonoBehaviour
             float vyaw = Random.Range(0f, 360f);
             // If a baked Entities Graphics villager prefab is registered, prefer spawning DOTS villagers.
             // (Minimal mode: no per-villager initialization/wander anchor yet.)
-            if (NpcSpawnApi.SpawnVillager(vpos, quaternion.Euler(0f, math.radians(vyaw), 0f)))
+            var e = NpcSpawnApi.SpawnVillager(vpos, quaternion.Euler(0f, math.radians(vyaw), 0f));
+            if (e != Unity.Entities.Entity.Null)
+            {
+                var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
+                var em = world.EntityManager;
+                NpcMovementApi.SetAnchorPosition(em, e, new float3(anchor.position.x, anchor.position.y, anchor.position.z));
                 continue;
+            }
 
             GameObject villagerGo = Instantiate(villagerPrefab, vpos, Quaternion.Euler(0f, vyaw, 0f), transform);
             var villager = villagerGo.GetComponent<VillagerController>();

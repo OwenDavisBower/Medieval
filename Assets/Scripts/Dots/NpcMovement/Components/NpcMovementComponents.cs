@@ -21,6 +21,14 @@ namespace Medieval.NpcMovement
     {
     }
 
+    /// <summary>
+    /// One-shot initialization marker for loiter state (orbit / wander). A system will consume this tag
+    /// to randomize base angle/radius/noise so baked prefab instances don't all loiter identically.
+    /// </summary>
+    public struct NpcLoiterInitTag : IComponentData
+    {
+    }
+
     /// <summary>Static per-entity tuning mirrored from <c>TargetSteeringMotor</c> serialized fields.</summary>
     public struct NpcMovementConfig : IComponentData
     {
@@ -116,6 +124,17 @@ namespace Medieval.NpcMovement
         public float3 Position;
         public float3 LinearVelocity;
         public byte HasAnchor;
+    }
+
+    /// <summary>
+    /// Singleton source for the player/leader world anchor, fed from the GameObject player (main thread).
+    /// Followers can copy from this into <see cref="NpcAnchorTarget"/> without any per-NPC companion data.
+    /// </summary>
+    public struct NpcPlayerAnchor : IComponentData
+    {
+        public float3 Position;
+        public float3 LinearVelocity;
+        public byte HasPlayer;
     }
 
     public struct NpcSeekOverride : IComponentData

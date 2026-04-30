@@ -1,5 +1,6 @@
 using UnityEngine;
 using Medieval.Npcs;
+using Medieval.NpcMovement;
 using Unity.Mathematics;
 using Random = UnityEngine.Random;
 
@@ -95,8 +96,14 @@ public class BanditCamp : MonoBehaviour
             Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(transform.position + offset);
 
             // If a baked Entities Graphics bandit prefab is registered, prefer spawning DOTS bandits.
-            if (NpcSpawnApi.SpawnBandit(pos, quaternion.identity))
+            var e = NpcSpawnApi.SpawnBandit(pos, quaternion.identity);
+            if (e != Unity.Entities.Entity.Null)
+            {
+                var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
+                var em = world.EntityManager;
+                NpcMovementApi.SetAnchorPosition(em, e, new float3(transform.position.x, transform.position.y, transform.position.z));
                 continue;
+            }
 
             BanditController bandit = Instantiate(banditPrefab, pos, Quaternion.identity);
             bandit.ApplyCombatRole(Random.value < 0.5f);

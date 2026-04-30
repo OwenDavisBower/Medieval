@@ -14,7 +14,6 @@ namespace Medieval.NpcMovement
     /// The steering system reads the accumulator next stage and clears it for the next frame.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(NpcInputSyncSystem))]
     public partial struct NpcSeparationSystem : ISystem
     {
         NativeParallelMultiHashMap<int3, float3> _hash;
