@@ -2,6 +2,7 @@ using Medieval.NpcMovement;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public enum TargetSteeringMovementMode
 {
