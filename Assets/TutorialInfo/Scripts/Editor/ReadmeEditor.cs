@@ -60,43 +60,10 @@ public class ReadmeEditor : Editor
 
             if (readme && !readme.loadedLayout)
             {
-                // Unity 6+ can throw internal editor UI exceptions when loading legacy .wlt layouts
-                // (including destabilizing Inspector). Keep the tutorial selection behavior, but
-                // skip auto-loading the layout in newer editors.
-                if (IsUnity6OrNewer())
-                {
-                    readme.loadedLayout = true;
-                    EditorUtility.SetDirty(readme);
-                    return;
-                }
-
-                try
-                {
-                    LoadLayout();
-                }
-                catch (Exception e)
-                {
-                    Debug.LogWarning($"ReadmeEditor: Failed to auto-load tutorial layout. Skipping.\n{e}");
-                }
-                finally
-                {
-                    readme.loadedLayout = true;
-                    EditorUtility.SetDirty(readme);
-                }
+                LoadLayout();
+                readme.loadedLayout = true;
             }
         }
-    }
-
-    static bool IsUnity6OrNewer()
-    {
-        // Unity version is "major.minor.patch" e.g. "6000.0.0f1" for Unity 6.
-        var v = Application.unityVersion;
-        int dot = v.IndexOf('.');
-        if (dot <= 0)
-            return false;
-        if (!int.TryParse(v.Substring(0, dot), out int major))
-            return false;
-        return major >= 6000;
     }
 
     static void LoadLayout()
