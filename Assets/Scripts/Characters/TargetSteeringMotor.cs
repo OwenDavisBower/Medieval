@@ -266,10 +266,18 @@ public class TargetSteeringMotor : MonoBehaviour, INpcFacade
         _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
     }
 
-    void Start()
-    {
-        EnsureEntity();
+    void Start() => BootstrapMovementIfPlaying();
 
+    void OnEnable()
+    {
+        BootstrapMovementIfPlaying();
+    }
+
+    void BootstrapMovementIfPlaying()
+    {
+        if (!Application.isPlaying)
+            return;
+        EnsureEntity();
         if (mode == TargetSteeringMovementMode.Orbit && !_orbitInitialized)
             InitializeOrbitRandom();
         if (mode == TargetSteeringMovementMode.WanderAroundTarget && !_wanderInitialized && anchorTarget != null)
@@ -278,19 +286,17 @@ public class TargetSteeringMotor : MonoBehaviour, INpcFacade
 
     void OnDisable()
     {
-        if (TryGetEntityManager(out EntityManager em) && em.HasComponent<NpcMovementState>(_entity))
-        {
-            NpcMovementState s = em.GetComponentData<NpcMovementState>(_entity);
-            s.RangedMovementLock = 0;
-            em.SetComponentData(_entity, s);
-            em.SetComponentData(_entity, new NpcOverrideFacing());
-            em.SetComponentData(_entity, new NpcPendingDodge());
-        }
         _overrideFacingFlatDirection = null;
         _cachedHasPendingDodge = false;
+        TeardownMovementEntity();
     }
 
     void OnDestroy()
+    {
+        TeardownMovementEntity();
+    }
+
+    void TeardownMovementEntity()
     {
         NpcMovementEntityFactory.Destroy(_entity);
         _entity = Entity.Null;
