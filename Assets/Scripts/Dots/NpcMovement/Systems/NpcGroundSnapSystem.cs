@@ -15,6 +15,8 @@ namespace Medieval.NpcMovement
     {
         protected override void OnUpdate()
         {
+            Dependency.Complete();
+
             float dt = SystemAPI.Time.DeltaTime;
 
             foreach (var (tfRW, cfgRO, stateRW) in SystemAPI

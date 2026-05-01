@@ -9,7 +9,8 @@
         "Unity.Collections",
         "Unity.Mathematics",
         "Unity.Jobs",
-        "Unity.AI.Navigation"
+        "Unity.AI.Navigation",
+        "ProjectDawn.Animatron"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -53,6 +53,7 @@ GameObject:
   - component: {fileID: 557766002}
   - component: {fileID: 557766003}
   - component: {fileID: 3626409580298257733}
+  - component: {fileID: 7382168756703781076}
   m_Layer: 7
   m_Name: Bandit
   m_TagString: Untagged
@@ -348,6 +349,22 @@ MonoBehaviour:
   GroundSnapLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &7382168756703781076
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8980714304071168946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba7d4201362f7f544653bf6ad36bb253, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AnimatronLocomotionDriver
+  idleAnimationName: Idle
+  walkingAnimationName: Walking
+  stopSpeedThreshold: 0.04
+  animationSpeedScale: 2
 --- !u!1001 &4506811870223179920
 PrefabInstance:
   m_ObjectHideFlags: 0
