@@ -11,7 +11,7 @@ namespace Medieval.Projectiles
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(ProjectileMovementSystem))]
     [UpdateBefore(typeof(ProjectileLifetimeSystem))]
-    public partial class ProjectileHitSystem : SystemBase
+    public partial struct ProjectileHitSystem : ISystem
     {
         struct PendingHit
         {
@@ -24,9 +24,9 @@ namespace Medieval.Projectiles
             public float3 CurrentPosition;
         }
 
-        protected override void OnUpdate()
+        public void OnUpdate(ref SystemState state)
         {
-            var em = EntityManager;
+            var em = state.EntityManager;
             var pending = new List<PendingHit>(8);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 

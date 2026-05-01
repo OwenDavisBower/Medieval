@@ -8,16 +8,16 @@ using UnityEngine;
 namespace Medieval.Npcs
 {
     [UpdateInGroup(typeof(NpcCombatSeekSystemGroup))]
-    public partial class NpcCombatSeekSystem : SystemBase
+    public partial struct NpcCombatSeekSystem : ISystem
     {
         EntityQuery _candidateQuery;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            _candidateQuery = GetEntityQuery(NpcCombatCandidateQuery.All);
+            _candidateQuery = state.GetEntityQuery(NpcCombatCandidateQuery.All);
         }
 
-        protected override void OnUpdate()
+        public void OnUpdate(ref SystemState state)
         {
             if (_candidateQuery.IsEmpty)
                 return;
@@ -28,7 +28,9 @@ namespace Medieval.Npcs
             using var candCombat = _candidateQuery.ToComponentDataArray<NpcCharacterCombatState>(Allocator.TempJob);
 
             bool hasPlayer = SystemAPI.TryGetSingleton(out NpcPlayerAnchor playerAnchor) && playerAnchor.HasPlayer != 0;
-            var em = EntityManager;
+            var em = state.EntityManager;
+            var combatLookup = SystemAPI.GetComponentLookup<NpcCharacterCombatState>(true);
+            combatLookup.Update(ref state);
 
             foreach (var (seekRw, facingRw, moveRw, combatTargetRw, selfTf, profile, cfg, entity) in SystemAPI
                          .Query<RefRW<NpcSeekOverride>, RefRW<NpcOverrideFacing>, RefRW<NpcMovementState>,
@@ -42,7 +44,7 @@ namespace Medieval.Npcs
                 ref NpcMovementState move = ref moveRw.ValueRW;
                 ref NpcCombatTarget combatTarget = ref combatTargetRw.ValueRW;
                 float3 selfFeet = selfTf.ValueRO.Position;
-                NpcCharacterCombatState combat = em.GetComponentData<NpcCharacterCombatState>(entity);
+                NpcCharacterCombatState combat = combatLookup[entity];
 
                 if (profile.ValueRO.Role == NpcRole.Villager || profile.ValueRO.Role == NpcRole.Unknown)
                 {
@@ -196,6 +198,5 @@ namespace Medieval.Npcs
             move.RangedCombatSeparationBoost = 0;
             combatTarget = default;
         }
-
     }
 }

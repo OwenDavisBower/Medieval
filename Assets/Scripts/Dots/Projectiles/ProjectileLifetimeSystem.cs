@@ -4,14 +4,13 @@ namespace Medieval.Projectiles
 {
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(ProjectileHitSystem))]
-    public partial class ProjectileLifetimeSystem : SystemBase
+    public partial struct ProjectileLifetimeSystem : ISystem
     {
-        protected override void OnUpdate()
+        public void OnUpdate(ref SystemState state)
         {
             float dt = SystemAPI.Time.DeltaTime;
-            var em = EntityManager;
+            var em = state.EntityManager;
 
-            // Structural changes are small (arrows); keep it simple for now.
             foreach (var (life, entity) in SystemAPI.Query<RefRW<ProjectileLifetime>>()
                          .WithAll<ProjectileTag>()
                          .WithEntityAccess())
