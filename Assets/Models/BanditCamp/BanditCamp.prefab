@@ -50,7 +50,7 @@ MonoBehaviour:
     minCount: 1
     maxCount: 4
     radiusMin: 3
-    radiusMax: 20
+    radiusMax: 12
     placementRadius: 1
     spawnVillagersHere: 0
     applyMinus90XRotation: 1
@@ -58,6 +58,14 @@ MonoBehaviour:
     minCount: 1
     maxCount: 4
     radiusMin: 3
+    radiusMax: 12
+    placementRadius: 1
+    spawnVillagersHere: 0
+    applyMinus90XRotation: 1
+  - prefab: {fileID: 3750344369711980917, guid: 62c5a8fc0085d4d67b181066745bf0c5, type: 3}
+    minCount: 0
+    maxCount: 4
+    radiusMin: 8
     radiusMax: 20
     placementRadius: 1
     spawnVillagersHere: 0
