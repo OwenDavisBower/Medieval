@@ -30,6 +30,7 @@ namespace Medieval.NpcMovement
         }
 
         [BurstCompile]
+        [WithAll(typeof(NpcMovementTag))]
         partial struct CopyJob : IJobEntity
         {
             public NpcPlayerAnchor Player;

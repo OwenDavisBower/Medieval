@@ -35,6 +35,7 @@ namespace Medieval.NpcMovement
         }
 
         [BurstCompile]
+        [WithAll(typeof(NpcMovementTag))]
         partial struct SteeringJob : IJobEntity
         {
             public float DeltaTime;

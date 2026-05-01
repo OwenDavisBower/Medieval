@@ -2,6 +2,7 @@ using Medieval.NpcMovement;
 using ProjectDawn.Animation;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace Medieval.Npcs
@@ -29,6 +30,17 @@ namespace Medieval.Npcs
                 return;
 
             em.AddComponent<NpcDeadTag>(npcRoot);
+            if (em.HasComponent<NpcMovementState>(npcRoot))
+            {
+                var move = em.GetComponentData<NpcMovementState>(npcRoot);
+                move.CurrentHorizontalVelocity = float3.zero;
+                move.SmoothTargetVel = float3.zero;
+                move.SeparationAccum = float3.zero;
+                move.ObstacleDeflectDir = float3.zero;
+                move.DodgeImpulseThisFrame = 0;
+                em.SetComponentData(npcRoot, move);
+            }
+
             if (em.HasComponent<NpcMovementTag>(npcRoot))
                 em.RemoveComponent<NpcMovementTag>(npcRoot);
 
@@ -37,7 +49,7 @@ namespace Medieval.Npcs
 
         static void TryPlayDeathAnim(EntityManager em, Entity npcRoot)
         {
-            FixedString64Bytes clipName = k_DeathClips[Random.Range(0, k_DeathClips.Length)];
+            FixedString64Bytes clipName = k_DeathClips[UnityEngine.Random.Range(0, k_DeathClips.Length)];
 
             if (em.HasBuffer<LinkedEntityGroup>(npcRoot))
             {
