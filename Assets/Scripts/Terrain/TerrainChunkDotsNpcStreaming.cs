@@ -89,9 +89,14 @@ public static class TerrainChunkDotsNpcStreaming
         if (em.HasBuffer<LinkedEntityGroup>(root))
         {
             var buffer = em.GetBuffer<LinkedEntityGroup>(root);
-            for (int i = 0; i < buffer.Length; i++)
+            int count = buffer.Length;
+            using var linked = new NativeArray<Entity>(count, Allocator.Temp);
+            for (int i = 0; i < count; i++)
+                linked[i] = buffer[i].Value;
+
+            for (int i = 0; i < linked.Length; i++)
             {
-                Entity e = buffer[i].Value;
+                Entity e = linked[i];
                 if (em.Exists(e))
                     em.SetEnabled(e, enabled);
             }
