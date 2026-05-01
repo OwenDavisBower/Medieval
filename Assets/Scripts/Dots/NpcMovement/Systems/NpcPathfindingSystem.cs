@@ -1,5 +1,7 @@
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine.AI;
@@ -12,6 +14,7 @@ namespace Medieval.NpcMovement
     /// pathfind toward its current goal (seek override or anchor) every <c>RepathInterval</c> seconds, or
     /// earlier if the goal has moved by more than <c>RepathGoalShiftSqr</c>. Paths are stored as a single
     /// next corner in <see cref="NpcPathCorner"/>; the steering system advances to that corner.
+    /// Uses sequential <see cref="IJobEntity"/> so a single <see cref="NavMeshQuery"/> is safe across entities.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(NpcSeparationSystem))]
@@ -26,65 +29,86 @@ namespace Medieval.NpcMovement
         {
             float elapsed = (float)SystemAPI.Time.ElapsedTime;
 
-            var query = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob, 128);
+            var navQuery = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob, 128);
             var areaCosts = new NativeArray<float>(0, Allocator.TempJob);
 
-            state.Dependency.Complete();
-
-            foreach (var (transformRO, cfg, anchor, seek, stateRW, pathStateRW, corners) in SystemAPI
-                         .Query<RefRO<LocalTransform>, RefRO<NpcMovementConfig>, RefRO<NpcAnchorTarget>,
-                                RefRO<NpcSeekOverride>, RefRW<NpcMovementState>, RefRW<NpcPathState>,
-                                DynamicBuffer<NpcPathCorner>>()
-                         .WithAll<NpcMovementTag>())
+            var workHandle = new PathfindingJob
             {
-                if (cfg.ValueRO.UseNavMeshWhenAvailable == 0)
+                ElapsedTime = elapsed,
+                NavQuery = navQuery,
+                AreaCosts = areaCosts
+            }.Schedule(state.Dependency);
+
+            workHandle.Complete();
+            navQuery.Dispose();
+            if (areaCosts.IsCreated)
+                areaCosts.Dispose();
+            state.Dependency = workHandle;
+        }
+
+        [BurstCompile]
+        [WithAll(typeof(NpcMovementTag))]
+        partial struct PathfindingJob : IJobEntity
+        {
+            public float ElapsedTime;
+            public NavMeshQuery NavQuery;
+            public NativeArray<float> AreaCosts;
+
+            public void Execute(
+                in LocalTransform transformRO,
+                in NpcMovementConfig cfg,
+                in NpcAnchorTarget anchor,
+                in NpcSeekOverride seek,
+                ref NpcMovementState stateRW,
+                ref NpcPathState pathStateRW,
+                DynamicBuffer<NpcPathCorner> corners)
+            {
+                if (cfg.UseNavMeshWhenAvailable == 0)
                 {
                     corners.Clear();
-                    pathStateRW.ValueRW.PathValid = 0;
-                    continue;
+                    pathStateRW.PathValid = 0;
+                    return;
                 }
 
-                if (!TryResolveGoal(stateRW.ValueRO, cfg.ValueRO, seek.ValueRO, anchor.ValueRO,
-                        transformRO.ValueRO.Position, elapsed, out float3 goal))
+                if (!TryResolveGoal(stateRW, cfg, seek, anchor, transformRO.Position, ElapsedTime, out float3 goal))
                 {
                     corners.Clear();
-                    pathStateRW.ValueRW.PathValid = 0;
-                    continue;
+                    pathStateRW.PathValid = 0;
+                    return;
                 }
 
-                float goalShiftSq = math.lengthsq(goal - pathStateRW.ValueRO.LastPathGoal);
-                bool timeElapsed = (elapsed - pathStateRW.ValueRO.LastPathTime) >= cfg.ValueRO.RepathInterval;
-                bool goalShifted = goalShiftSq > cfg.ValueRO.RepathGoalShiftSqr;
-                bool noPath = pathStateRW.ValueRO.PathValid == 0;
+                float goalShiftSq = math.lengthsq(goal - pathStateRW.LastPathGoal);
+                bool timeElapsed = (ElapsedTime - pathStateRW.LastPathTime) >= cfg.RepathInterval;
+                bool goalShifted = goalShiftSq > cfg.RepathGoalShiftSqr;
+                bool noPath = pathStateRW.PathValid == 0;
                 if (!(timeElapsed || goalShifted || noPath))
-                    continue;
+                    return;
 
-                float3 origin = transformRO.ValueRO.Position;
+                float3 origin = transformRO.Position;
                 if (!math.all(math.isfinite(origin)) || !math.all(math.isfinite(goal)))
                 {
                     corners.Clear();
-                    pathStateRW.ValueRW.PathValid = 0;
-                    continue;
+                    pathStateRW.PathValid = 0;
+                    return;
                 }
 
-                if (!NpcNavMeshSampling.TryMapStartLocation(query, origin, cfg.ValueRO.NavMeshSampleMaxDistance,
+                if (!NpcNavMeshSampling.TryMapStartLocation(NavQuery, origin, cfg.NavMeshSampleMaxDistance,
                         out var startLoc))
                 {
                     corners.Clear();
                     corners.Add(new NpcPathCorner { Value = goal });
-                    pathStateRW.ValueRW.PathValid = 1;
-                    pathStateRW.ValueRW.CurrentCorner = 0;
-                    pathStateRW.ValueRW.LastPathTime = elapsed;
-                    pathStateRW.ValueRW.LastPathGoal = goal;
-                    continue;
+                    pathStateRW.PathValid = 1;
+                    pathStateRW.CurrentCorner = 0;
+                    pathStateRW.LastPathTime = ElapsedTime;
+                    pathStateRW.LastPathGoal = goal;
+                    return;
                 }
 
-                float3 endPoint = NpcNavMeshSampling.SnapGoalToNavMeshOrRaw(query, goal,
-                    cfg.ValueRO.NavMeshSampleMaxDistance);
+                float3 endPoint = NpcNavMeshSampling.SnapGoalToNavMeshOrRaw(NavQuery, goal, cfg.NavMeshSampleMaxDistance);
 
                 const int allAreas = -1;
-                var raycastStatus = query.Raycast(out NavMeshHit hit, startLoc,
-                    NpcNavMeshSampling.ToVector3(endPoint), allAreas, areaCosts);
+                var raycastStatus = NavQuery.Raycast(out NavMeshHit hit, startLoc,
+                    NpcNavMeshSampling.ToVector3(endPoint), allAreas, AreaCosts);
 
                 corners.Clear();
                 if ((raycastStatus & PathQueryStatus.Success) != 0)
@@ -106,27 +130,24 @@ namespace Medieval.NpcMovement
                         else
                         {
                             float3 unit = diff / len;
-                            float backoff = math.min(0.25f, cfg.ValueRO.MinCornerAdvanceDistance);
+                            float backoff = math.min(0.25f, cfg.MinCornerAdvanceDistance);
                             float hitDist = math.max(0f, hit.distance - backoff);
                             corner = origin + unit * hitDist;
                         }
                     }
                     corners.Add(new NpcPathCorner { Value = corner });
-                    pathStateRW.ValueRW.PathValid = 1;
+                    pathStateRW.PathValid = 1;
                 }
                 else
                 {
                     corners.Add(new NpcPathCorner { Value = goal });
-                    pathStateRW.ValueRW.PathValid = 1;
+                    pathStateRW.PathValid = 1;
                 }
 
-                pathStateRW.ValueRW.CurrentCorner = 0;
-                pathStateRW.ValueRW.LastPathTime = elapsed;
-                pathStateRW.ValueRW.LastPathGoal = goal;
+                pathStateRW.CurrentCorner = 0;
+                pathStateRW.LastPathTime = ElapsedTime;
+                pathStateRW.LastPathGoal = goal;
             }
-
-            areaCosts.Dispose();
-            query.Dispose();
         }
 
         static bool TryResolveGoal(in NpcMovementState state, in NpcMovementConfig cfg, in NpcSeekOverride seek,

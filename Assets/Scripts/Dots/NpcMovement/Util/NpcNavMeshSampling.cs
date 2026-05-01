@@ -1,3 +1,4 @@
+using Unity.Burst;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
@@ -5,6 +6,7 @@ using UnityEngine.Experimental.AI;
 namespace Medieval.NpcMovement
 {
     /// <summary>Shared NavMeshQuery MapLocation / extent rules for NPC movement systems.</summary>
+    [BurstCompile]
     internal static class NpcNavMeshSampling
     {
         public static Vector3 SampleExtents(float navMeshSampleMaxDistance)
