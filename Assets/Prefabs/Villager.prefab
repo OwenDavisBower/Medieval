@@ -41,16 +41,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6205366422389023887}
-  - component: {fileID: 5237953102771125215}
-  - component: {fileID: 7018862032686843754}
-  - component: {fileID: 481191335029085937}
-  - component: {fileID: 8820116209973403167}
   - component: {fileID: 991191335029085902}
-  - component: {fileID: 7822334455667788990}
   - component: {fileID: 8499884164486643627}
   - component: {fileID: 557766021}
   - component: {fileID: 4629251504635894354}
-  - component: {fileID: 5011223344556677900}
   m_Layer: 7
   m_Name: Villager
   m_TagString: Untagged
@@ -74,87 +68,6 @@ Transform:
   - {fileID: 8620116209973403166}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!54 &5237953102771125215
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8980714304071168946}
-  serializedVersion: 5
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
-  m_Interpolate: 1
-  m_Constraints: 112
-  m_CollisionDetection: 0
---- !u!136 &7018862032686843754
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8980714304071168946}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0, y: 1, z: 0}
---- !u!114 &481191335029085937
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8980714304071168946}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7e8f9a0b1c2d3e4f5061728394a5b6c7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VillagerController
---- !u!114 &8820116209973403167
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8980714304071168946}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f7e8d9c0b1a2436586978091a2b3c4d5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TargetSteeringMotor
-  mode: 2
-  anchorTarget: {fileID: 0}
-  seekOverride: {fileID: 0}
-  seekHoldDistance: 0
-  moveSpeed: 10
-  moveSpeedScale: 1
-  rangedDodgeCooldown: 0.42
 --- !u!114 &991191335029085902
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -180,22 +93,6 @@ MonoBehaviour:
   maxBravery: 15
   fleeHealthFractionAtLowBravery: 0.48
   fleeHealthFractionAtHighBravery: 0.06
---- !u!114 &7822334455667788990
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8980714304071168946}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 919f450fe62f459493707b93c03becc6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CharacterHealthBar
-  healthBarHeightOffset: 2.15
-  healthBarScale: 0.011
-  maxHealthBarBillboardTiltDegrees: 15
-  _healthBarLayer: HealthBar
 --- !u!114 &8499884164486643627
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -280,22 +177,6 @@ MonoBehaviour:
   GroundSnapLayers:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &5011223344556677900
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8980714304071168946}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ba7d4201362f7f544653bf6ad36bb253, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimatronLocomotionDriver
-  idleAnimationName: Idle
-  walkingAnimationName: Walking
-  stopSpeedThreshold: 0.04
-  animationSpeedScale: 2
 --- !u!1001 &5011223344556677888
 PrefabInstance:
   m_ObjectHideFlags: 0

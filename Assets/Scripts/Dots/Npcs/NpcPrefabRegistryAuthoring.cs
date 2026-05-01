@@ -13,6 +13,7 @@ namespace Medieval.Npcs
     /// <summary>
     /// Scene authoring that bakes referenced NPC GameObject prefabs into entity prefabs for Entities Graphics.
     /// Put this in a baked scene/subscene and assign the prototype prefabs.
+    /// Prototypes are authoring-only (DOTS movement/combat); they are not spawned as GameObject NPCs at runtime.
     /// </summary>
     public sealed class NpcPrefabRegistryAuthoring : MonoBehaviour
     {

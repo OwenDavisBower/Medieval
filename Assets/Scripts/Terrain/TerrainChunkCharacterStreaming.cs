@@ -5,8 +5,8 @@ using UnityEngine;
 /// <summary>
 /// When terrain streaming moves the logical chunk window, disables bandit and villager roots inside
 /// chunks that left the window and re-enables those previously disabled when a chunk re-enters.
-/// Uses an axis-aligned physics box over the chunk XZ cell (full vertical span) for GameObject NPCs;
-/// <see cref="TerrainChunkDotsNpcStreaming"/> applies the same policy to baked DOTS NPC entities.
+/// Legacy path: physics overlap for GameObject NPCs that still use <c>BanditController</c> / <c>VillagerController</c>.
+/// ECS NPCs use <see cref="TerrainChunkDotsNpcStreaming"/> only.
 /// </summary>
 public static class TerrainChunkCharacterStreaming
 {

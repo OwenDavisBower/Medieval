@@ -6,7 +6,10 @@ using UnityEngine;
 
 namespace Medieval.Npcs
 {
-    /// <summary>Spawns DOTS NPCs using Entities Graphics prefabs.</summary>
+    /// <summary>
+    /// Spawns DOTS NPCs using Entities Graphics prefabs registered in <see cref="NpcPrefabRegistry"/>.
+    /// Runtime does not instantiate Follower/Bandit/Villager as GameObjects; use this API (or equivalent ECS spawn).
+    /// </summary>
     public static class NpcSpawnApi
     {
         public static Entity SpawnFollower(Vector3 worldPosition, quaternion worldRotation, float uniformScale = 1f)

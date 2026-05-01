@@ -24,7 +24,6 @@ public struct SettlementBuildingSpawnEntry
 public class SettlementSpawnConfig : ScriptableObject
 {
     [SerializeField] SettlementBuildingSpawnEntry[] buildings;
-    [SerializeField] GameObject villagerPrefab;
     [Tooltip("How many settlements to try placing in each logical terrain chunk (see TerrainGenerator.chunkCount). 0 disables settlement planning.")]
     [SerializeField, Min(0)] int settlementsPerLogicalChunk = 1;
     [Tooltip("Inset from procedural terrain edges when picking settlement centers (XZ).")]
@@ -48,7 +47,6 @@ public class SettlementSpawnConfig : ScriptableObject
     [SerializeField] float pathWobbleAmplitude = 1.1f;
 
     public IReadOnlyList<SettlementBuildingSpawnEntry> Buildings => buildings;
-    public GameObject VillagerPrefab => villagerPrefab;
     public int SettlementsPerLogicalChunk => settlementsPerLogicalChunk;
     public float TerrainEdgeMargin => terrainEdgeMargin;
     public float MinSettlementSeparation => minSettlementSeparation;
