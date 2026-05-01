@@ -44,6 +44,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f90bea74fe69749bd81fac9d8ca0e4ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BanditSpawner
+  minCount: 1
+  maxCount: 3
   uniformScale: 1
 --- !u!1001 &4092241010164014116
 PrefabInstance:

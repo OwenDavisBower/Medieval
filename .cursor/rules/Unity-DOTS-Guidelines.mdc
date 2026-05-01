@@ -41,3 +41,8 @@ Buffers: Use DynamicBuffer<T> for lists of data (like a path of waypoints) inste
 Auto-Generation: When I request a new NPC feature, generate both the IComponentData and the corresponding IBaker<TAuthoring> in the same file.
 
 Clean Mapping: Map Vector3 to float3 and Quaternion to quaternion automatically.
+
+7. Random (disambiguate CS0104)
+When a file has both `using Unity.Mathematics` and `using UnityEngine`, the name `Random` is ambiguous (`Unity.Mathematics.Random` vs `UnityEngine.Random`) and fails with CS0104.
+
+Always qualify which API you mean: use `UnityEngine.Random` for `Range`, `value`, `insideUnitSphere`, etc.; use `Unity.Mathematics.Random` for the blittable RNG struct (constructor, `NextFloat`, jobs/Burst). Prefer fully qualified calls (e.g. `UnityEngine.Random.Range(min, max + 1)`) over bare `Random` in mixed-using files.
