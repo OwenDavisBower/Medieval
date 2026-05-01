@@ -7,6 +7,18 @@ namespace Medieval.Projectiles
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct ProjectileSimSettingsBootstrapSystem : ISystem
     {
+        /// <summary>Physics casts for projectiles hit these layers; Character is excluded so ECS resolves unit hits.</summary>
+        public static int DefaultStaticEnvironmentLayerMask()
+        {
+            int mask = LayerMask.GetMask("Default", "Water", "Building", "Tree");
+            if (mask == 0)
+                mask = ~0;
+            int character = LayerMask.NameToLayer("Character");
+            if (character >= 0)
+                mask &= ~(1 << character);
+            return mask;
+        }
+
         public void OnCreate(ref SystemState state)
         {
             using var q = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<ProjectileSimSettings>());
@@ -17,7 +29,11 @@ namespace Medieval.Projectiles
             float g = -Physics.gravity.y;
             if (g < 0.01f)
                 g = 9.81f;
-            state.EntityManager.AddComponentData(e, new ProjectileSimSettings { Gravity = g });
+            state.EntityManager.AddComponentData(e, new ProjectileSimSettings
+            {
+                Gravity = g,
+                StaticEnvironmentLayerMask = DefaultStaticEnvironmentLayerMask()
+            });
         }
 
         public void OnUpdate(ref SystemState state)

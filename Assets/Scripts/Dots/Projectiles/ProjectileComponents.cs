@@ -57,6 +57,12 @@ namespace Medieval.Projectiles
     public struct ProjectileSimSettings : IComponentData
     {
         public float Gravity;
+
+        /// <summary>
+        /// Layers for <see cref="ProjectileHitSystem"/> physics sphere casts only (terrain, buildings, trees).
+        /// DOTS NPCs are hit via ECS segment tests, not these casts.
+        /// </summary>
+        public int StaticEnvironmentLayerMask;
     }
 
     public struct ProjectileDodgeRegistryTag : IComponentData { }

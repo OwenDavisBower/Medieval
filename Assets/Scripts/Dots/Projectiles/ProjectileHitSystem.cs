@@ -9,11 +9,16 @@ using UnityEngine;
 
 namespace Medieval.Projectiles
 {
+    /// <summary>
+    /// Resolves hits along each projectile segment: ECS tests against DOTS NPCs; physics sphere casts use
+    /// <see cref="ProjectileSimSettings.StaticEnvironmentLayerMask"/> only (terrain, buildings, etc.), not Character.
+    /// </summary>
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(ProjectileMovementSystem))]
     [UpdateBefore(typeof(ProjectileLifetimeSystem))]
     public partial struct ProjectileHitSystem : ISystem
     {
+        int m_StaticEnvLayerMask;
         /// <summary>Non-alloc physics path; grown lazily if a cast ever fills the buffer.</summary>
         const int InitialSphereCastHitCapacity = 64;
 
@@ -36,6 +41,7 @@ namespace Medieval.Projectiles
 
         public void OnCreate(ref SystemState state)
         {
+            state.RequireForUpdate<ProjectileSimSettings>();
             _projectileQuery = state.GetEntityQuery(ComponentType.ReadOnly<ProjectileTag>());
             _npcProjectileGridQuery = state.GetEntityQuery(
                 ComponentType.ReadOnly<LocalTransform>(),
@@ -45,6 +51,10 @@ namespace Medieval.Projectiles
 
         public void OnUpdate(ref SystemState state)
         {
+            m_StaticEnvLayerMask = SystemAPI.GetSingleton<ProjectileSimSettings>().StaticEnvironmentLayerMask;
+            if (m_StaticEnvLayerMask == 0)
+                m_StaticEnvLayerMask = ProjectileSimSettingsBootstrapSystem.DefaultStaticEnvironmentLayerMask();
+
             EnsureSphereCastBuffer(InitialSphereCastHitCapacity);
             s_PendingHits ??= new List<PendingHit>(16);
             s_PendingHits.Clear();
@@ -101,7 +111,7 @@ namespace Medieval.Projectiles
                     int ownerColliderId = owner.ValueRO.ColliderInstanceId;
 
                     bool hasPhys = TryGetClosestPhysicsHit((Vector3)prev, radius, dir, dist, legacyRootId,
-                        ownerColliderId, out RaycastHit physBestHit, out float physBestDist);
+                        ownerColliderId, m_StaticEnvLayerMask, out RaycastHit physBestHit, out float physBestDist);
 
                     Entity dotsExclude = shooterRoot;
 
@@ -160,14 +170,17 @@ namespace Medieval.Projectiles
         }
 
         /// <summary>
+        /// Environment / statics only — use <paramref name="staticEnvironmentLayerMask"/> so Character colliders
+        /// are not tested here (DOTS NPCs use <see cref="NpcProjectileDotsNpc.TryFindClosestAlongSegment"/>).
         /// Uses <see cref="Physics.SphereCastNonAlloc"/> into a reused buffer; falls back to
         /// <see cref="Physics.SphereCastAll"/> only if the buffer is full (possible truncation).
         /// </summary>
         static bool TryGetClosestPhysicsHit(Vector3 origin, float radius, Vector3 direction, float maxDistance,
-            int legacyShooterRootInstanceId, int ownerColliderInstanceId, out RaycastHit bestHit, out float bestDist)
+            int legacyShooterRootInstanceId, int ownerColliderInstanceId, int staticEnvironmentLayerMask,
+            out RaycastHit bestHit, out float bestDist)
         {
-            int n = Physics.SphereCastNonAlloc(origin, radius, direction, s_SphereCastHits, maxDistance, ~0,
-                QueryTriggerInteraction.Ignore);
+            int n = Physics.SphereCastNonAlloc(origin, radius, direction, s_SphereCastHits, maxDistance,
+                staticEnvironmentLayerMask, QueryTriggerInteraction.Ignore);
 
             if (n <= 0)
             {
@@ -180,7 +193,7 @@ namespace Medieval.Projectiles
                 return TryPickClosestValidHit(s_SphereCastHits, n, legacyShooterRootInstanceId, ownerColliderInstanceId,
                     out bestHit, out bestDist);
 
-            RaycastHit[] all = Physics.SphereCastAll(origin, radius, direction, maxDistance, ~0,
+            RaycastHit[] all = Physics.SphereCastAll(origin, radius, direction, maxDistance, staticEnvironmentLayerMask,
                 QueryTriggerInteraction.Ignore);
             return TryPickClosestValidHit(all, all.Length, legacyShooterRootInstanceId, ownerColliderInstanceId,
                 out bestHit, out bestDist);
