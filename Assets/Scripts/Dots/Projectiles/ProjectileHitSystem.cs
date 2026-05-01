@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Medieval.Npcs;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -42,28 +43,42 @@ namespace Medieval.Projectiles
 
                 Vector3 dir = disp / dist;
                 float radius = math.max(0.001f, hitSphere.ValueRO.Radius);
-                RaycastHit[] hits = Physics.SphereCastAll((Vector3)prev, radius, dir, dist, ~0, QueryTriggerInteraction.Ignore);
-                if (hits == null || hits.Length == 0)
-                    continue;
-
                 int shooterRootId = shooter.ValueRO.RootInstanceId;
                 int ownerColliderId = owner.ValueRO.ColliderInstanceId;
 
-                int best = -1;
-                float bestDist = float.MaxValue;
-                for (int i = 0; i < hits.Length; i++)
+                RaycastHit[] hits = Physics.SphereCastAll((Vector3)prev, radius, dir, dist, ~0, QueryTriggerInteraction.Ignore);
+
+                int physBest = -1;
+                float physBestDist = float.MaxValue;
+                if (hits != null && hits.Length > 0)
                 {
-                    RaycastHit h = hits[i];
-                    if (ShouldIgnoreHit(in h, shooterRootId, ownerColliderId))
-                        continue;
-                    if (h.distance < bestDist)
+                    for (int i = 0; i < hits.Length; i++)
                     {
-                        bestDist = h.distance;
-                        best = i;
+                        RaycastHit h = hits[i];
+                        if (ShouldIgnoreHit(in h, shooterRootId, ownerColliderId))
+                            continue;
+                        if (h.distance < physBestDist)
+                        {
+                            physBestDist = h.distance;
+                            physBest = i;
+                        }
                     }
                 }
 
-                if (best < 0)
+                bool hasDots = NpcProjectileDotsNpc.TryFindClosestAlongSegment(em, prev, cur, radius, out Entity dotsVictim,
+                    out float dotsDist);
+                bool preferDots = hasDots && (physBest < 0 || dotsDist < physBestDist - 1e-4f);
+                if (preferDots)
+                {
+                    NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim, damage.ValueRO.Amount);
+                    var st = em.GetComponentData<NpcCharacterCombatState>(dotsVictim);
+                    if (st.IsDead != 0)
+                        NpcEntityDestroyUtility.DestroyNpcWithLinked(em, dotsVictim);
+                    em.DestroyEntity(entity);
+                    continue;
+                }
+
+                if (physBest < 0)
                     continue;
 
                 pending.Add(new PendingHit
@@ -72,7 +87,7 @@ namespace Medieval.Projectiles
                     ShooterRootInstanceId = shooterRootId,
                     OwnerColliderInstanceId = ownerColliderId,
                     Damage = damage.ValueRO,
-                    Hit = hits[best],
+                    Hit = hits[physBest],
                     PreviousPosition = prev,
                     CurrentPosition = cur
                 });

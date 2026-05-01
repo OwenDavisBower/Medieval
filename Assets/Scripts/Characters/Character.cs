@@ -1,3 +1,4 @@
+using Unity.Entities;
 using UnityEngine;
 
 /// <summary>Health for player, bandits, and followers.</summary>
@@ -231,5 +232,28 @@ public class Character : MonoBehaviour, IDamageableHealth
         var player = GetComponent<PlayerController>();
         if (player != null)
             player.enabled = false;
+    }
+
+    class CharacterBaker : Baker<Character>
+    {
+        public override void Bake(Character authoring)
+        {
+            Entity entity = GetEntity(authoring, TransformUsageFlags.Dynamic);
+            AddComponent(entity, new Medieval.Npcs.NpcCharacterBakedStats
+            {
+                MinHealth = authoring.minHealth,
+                MaxHealth = authoring.maxHealth,
+                MinStrength = authoring.minStrength,
+                MaxStrength = authoring.maxStrength,
+                MinDexterity = authoring.minDexterity,
+                MaxDexterity = authoring.maxDexterity,
+                MinFocus = authoring.minFocus,
+                MaxFocus = authoring.maxFocus,
+                MinBravery = authoring.minBravery,
+                MaxBravery = authoring.maxBravery,
+                FleeFracLowBravery = authoring.fleeHealthFractionAtLowBravery,
+                FleeFracHighBravery = authoring.fleeHealthFractionAtHighBravery
+            });
+        }
     }
 }

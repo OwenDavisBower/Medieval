@@ -25,6 +25,7 @@ namespace Medieval.Npcs
             em.SetName(e, "FollowerNpc");
 #endif
             em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
+            NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
             return e;
         }
 
@@ -45,6 +46,7 @@ namespace Medieval.Npcs
             em.SetName(e, "BanditNpc");
 #endif
             em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
+            NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
             return e;
         }
 
@@ -65,6 +67,7 @@ namespace Medieval.Npcs
             em.SetName(e, "VillagerNpc");
 #endif
             em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
+            NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
             return e;
         }
 

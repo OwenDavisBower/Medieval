@@ -17,7 +17,6 @@ public class SettlementBuilder : MonoBehaviour
     static Transform _cachedPlayer;
 
     [SerializeField] SettlementBuildingSpawnEntry[] buildingEntries;
-    [SerializeField] GameObject villagerPrefab;
 
     [Header("Water")]
     [Tooltip("Structures are not placed at or below this world Y (e.g. water surface).")]
@@ -76,7 +75,7 @@ public class SettlementBuilder : MonoBehaviour
     {
         if (!_built || _villagersSpawnedForThisInstance || HasSpawnedVillagersAlready())
             return;
-        if (villagerPrefab == null || _villagerSpawnAnchors.Count == 0)
+        if (_villagerSpawnAnchors.Count == 0)
             return;
 
         Transform player = GetPlayerTransform();
@@ -91,7 +90,7 @@ public class SettlementBuilder : MonoBehaviour
     }
 
     /// <summary>Used when prefabs are assigned at runtime (e.g. from <see cref="SettlementSpawning"/>).</summary>
-    public void InitializeAndBuild(IReadOnlyList<SettlementBuildingSpawnEntry> buildings, GameObject villager = null, ProceduralPlacementMask placementMask = null)
+    public void InitializeAndBuild(IReadOnlyList<SettlementBuildingSpawnEntry> buildings, ProceduralPlacementMask placementMask = null)
     {
         if (buildings == null || buildings.Count == 0)
             _runtimeBuildingEntries = null;
@@ -102,7 +101,6 @@ public class SettlementBuilder : MonoBehaviour
                 _runtimeBuildingEntries[i] = buildings[i];
         }
 
-        villagerPrefab = villager;
         _placementMask = placementMask;
         TryBuildSettlement();
     }
@@ -449,9 +447,6 @@ public class SettlementBuilder : MonoBehaviour
 
     void SpawnVillagersNearBuilding(Transform anchor, Vector3 worldPos)
     {
-        if (villagerPrefab == null)
-            return;
-
         int count = Random.Range(2, 4);
         for (int v = 0; v < count; v++)
         {
@@ -462,21 +457,17 @@ public class SettlementBuilder : MonoBehaviour
                 continue;
 
             float vyaw = Random.Range(0f, 360f);
-            // If a baked Entities Graphics villager prefab is registered, prefer spawning DOTS villagers.
-            // (Minimal mode: no per-villager initialization/wander anchor yet.)
             var e = NpcSpawnApi.SpawnVillager(vpos, quaternion.Euler(0f, math.radians(vyaw), 0f));
-            if (e != Unity.Entities.Entity.Null)
+            if (e == Unity.Entities.Entity.Null)
             {
-                var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
-                var em = world.EntityManager;
-                NpcMovementApi.SetAnchorPosition(em, e, new float3(anchor.position.x, anchor.position.y, anchor.position.z));
+                Debug.LogWarning(
+                    "SettlementBuilder: NpcSpawnApi.SpawnVillager failed (is NpcPrefabRegistryAuthoring in a loaded subscene with Villager prefab assigned?).");
                 continue;
             }
 
-            GameObject villagerGo = Instantiate(villagerPrefab, vpos, Quaternion.Euler(0f, vyaw, 0f), transform);
-            var villager = villagerGo.GetComponent<VillagerController>();
-            if (villager != null)
-                villager.Initialize(anchor);
+            var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
+            var em = world.EntityManager;
+            NpcMovementApi.SetAnchorPosition(em, e, new float3(anchor.position.x, anchor.position.y, anchor.position.z));
         }
     }
 

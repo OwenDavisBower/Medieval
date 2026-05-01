@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.Entities;
 using UnityEngine;
 
 using Medieval.Projectiles;
@@ -109,5 +110,24 @@ public class RangedCombat : MonoBehaviour
         ProjectileSpawnApi.Spawn(origin, velocity, arrowDamage, arrowMaxLifetime, transform.root, _ownerCollider, arrowHitRadius);
     }
 
-    
+    class RangedCombatBaker : Baker<RangedCombat>
+    {
+        public override void Bake(RangedCombat authoring)
+        {
+            Entity entity = GetEntity(authoring, TransformUsageFlags.Dynamic);
+            AddComponent(entity, new Medieval.Npcs.NpcRangedCombatConfig
+            {
+                ArrowDamage = authoring.arrowDamage,
+                ArrowMaxLifetime = authoring.arrowMaxLifetime,
+                ArrowHitRadius = authoring.arrowHitRadius,
+                FireInterval = authoring.fireInterval,
+                LaunchHeight = authoring.launchHeight,
+                TargetAimHeight = authoring.targetAimHeight,
+                HorizontalAimError = authoring.horizontalAimError,
+                VerticalAimError = authoring.verticalAimError,
+                FireAnimationLeadSeconds = authoring.fireAnimationLeadSeconds,
+                MovementLockDuration = authoring.movementLockDuration
+            });
+        }
+    }
 }

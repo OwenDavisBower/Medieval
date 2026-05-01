@@ -12,7 +12,6 @@ public class BanditCamp : MonoBehaviour
     static readonly System.Collections.Generic.HashSet<int> SpawnedCampIds = new();
     static Transform _cachedPlayer;
 
-    [SerializeField] BanditController banditPrefab;
     [SerializeField] int banditCount = 3;
     [SerializeField] float spawnRadiusMin = 1f;
     [SerializeField] float spawnRadiusMax = 4f;
@@ -24,7 +23,7 @@ public class BanditCamp : MonoBehaviour
 
     void Start()
     {
-        if (banditPrefab == null || banditCount <= 0)
+        if (banditCount <= 0)
         {
             _spawnAttempted = true;
             return;
@@ -97,17 +96,16 @@ public class BanditCamp : MonoBehaviour
 
             // If a baked Entities Graphics bandit prefab is registered, prefer spawning DOTS bandits.
             var e = NpcSpawnApi.SpawnBandit(pos, quaternion.identity);
-            if (e != Unity.Entities.Entity.Null)
+            if (e == Unity.Entities.Entity.Null)
             {
-                var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
-                var em = world.EntityManager;
-                NpcMovementApi.SetAnchorPosition(em, e, new float3(transform.position.x, transform.position.y, transform.position.z));
+                Debug.LogWarning(
+                    "BanditCamp: NpcSpawnApi.SpawnBandit failed (is NpcPrefabRegistryAuthoring in a loaded subscene with Bandit prefab assigned?).");
                 continue;
             }
 
-            BanditController bandit = Instantiate(banditPrefab, pos, Quaternion.identity);
-            bandit.ApplyCombatRole(Random.value < 0.5f);
-            bandit.Initialize(transform);
+            var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
+            var em = world.EntityManager;
+            NpcMovementApi.SetAnchorPosition(em, e, new float3(transform.position.x, transform.position.y, transform.position.z));
         }
     }
 

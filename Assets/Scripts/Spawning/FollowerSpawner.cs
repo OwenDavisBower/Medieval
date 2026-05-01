@@ -6,7 +6,6 @@ using URandom = UnityEngine.Random;
 
 public class FollowerSpawner : MonoBehaviour
 {
-    [SerializeField] FollowerController followerPrefab;
     [SerializeField] int followerCount = 5;
     [SerializeField] float spawnRadiusMin = 1.5f;
     [SerializeField] float spawnRadiusMax = 4f;
@@ -27,7 +26,7 @@ public class FollowerSpawner : MonoBehaviour
 
     void SpawnFollowers(Vector3 leaderWorldPosition)
     {
-        if (_spawned || followerPrefab == null)
+        if (_spawned)
             return;
 
         var gen = TerrainGenerator.GetActiveOrFind();
@@ -43,19 +42,17 @@ public class FollowerSpawner : MonoBehaviour
             Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * rad;
             Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(leaderWorldPosition + offset);
 
-            // If a baked Entities Graphics follower prefab is registered, prefer spawning DOTS followers.
             var e = NpcSpawnApi.SpawnFollower(pos, quaternion.identity);
-            if (e != Unity.Entities.Entity.Null)
+            if (e == Unity.Entities.Entity.Null)
             {
-                var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
-                var em = world.EntityManager;
-                NpcMovementApi.SetAnchorPosition(em, e, new float3(leaderWorldPosition.x, leaderWorldPosition.y, leaderWorldPosition.z));
+                Debug.LogWarning(
+                    "FollowerSpawner: NpcSpawnApi.SpawnFollower failed (is NpcPrefabRegistryAuthoring in a loaded subscene with Follower prefab assigned?).");
                 continue;
             }
 
-            FollowerController follower = Instantiate(followerPrefab, pos, Quaternion.identity);
-            follower.ApplyCombatRole(URandom.value < 0.5f);
-            follower.Initialize();
+            var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
+            var em = world.EntityManager;
+            NpcMovementApi.SetAnchorPosition(em, e, new float3(leaderWorldPosition.x, leaderWorldPosition.y, leaderWorldPosition.z));
         }
     }
 }

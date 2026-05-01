@@ -1,3 +1,4 @@
+using Unity.Entities;
 using UnityEngine;
 
 /// <summary>Close-range attacks with high hit chance; applies damage and horizontal knockback on hit.</summary>
@@ -80,5 +81,22 @@ public class MeleeCombat : MonoBehaviour
         Vector3 f = transform.forward;
         f.y = 0f;
         return f.sqrMagnitude > 1e-4f ? f.normalized : Vector3.forward;
+    }
+
+    class MeleeCombatBaker : Baker<MeleeCombat>
+    {
+        public override void Bake(MeleeCombat authoring)
+        {
+            Entity entity = GetEntity(authoring, TransformUsageFlags.Dynamic);
+            AddComponent(entity, new Medieval.Npcs.NpcMeleeCombatConfig
+            {
+                AttackInterval = authoring.attackInterval,
+                MeleeRange = authoring.meleeRange,
+                HitChance = authoring.hitChance,
+                Damage = authoring.damage,
+                KnockbackImpulse = authoring.knockbackImpulse,
+                HitMeleeStunDuration = authoring.hitMeleeStunDuration
+            });
+        }
     }
 }
