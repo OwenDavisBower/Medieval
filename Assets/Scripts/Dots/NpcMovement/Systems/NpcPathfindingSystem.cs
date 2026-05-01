@@ -67,11 +67,8 @@ namespace Medieval.NpcMovement
                     continue;
                 }
 
-                float halfExtent = math.max(1e-2f, cfg.ValueRO.NavMeshSampleMaxDistance);
-                var extents = new UnityEngine.Vector3(halfExtent, halfExtent, halfExtent);
-                var startLoc = query.MapLocation(new UnityEngine.Vector3(origin.x, origin.y, origin.z),
-                    extents, 0);
-                if (!query.IsValid(startLoc))
+                if (!NpcNavMeshSampling.TryMapStartLocation(query, origin, cfg.ValueRO.NavMeshSampleMaxDistance,
+                        out var startLoc))
                 {
                     corners.Clear();
                     corners.Add(new NpcPathCorner { Value = goal });
@@ -82,21 +79,12 @@ namespace Medieval.NpcMovement
                     continue;
                 }
 
-                var goalLoc = query.MapLocation(new UnityEngine.Vector3(goal.x, goal.y, goal.z), extents, 0);
-                float3 endPoint;
-                if (query.IsValid(goalLoc))
-                {
-                    UnityEngine.Vector3 gp = goalLoc.position;
-                    endPoint = new float3(gp.x, gp.y, gp.z);
-                }
-                else
-                {
-                    endPoint = goal;
-                }
+                float3 endPoint = NpcNavMeshSampling.SnapGoalToNavMeshOrRaw(query, goal,
+                    cfg.ValueRO.NavMeshSampleMaxDistance);
 
                 const int allAreas = -1;
                 var raycastStatus = query.Raycast(out NavMeshHit hit, startLoc,
-                    new UnityEngine.Vector3(endPoint.x, endPoint.y, endPoint.z), allAreas, areaCosts);
+                    NpcNavMeshSampling.ToVector3(endPoint), allAreas, areaCosts);
 
                 corners.Clear();
                 if ((raycastStatus & PathQueryStatus.Success) != 0)

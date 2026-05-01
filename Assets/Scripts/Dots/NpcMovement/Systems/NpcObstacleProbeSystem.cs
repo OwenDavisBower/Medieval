@@ -50,16 +50,13 @@ namespace Medieval.NpcMovement
                 if (!math.all(math.isfinite(origin)))
                     continue;
 
-                float halfExtent = math.max(1e-2f, cfg.ValueRO.NavMeshSampleMaxDistance);
-                var sample = new UnityEngine.Vector3(halfExtent, halfExtent, halfExtent);
-                var startLoc = query.MapLocation(new UnityEngine.Vector3(origin.x, origin.y, origin.z),
-                    sample, 0);
-                if (!query.IsValid(startLoc))
+                if (!NpcNavMeshSampling.TryMapStartLocation(query, origin, cfg.ValueRO.NavMeshSampleMaxDistance,
+                        out var startLoc))
                     continue;
 
                 float3 endPoint = origin + dir * cfg.ValueRO.ObstacleProbeDistance;
                 var status = query.Raycast(out NavMeshHit hit, startLoc,
-                    new UnityEngine.Vector3(endPoint.x, endPoint.y, endPoint.z), allAreas, areaCosts);
+                    NpcNavMeshSampling.ToVector3(endPoint), allAreas, areaCosts);
                 if ((status & PathQueryStatus.Success) == 0)
                     continue;
                 if (hit.distance >= cfg.ValueRO.ObstacleProbeDistance - 1e-4f)

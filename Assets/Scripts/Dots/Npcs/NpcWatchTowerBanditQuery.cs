@@ -31,11 +31,7 @@ namespace Medieval.Npcs
                 return false;
 
             EntityManager em = world.EntityManager;
-            using EntityQuery query = em.CreateEntityQuery(
-                ComponentType.ReadOnly<LocalTransform>(),
-                ComponentType.ReadOnly<NpcProfile>(),
-                ComponentType.ReadOnly<NpcCharacterCombatState>(),
-                ComponentType.ReadOnly<NpcMovementTag>());
+            using EntityQuery query = NpcCombatCandidateQuery.CreateEntityQuery(em);
 
             if (query.IsEmpty)
                 return false;
@@ -50,9 +46,6 @@ namespace Medieval.Npcs
             float bestSq = float.MaxValue;
             int bestIdx = -1;
 
-            float tx = towerFeetWorld.x;
-            float tz = towerFeetWorld.z;
-
             for (int i = 0; i < entities.Length; i++)
             {
                 if (profiles[i].Role != NpcRole.Bandit)
@@ -63,9 +56,7 @@ namespace Medieval.Npcs
                     continue;
 
                 float3 p = transforms[i].Position;
-                float dx = p.x - tx;
-                float dz = p.z - tz;
-                float sq = dx * dx + dz * dz;
+                float sq = NpcMath.DistanceSqXZ(towerFeetWorld.x, towerFeetWorld.z, p.x, p.z);
                 if (sq > rangeSq || sq >= bestSq)
                     continue;
 

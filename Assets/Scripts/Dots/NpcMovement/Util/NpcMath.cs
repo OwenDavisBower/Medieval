@@ -3,10 +3,26 @@ using Unity.Mathematics;
 namespace Medieval.NpcMovement
 {
     /// <summary>Burst-friendly math helpers shared by NPC movement jobs.</summary>
-    internal static class NpcMath
+    public static class NpcMath
     {
         public const float WaterSurfaceY = -0.249f;
         public const float InWaterSpeedMultiplier = 0.5f;
+
+        /// <summary>Squared distance on XZ only; Y is ignored.</summary>
+        public static float DistanceSqXZ(float3 a, float3 b)
+        {
+            float dx = a.x - b.x;
+            float dz = a.z - b.z;
+            return dx * dx + dz * dz;
+        }
+
+        /// <summary>Squared distance on XZ between two horizontal positions.</summary>
+        public static float DistanceSqXZ(float ax, float az, float bx, float bz)
+        {
+            float dx = ax - bx;
+            float dz = az - bz;
+            return dx * dx + dz * dz;
+        }
 
         public static float WaterSpeedMultiplier(float worldY) =>
             worldY < WaterSurfaceY ? InWaterSpeedMultiplier : 1f;

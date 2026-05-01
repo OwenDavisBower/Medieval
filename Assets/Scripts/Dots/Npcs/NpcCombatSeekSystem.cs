@@ -14,11 +14,7 @@ namespace Medieval.Npcs
 
         protected override void OnCreate()
         {
-            _candidateQuery = GetEntityQuery(
-                ComponentType.ReadOnly<LocalTransform>(),
-                ComponentType.ReadOnly<NpcProfile>(),
-                ComponentType.ReadOnly<NpcCharacterCombatState>(),
-                ComponentType.ReadOnly<NpcMovementTag>());
+            _candidateQuery = GetEntityQuery(NpcCombatCandidateQuery.All);
         }
 
         protected override void OnUpdate()
@@ -38,7 +34,7 @@ namespace Medieval.Npcs
                          .Query<RefRW<NpcSeekOverride>, RefRW<NpcOverrideFacing>, RefRW<NpcMovementState>,
                              RefRW<NpcCombatTarget>, RefRO<LocalTransform>, RefRO<NpcProfile>,
                              RefRO<NpcCombatSeekConfig>>()
-                         .WithAll<NpcMovementTag>()
+                         .WithAll<NpcMovementTag, NpcCharacterCombatState>()
                          .WithEntityAccess())
             {
                 ref NpcSeekOverride seek = ref seekRw.ValueRW;
@@ -46,7 +42,7 @@ namespace Medieval.Npcs
                 ref NpcMovementState move = ref moveRw.ValueRW;
                 ref NpcCombatTarget combatTarget = ref combatTargetRw.ValueRW;
                 float3 selfFeet = selfTf.ValueRO.Position;
-                var combat = em.GetComponentData<NpcCharacterCombatState>(entity);
+                NpcCharacterCombatState combat = em.GetComponentData<NpcCharacterCombatState>(entity);
 
                 if (profile.ValueRO.Role == NpcRole.Villager || profile.ValueRO.Role == NpcRole.Unknown)
                 {
@@ -74,9 +70,7 @@ namespace Medieval.Npcs
                 {
                     float3 p = playerAnchor.Position;
                     float maxSq = cfg.ValueRO.MaxDistanceFromLeader * cfg.ValueRO.MaxDistanceFromLeader;
-                    float dx = selfFeet.x - p.x;
-                    float dz = selfFeet.z - p.z;
-                    if (dx * dx + dz * dz > maxSq)
+                    if (NpcMath.DistanceSqXZ(selfFeet, p) > maxSq)
                     {
                         ClearSeek(ref seek, ref facing, ref move, ref combatTarget);
                         continue;
@@ -100,9 +94,7 @@ namespace Medieval.Npcs
                         continue;
 
                     float3 op = candTf[i].Position;
-                    float dx = op.x - selfFeet.x;
-                    float dz = op.z - selfFeet.z;
-                    float sq = dx * dx + dz * dz;
+                    float sq = NpcMath.DistanceSqXZ(op, selfFeet);
                     if (sq > aggroSq || sq >= bestSq)
                         continue;
 
@@ -124,9 +116,7 @@ namespace Medieval.Npcs
                 if (profile.ValueRO.Role == NpcRole.Bandit && hasPlayer)
                 {
                     float3 op = playerAnchor.Position;
-                    float dx = op.x - selfFeet.x;
-                    float dz = op.z - selfFeet.z;
-                    float sq = dx * dx + dz * dz;
+                    float sq = NpcMath.DistanceSqXZ(op, selfFeet);
                     if (sq <= aggroSq && sq < bestSq &&
                         LineOfSightUtility.HasClearLineOfSightWorldPoints(
                             new Vector3(selfFeet.x, selfFeet.y, selfFeet.z),
@@ -145,20 +135,14 @@ namespace Medieval.Npcs
 
                 if (!found)
                 {
-                    seek.HasOverride = 0;
-                    seek.Position = default;
-                    facing = default;
-                    move.RangedMovementLock = 0;
-                    move.RangedCombatSeparationBoost = 0;
-                    combatTarget = default;
+                    ClearSeek(ref seek, ref facing, ref move, ref combatTarget);
                     continue;
                 }
 
                 bool useRangedHold = profile.ValueRO.WeaponClass == NpcWeaponClass.Ranged ||
                     profile.ValueRO.WeaponClass == NpcWeaponClass.Both;
                 float combatRange = math.max(0.25f, cfg.ValueRO.CombatRange);
-                float flatSq = (bestPos.x - selfFeet.x) * (bestPos.x - selfFeet.x) +
-                    (bestPos.z - selfFeet.z) * (bestPos.z - selfFeet.z);
+                float flatSq = NpcMath.DistanceSqXZ(bestPos, selfFeet);
 
                 float holdDist = 0f;
                 if (useRangedHold)
