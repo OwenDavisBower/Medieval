@@ -1,9 +1,10 @@
+using Medieval.Npcs;
 using Medieval.Projectiles;
 using UnityEngine;
 
 /// <summary>
 /// Fires physics arrows at the nearest faction enemy in range with clear line of sight (same projectile flow as <see cref="RangedCombat"/>).
-/// Uses <see cref="TargetFinder"/> when present; otherwise falls back to <see cref="BanditController"/> registry.
+/// Uses <see cref="TargetFinder"/> when present; otherwise queries DOTS bandit entities via <see cref="NpcWatchTowerBanditQuery"/>.
 /// </summary>
 public class WatchTowerArrowDefense : MonoBehaviour
 {
@@ -39,11 +40,10 @@ public class WatchTowerArrowDefense : MonoBehaviour
         if (Time.time < _nextFireTime)
             return;
 
-        Transform target = FindEnemyToShoot();
-        if (target == null)
+        if (!TryGetShootTarget(out Transform transformTarget, out Vector3 feetWorld, out Vector3 horizVel))
             return;
 
-        if (TryFireAt(target))
+        if (TryFireAt(transformTarget, feetWorld, horizVel))
         {
             float min = Mathf.Min(fireIntervalMin, fireIntervalMax);
             float max = Mathf.Max(fireIntervalMin, fireIntervalMax);
@@ -51,8 +51,14 @@ public class WatchTowerArrowDefense : MonoBehaviour
         }
     }
 
-    Transform FindEnemyToShoot()
+    /// <param name="transformTarget">Non-null when aiming at a <see cref="TargetFinder"/> result; feetWorld is ignored for aim position.</param>
+    /// <param name="feetWorld">DOTS bandit foot position when <paramref name="transformTarget"/> is null.</param>
+    bool TryGetShootTarget(out Transform transformTarget, out Vector3 feetWorld, out Vector3 horizVel)
     {
+        transformTarget = null;
+        feetWorld = default;
+        horizVel = default;
+
         float rangeSq = combatRange * combatRange;
 
         if (_targetFinder != null)
@@ -68,48 +74,37 @@ public class WatchTowerArrowDefense : MonoBehaviour
                     if (sq <= rangeSq &&
                         LineOfSightUtility.HasClearLineOfSight(transform.position, candidate, eyeHeight, targetAimHeight,
                             obstacleLayers, transform.root))
-                        return candidate;
+                    {
+                        transformTarget = candidate;
+                        horizVel = HorizontalVelocity(candidate);
+                        return true;
+                    }
                 }
             }
         }
 
-        BanditController bestBandit = null;
-        float bestSq = float.MaxValue;
+        if (NpcWatchTowerBanditQuery.TryFindNearestBanditForTower(
+                transform.position,
+                combatRange,
+                eyeHeight,
+                targetAimHeight,
+                obstacleLayers,
+                transform.root,
+                out feetWorld,
+                out horizVel))
+            return true;
 
-        BanditController[] bandits = CombatUnitRegistry.GetBandits();
-        for (int i = 0; i < bandits.Length; i++)
-        {
-            BanditController b = bandits[i];
-            if (b == null)
-                continue;
-
-            var bh = b.GetComponentInParent<IDamageableHealth>();
-            if (bh != null && bh.IsDead)
-                continue;
-
-            float sq = SpatialMath.FlatSqrDistance(transform.position, b.transform.position);
-            if (sq > rangeSq || sq >= bestSq)
-                continue;
-
-            if (!LineOfSightUtility.HasClearLineOfSight(transform.position, b.transform, eyeHeight, targetAimHeight,
-                    obstacleLayers, transform.root))
-                continue;
-
-            bestBandit = b;
-            bestSq = sq;
-        }
-
-        return bestBandit != null ? bestBandit.transform : null;
+        return false;
     }
 
-    bool TryFireAt(Transform target)
+    bool TryFireAt(Transform transformTarget, Vector3 feetWorld, Vector3 horizVel)
     {
         Vector2 spawnXz = spawnRadius > 0f ? Random.insideUnitCircle * spawnRadius : Vector2.zero;
         Vector3 towerBase = transform.position;
         Vector3 origin = towerBase + new Vector3(spawnXz.x, launchHeight, spawnXz.y);
 
-        Vector3 aimBase = target.position + Vector3.up * targetAimHeight;
-        Vector3 vH = HorizontalVelocity(target);
+        Vector3 aimBase = (transformTarget != null ? transformTarget.position : feetWorld) + Vector3.up * targetAimHeight;
+        Vector3 vH = transformTarget != null ? HorizontalVelocity(transformTarget) : horizVel;
 
         Vector3 aim = aimBase;
         for (int i = 0; i < 2; i++)

@@ -65,8 +65,6 @@ public static class TerrainChunkCharacterStreaming
             EnableUnitsForChunk(c);
             TerrainChunkDotsNpcStreaming.EnableNpcsForChunk(c);
         }
-
-        CombatUnitRegistry.InvalidateCaches();
     }
 
     static void DisableUnitsInChunk(
