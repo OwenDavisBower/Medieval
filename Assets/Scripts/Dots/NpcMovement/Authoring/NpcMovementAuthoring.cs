@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Medieval.NpcMovement
 {
     /// <summary>
-    /// Authoring component mirroring the serialized fields of the legacy <c>TargetSteeringMotor</c> so
+    /// Authoring component for DOTS NPC movement tuning (replaces removed GameObject motor scripts) so
     /// the DOTS NPC movement pipeline can be configured either by baking a prefab or by reading this
     /// component off the GameObject at runtime (see <see cref="NpcMovementEntityFactory"/>).
     /// </summary>

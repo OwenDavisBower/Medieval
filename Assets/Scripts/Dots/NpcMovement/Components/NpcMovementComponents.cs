@@ -29,7 +29,7 @@ namespace Medieval.NpcMovement
     {
     }
 
-    /// <summary>Static per-entity tuning mirrored from <c>TargetSteeringMotor</c> serialized fields.</summary>
+    /// <summary>Static per-entity tuning from <see cref="NpcMovementAuthoring"/> bake.</summary>
     public struct NpcMovementConfig : IComponentData
     {
         public float MoveSpeed;

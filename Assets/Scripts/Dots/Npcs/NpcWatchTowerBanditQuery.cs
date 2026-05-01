@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Medieval.Npcs
 {
     /// <summary>
-    /// Main-thread helper for GameObject systems (e.g. watchtowers) to acquire DOTS bandit targets without <see cref="BanditController"/>.
+    /// Main-thread helper for GameObject systems (e.g. watchtowers) to acquire DOTS bandit targets.
     /// </summary>
     public static class NpcWatchTowerBanditQuery
     {

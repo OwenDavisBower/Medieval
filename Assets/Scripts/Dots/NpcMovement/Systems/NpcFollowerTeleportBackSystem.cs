@@ -9,7 +9,6 @@ namespace Medieval.NpcMovement
     /// When a follower is farther than <see cref="NpcCombatSeekConfig.FollowerTeleportBackDistance"/> from the
     /// player in XZ, snaps it to <see cref="NpcCombatSeekConfig.FollowerTeleportBackTargetDistance"/> on the
     /// same radial line and re-grounds with the same raycast idea as <see cref="NpcGroundSnapSystem"/>.
-    /// Mirrors legacy <c>FollowerController.TryTeleportBackTowardLeader</c>.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(NpcPlayerAnchorSyncSystem))]

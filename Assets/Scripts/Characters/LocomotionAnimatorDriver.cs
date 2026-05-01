@@ -1,9 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Drives locomotion playback speed from horizontal movement speed.
-/// Attach to any character root that has a Rigidbody and either a <see cref="TargetSteeringMotor"/>
-/// (NPCs) or a <see cref="PlayerController"/> (player).
+/// Drives locomotion playback speed from horizontal movement speed (player: <see cref="PlayerController"/> + Rigidbody).
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody))]
@@ -20,13 +18,11 @@ public sealed class LocomotionAnimatorDriver : MonoBehaviour
     [SerializeField] float animationSpeedScale = 2f;
 
     Rigidbody _rigidbody;
-    TargetSteeringMotor _motor;
     PlayerController _player;
 
     void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
-        _motor = GetComponent<TargetSteeringMotor>();
         _player = GetComponent<PlayerController>();
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
@@ -50,19 +46,11 @@ public sealed class LocomotionAnimatorDriver : MonoBehaviour
         );
     }
 
-    float ResolveEffectiveMaxSpeed()
-    {
-        if (_motor != null)
-            return _motor.EffectiveMoveSpeed;
-        if (_player != null)
-            return _player.GetEffectiveMaxMoveSpeed();
-        return 0f;
-    }
+    float ResolveEffectiveMaxSpeed() =>
+        _player != null ? _player.GetEffectiveMaxMoveSpeed() : 0f;
 
     Vector3 ResolveHorizontalVelocity()
     {
-        if (_motor != null)
-            return _motor.CurrentHorizontalVelocity;
         if (_rigidbody != null)
             return _rigidbody.linearVelocity;
         return Vector3.zero;

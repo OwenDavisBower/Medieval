@@ -60,7 +60,7 @@ public class Character : MonoBehaviour, IDamageableHealth
     /// <summary>Higher strength increases melee damage (see <see cref="MeleeCombat"/>).</summary>
     public float MeleeDamageMultiplier => _meleeDamageMultiplier;
 
-    /// <summary>Higher dexterity increases movement speed (see <see cref="TargetSteeringMotor"/> / <see cref="PlayerController"/>).</summary>
+    /// <summary>Higher dexterity increases movement speed (see <see cref="PlayerController"/>).</summary>
     public float MovementSpeedMultiplier => _movementSpeedMultiplier;
 
     /// <summary>Higher focus tightens bow aim spread (values &lt; 1 reduce error).</summary>
@@ -209,10 +209,6 @@ public class Character : MonoBehaviour, IDamageableHealth
         foreach (var d in GetComponents<LocomotionAnimatorDriver>())
             d.enabled = false;
 
-        var motor = GetComponent<TargetSteeringMotor>();
-        if (motor != null)
-            motor.enabled = false;
-
         var ranged = GetComponent<RangedCombat>();
         if (ranged != null)
             ranged.enabled = false;
@@ -220,14 +216,6 @@ public class Character : MonoBehaviour, IDamageableHealth
         var melee = GetComponent<MeleeCombat>();
         if (melee != null)
             melee.enabled = false;
-
-        var seek = GetComponent<CombatSeekControllerBase>();
-        if (seek != null)
-            seek.enabled = false;
-
-        var villager = GetComponent<VillagerController>();
-        if (villager != null)
-            villager.enabled = false;
 
         var player = GetComponent<PlayerController>();
         if (player != null)
