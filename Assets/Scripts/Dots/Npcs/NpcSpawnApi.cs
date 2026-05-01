@@ -135,6 +135,7 @@ namespace Medieval.Npcs
                 {
                     AggroRadius = 50f,
                     CombatRange = 20f,
+                    RangedStandoffHoldDistance = 0f,
                     EyeHeight = 1.5f,
                     TargetAimHeight = 1f,
                     ObstacleLayerMask = ~0,

@@ -65,6 +65,8 @@ namespace Medieval.NpcMovement
         [Header("Combat seek (DOTS)")]
         public float CombatSeekAggroRadius = 50f;
         public float CombatSeekCombatRange = 20f;
+        [Tooltip("Ranged standoff: stop advancing toward the target at this distance (must be < combat range). 0 = ~72% of combat range.")]
+        public float CombatSeekRangedStandoffHoldDistance;
         public float CombatSeekEyeHeight = 1.5f;
         public float CombatSeekTargetAimHeight = 1f;
         public LayerMask CombatSeekObstacleLayers = ~0;
@@ -176,6 +178,7 @@ namespace Medieval.NpcMovement
                 {
                     AggroRadius = authoring.CombatSeekAggroRadius,
                     CombatRange = authoring.CombatSeekCombatRange,
+                    RangedStandoffHoldDistance = authoring.CombatSeekRangedStandoffHoldDistance,
                     EyeHeight = authoring.CombatSeekEyeHeight,
                     TargetAimHeight = authoring.CombatSeekTargetAimHeight,
                     ObstacleLayerMask = authoring.CombatSeekObstacleLayers.value != 0 ? authoring.CombatSeekObstacleLayers.value : ~0,

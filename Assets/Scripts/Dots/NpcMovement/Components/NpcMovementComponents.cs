@@ -91,6 +91,8 @@ namespace Medieval.NpcMovement
 
         public byte HasSmoothTarget;
         public byte RangedMovementLock;
+        /// <summary>Set by combat seek while pursuing with ranged standoff; scales neighbor separation.</summary>
+        public byte RangedCombatSeparationBoost;
         public byte DodgeImpulseThisFrame;
 
         public float BaseAngle;

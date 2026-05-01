@@ -53,7 +53,8 @@ namespace Medieval.NpcMovement
             float maxRadius = 0f;
             for (int i = 0; i < configs.Length; i++)
                 maxRadius = math.max(maxRadius, configs[i].SeparationRadius);
-            float cellSize = math.max(0.25f, maxRadius);
+            // Ranged standoff can scale effective separation radius; keep cells large enough for 3x3 neighbor queries.
+            float cellSize = math.max(0.25f, maxRadius * 1.5f);
 
             var buildJob = new BuildHashJob
             {
@@ -115,6 +116,13 @@ namespace Medieval.NpcMovement
 
                 float3 p = tf.Position;
                 float r = cfg.SeparationRadius;
+                float strength = cfg.SeparationStrength;
+                if (state.RangedCombatSeparationBoost != 0)
+                {
+                    r *= 1.45f;
+                    strength *= 1.9f;
+                }
+
                 float rSq = r * r;
                 float3 sum = float3.zero;
 
@@ -136,7 +144,7 @@ namespace Medieval.NpcMovement
                         if (sq > 1e-6f && sq < rSq)
                         {
                             float dist = math.sqrt(sq);
-                            sum += math.normalize(d) * (cfg.SeparationStrength * (1f - dist / r));
+                            sum += math.normalize(d) * (strength * (1f - dist / r));
                         }
                     } while (Hash.TryGetNextValue(out other, ref it));
                 }
@@ -149,7 +157,7 @@ namespace Medieval.NpcMovement
                     if (asq > 1e-6f && asq < rSq)
                     {
                         float dist = math.sqrt(asq);
-                        sum += math.normalize(ad) * (cfg.SeparationStrength * (1f - dist / r));
+                        sum += math.normalize(ad) * (strength * (1f - dist / r));
                     }
                 }
 

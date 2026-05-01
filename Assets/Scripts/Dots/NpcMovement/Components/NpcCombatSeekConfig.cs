@@ -9,7 +9,13 @@ namespace Medieval.NpcMovement
     public struct NpcCombatSeekConfig : IComponentData
     {
         public float AggroRadius;
+        /// <summary>Max horizontal distance at which ranged attacks are allowed; should be greater than standoff hold distance.</summary>
         public float CombatRange;
+        /// <summary>
+        /// Ranged / Both: distance from target at which movement stops advancing (standoff). Must stay below
+        /// <see cref="CombatRange"/> so units still shoot from their hold ring. 0 = use ~72% of <see cref="CombatRange"/>.
+        /// </summary>
+        public float RangedStandoffHoldDistance;
         public float EyeHeight;
         public float TargetAimHeight;
         public int ObstacleLayerMask;

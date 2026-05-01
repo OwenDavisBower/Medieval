@@ -149,13 +149,26 @@ namespace Medieval.Npcs
                     seek.Position = default;
                     facing = default;
                     move.RangedMovementLock = 0;
+                    move.RangedCombatSeparationBoost = 0;
                     combatTarget = default;
                     continue;
                 }
 
                 bool useRangedHold = profile.ValueRO.WeaponClass == NpcWeaponClass.Ranged ||
                     profile.ValueRO.WeaponClass == NpcWeaponClass.Both;
-                float holdDist = useRangedHold ? cfg.ValueRO.CombatRange : 0f;
+                float combatRange = math.max(0.25f, cfg.ValueRO.CombatRange);
+                float holdDist = 0f;
+                if (useRangedHold)
+                {
+                    float configured = cfg.ValueRO.RangedStandoffHoldDistance;
+                    holdDist = configured > 0f
+                        ? math.min(configured, combatRange * 0.94f)
+                        : combatRange * 0.72f;
+                    holdDist = math.clamp(holdDist, 0.25f, combatRange * 0.9f);
+                    move.RangedCombatSeparationBoost = 1;
+                }
+                else
+                    move.RangedCombatSeparationBoost = 0;
 
                 seek.Position = bestPos;
                 seek.SeekHoldDistance = holdDist;
@@ -166,7 +179,7 @@ namespace Medieval.Npcs
 
                 float flatSq = (bestPos.x - selfFeet.x) * (bestPos.x - selfFeet.x) +
                     (bestPos.z - selfFeet.z) * (bestPos.z - selfFeet.z);
-                float range = cfg.ValueRO.CombatRange;
+                float range = combatRange;
                 bool standoff = useRangedHold && flatSq <= range * range;
                 if (standoff)
                 {
@@ -194,6 +207,7 @@ namespace Medieval.Npcs
             seek.SeekHoldDistance = 0f;
             facing = default;
             move.RangedMovementLock = 0;
+            move.RangedCombatSeparationBoost = 0;
             combatTarget = default;
         }
 
