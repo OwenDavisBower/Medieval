@@ -1,20 +1,31 @@
+using Medieval.NpcMovement;
 using UnityEngine;
 
-/// <summary>Resolves the player transform for NPC anchoring and targeting.</summary>
+/// <summary>
+/// Authoritative player objects for NPC combat and hybrid bridges; set from <see cref="PlayerController"/> on enable.
+/// </summary>
 public static class PlayerReference
 {
-    static Transform _player;
+    static Character s_Character;
 
-    /// <summary>Returns the player transform, or null if not found yet.</summary>
-    public static Transform TryGetTransform()
+    public static void Register(Transform transform, Rigidbody rigidbody, Character character)
     {
-        if (_player == null)
-        {
-            var go = GameObject.Find("Player");
-            if (go != null)
-                _player = go.transform;
-        }
-
-        return _player;
+        PlayerAnchorRegistration.Register(transform, rigidbody);
+        s_Character = character;
     }
+
+    public static void Unregister(Transform transform)
+    {
+        bool hadThisRoot = PlayerAnchorRegistration.HasPlayer &&
+                           PlayerAnchorRegistration.Transform == transform;
+        PlayerAnchorRegistration.Unregister(transform);
+        if (hadThisRoot)
+            s_Character = null;
+    }
+
+    public static Transform TryGetTransform() => PlayerAnchorRegistration.Transform;
+
+    public static Rigidbody TryGetRigidbody() => PlayerAnchorRegistration.Rigidbody;
+
+    public static Character TryGetCharacter() => s_Character;
 }

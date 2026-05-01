@@ -231,13 +231,13 @@ namespace Medieval.Npcs
             if (pdx * pdx + pdz * pdz > meleeCfg.MeleeRange * meleeCfg.MeleeRange)
                 return;
 
-            var ch = player.GetComponentInParent<Character>();
+            Character ch = PlayerReference.TryGetCharacter();
             if (ch == null || ch.IsDead)
                 return;
 
             ch.TakeDamage(dmg);
             ch.ApplyAttackStun(meleeCfg.HitMeleeStunDuration);
-            var prb = player.GetComponentInParent<Rigidbody>();
+            Rigidbody prb = PlayerReference.TryGetRigidbody();
             if (prb != null)
             {
                 Vector3 d = p - (Vector3)selfFeet;

@@ -32,11 +32,13 @@ public class PlayerController : MonoBehaviour
     void OnEnable()
     {
         TerrainGenerator.TerrainGenerated += OnTerrainGenerated;
+        PlayerReference.Register(transform, _rb, _character);
     }
 
     void OnDisable()
     {
         TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
+        PlayerReference.Unregister(transform);
     }
 
     void Start()
