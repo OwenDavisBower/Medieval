@@ -20,6 +20,12 @@ public struct SettlementBuildingSpawnEntry
     public bool spawnVillagersHere;
     [Tooltip("Bandit camp only: use Euler (-90, yaw, 0) instead of (0, yaw, 0) when instantiating (common FBX axis fix). Ignored by settlement building spawn.")]
     public bool applyMinus90XRotation;
+    [Tooltip("Uniform multiplier for prefab local scale on X, Y, and Z. Defaults to 1; values ≤ 0 are treated as 1 for older serialized entries.")]
+    [Min(0.0001f)]
+    public float uniformScale;
+
+    /// <summary>Safe multiplier for spawn code (legacy serialized entries may have 0 before re-save).</summary>
+    public readonly float EffectiveUniformScale => uniformScale > 0f ? uniformScale : 1f;
 }
 
 [CreateAssetMenu(fileName = "SettlementSpawnConfig", menuName = "Medieval/Spawning/Settlement Spawn Config")]

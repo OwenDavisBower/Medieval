@@ -162,7 +162,7 @@ public class SettlementBuilder : MonoBehaviour
                     continue;
 
                 placed.Add(pos);
-                GameObject structure = SpawnPrefab(entry.prefab, pos);
+                GameObject structure = SpawnPrefab(entry.prefab, pos, entry.EffectiveUniformScale);
                 if (structure == null)
                     continue;
 
@@ -424,11 +424,13 @@ public class SettlementBuilder : MonoBehaviour
         return slope <= maxSlope;
     }
 
-    GameObject SpawnPrefab(GameObject prefab, Vector3 worldPos)
+    GameObject SpawnPrefab(GameObject prefab, Vector3 worldPos, float uniformScale)
     {
         float yaw = Random.Range(0f, 360f);
         Quaternion rot = Quaternion.Euler(0f, yaw, 0f);
         GameObject instance = Instantiate(prefab, worldPos, rot, transform);
+        Vector3 ls = instance.transform.localScale;
+        instance.transform.localScale = ls * uniformScale;
         HierarchyLayers.SetRecursiveByLayerName(instance.transform, "Building");
         return instance;
     }

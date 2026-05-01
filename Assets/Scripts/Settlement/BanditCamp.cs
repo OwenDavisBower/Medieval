@@ -148,7 +148,11 @@ public class BanditCamp : MonoBehaviour
                     continue;
 
                 occupied.Add(pos);
-                GameObject structure = SpawnStructurePrefab(entry.prefab, pos, entry.applyMinus90XRotation);
+                GameObject structure = SpawnStructurePrefab(
+                    entry.prefab,
+                    pos,
+                    entry.applyMinus90XRotation,
+                    entry.EffectiveUniformScale);
                 if (structure == null)
                     occupied.RemoveAt(occupied.Count - 1);
             }
@@ -208,13 +212,15 @@ public class BanditCamp : MonoBehaviour
         return slope <= maxSlope;
     }
 
-    GameObject SpawnStructurePrefab(GameObject prefab, Vector3 worldPos, bool applyMinus90XRotation)
+    GameObject SpawnStructurePrefab(GameObject prefab, Vector3 worldPos, bool applyMinus90XRotation, float uniformScale)
     {
         float yaw = Random.Range(0f, 360f);
         Quaternion rot = applyMinus90XRotation
             ? Quaternion.Euler(-90f, yaw, 0f)
             : Quaternion.Euler(0f, yaw, 0f);
         GameObject instance = Instantiate(prefab, worldPos, rot, transform);
+        Vector3 ls = instance.transform.localScale;
+        instance.transform.localScale = ls * uniformScale;
         HierarchyLayers.SetRecursiveByLayerName(instance.transform, "Building");
         return instance;
     }
