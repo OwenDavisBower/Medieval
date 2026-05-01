@@ -1,6 +1,7 @@
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Medieval.Npcs
 {
@@ -21,7 +22,7 @@ namespace Medieval.Npcs
                 seed = math.max(1u, math.hash(p) ^ (uint)npc.Index ^ 0x9E3779B9u);
             }
 
-            var rng = new Random(seed);
+            var rng = new Unity.Mathematics.Random(seed);
             float maxHealth = rng.NextFloat(bake.MinHealth, bake.MaxHealth);
             float strength = rng.NextFloat(bake.MinStrength, bake.MaxStrength);
             float dexterity = rng.NextFloat(bake.MinDexterity, bake.MaxDexterity);
@@ -48,6 +49,9 @@ namespace Medieval.Npcs
                 return;
 
             NpcWeaponClass resolved = ResolveWeaponClass(em, npc);
+            if ((role == NpcRole.Follower || role == NpcRole.Bandit) && resolved == NpcWeaponClass.Both)
+                resolved = UnityEngine.Random.value < 0.5f ? NpcWeaponClass.Melee : NpcWeaponClass.Ranged;
+
             if (!em.HasComponent<NpcProfile>(npc))
             {
                 em.AddComponentData(npc, new NpcProfile { Role = role, WeaponClass = resolved });
@@ -58,6 +62,9 @@ namespace Medieval.Npcs
             profile.Role = role;
             if (profile.WeaponClass == NpcWeaponClass.Unspecified)
                 profile.WeaponClass = resolved;
+            else if ((role == NpcRole.Follower || role == NpcRole.Bandit) &&
+                     profile.WeaponClass == NpcWeaponClass.Both)
+                profile.WeaponClass = UnityEngine.Random.value < 0.5f ? NpcWeaponClass.Melee : NpcWeaponClass.Ranged;
             em.SetComponentData(npc, profile);
         }
 
