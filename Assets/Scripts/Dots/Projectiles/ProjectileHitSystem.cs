@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Medieval.NpcMovement;
 using Medieval.Npcs;
 using Unity.Collections;
 using Unity.Entities;
@@ -19,6 +20,9 @@ namespace Medieval.Projectiles
         static RaycastHit[] s_SphereCastHits;
         static List<PendingHit> s_PendingHits;
 
+        EntityQuery _projectileQuery;
+        EntityQuery _npcProjectileGridQuery;
+
         struct PendingHit
         {
             public Entity Entity;
@@ -30,64 +34,106 @@ namespace Medieval.Projectiles
             public float3 CurrentPosition;
         }
 
+        public void OnCreate(ref SystemState state)
+        {
+            _projectileQuery = state.GetEntityQuery(ComponentType.ReadOnly<ProjectileTag>());
+            _npcProjectileGridQuery = state.GetEntityQuery(
+                ComponentType.ReadOnly<LocalTransform>(),
+                ComponentType.ReadOnly<NpcCharacterCombatState>(),
+                ComponentType.ReadOnly<NpcMovementTag>());
+        }
+
         public void OnUpdate(ref SystemState state)
         {
             EnsureSphereCastBuffer(InitialSphereCastHitCapacity);
             s_PendingHits ??= new List<PendingHit>(16);
             s_PendingHits.Clear();
 
+            if (_projectileQuery.IsEmpty)
+                return;
+
             var em = state.EntityManager;
             var pending = s_PendingHits;
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
-            foreach (var (tf, motion, hitSphere, damage, shooter, legacyRoot, owner, entity) in SystemAPI
-                         .Query<RefRO<LocalTransform>, RefRO<ProjectileMotionState>, RefRO<ProjectileHitSphere>,
-                             RefRO<ProjectileDamage>, RefRO<ProjectileShooterRoot>,
-                             RefRO<ProjectileShooterLegacyRootInstanceId>, RefRO<ProjectileOwnerColliderId>>()
-                         .WithAll<ProjectileTag>()
-                         .WithEntityAccess())
+            float cellSize = NpcProjectileDotsNpc.ProjectileNpcSpatialCellSize;
+            int npcCount = _npcProjectileGridQuery.CalculateEntityCount();
+            var npcCellMap = new NativeParallelMultiHashMap<int2, Entity>(math.max(256, npcCount * 2), Allocator.Temp);
+            try
             {
-                float3 prev = motion.ValueRO.PreviousPosition;
-                float3 cur = tf.ValueRO.Position;
-                Vector3 disp = (Vector3)(cur - prev);
-                float dist = disp.magnitude;
-                if (dist < 1e-6f)
-                    continue;
-
-                Vector3 dir = disp / dist;
-                float radius = math.max(0.001f, hitSphere.ValueRO.Radius);
-                Entity shooterRoot = shooter.ValueRO.Value;
-                int legacyRootId = legacyRoot.ValueRO.Value;
-                int ownerColliderId = owner.ValueRO.ColliderInstanceId;
-
-                bool hasPhys = TryGetClosestPhysicsHit((Vector3)prev, radius, dir, dist, legacyRootId, ownerColliderId,
-                    out RaycastHit physBestHit, out float physBestDist);
-
-                Entity dotsExclude = shooterRoot;
-
-                bool hasDots = NpcProjectileDotsNpc.TryFindClosestAlongSegment(em, prev, cur, radius, dotsExclude,
-                    out Entity dotsVictim, out float dotsDist);
-                bool preferDots = hasDots && (!hasPhys || dotsDist < physBestDist - 1e-4f);
-                if (preferDots)
+                foreach (var (tf, combat, entity) in SystemAPI
+                             .Query<RefRO<LocalTransform>, RefRO<NpcCharacterCombatState>>()
+                             .WithAll<NpcMovementTag>()
+                             .WithEntityAccess())
                 {
-                    NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim, damage.ValueRO.Amount);
-                    ecb.DestroyEntity(entity);
-                    continue;
+                    if (combat.ValueRO.IsDead != 0 || combat.ValueRO.CurrentHealth <= 0f)
+                        continue;
+                    float3 p = tf.ValueRO.Position;
+                    var cell = new int2((int)math.floor(p.x / cellSize), (int)math.floor(p.z / cellSize));
+                    npcCellMap.Add(cell, entity);
                 }
 
-                if (!hasPhys)
-                    continue;
+                var profileLookup = SystemAPI.GetComponentLookup<NpcProfile>(true);
+                var combatLookup = SystemAPI.GetComponentLookup<NpcCharacterCombatState>(true);
+                var transformLookup = SystemAPI.GetComponentLookup<LocalTransform>(true);
+                profileLookup.Update(ref state);
+                combatLookup.Update(ref state);
+                transformLookup.Update(ref state);
 
-                pending.Add(new PendingHit
+                foreach (var (tf, motion, hitSphere, damage, shooter, legacyRoot, owner, entity) in SystemAPI
+                             .Query<RefRO<LocalTransform>, RefRO<ProjectileMotionState>, RefRO<ProjectileHitSphere>,
+                                 RefRO<ProjectileDamage>, RefRO<ProjectileShooterRoot>,
+                                 RefRO<ProjectileShooterLegacyRootInstanceId>, RefRO<ProjectileOwnerColliderId>>()
+                             .WithAll<ProjectileTag>()
+                             .WithEntityAccess())
                 {
-                    Entity = entity,
-                    LegacyShooterRootInstanceId = legacyRootId,
-                    OwnerColliderInstanceId = ownerColliderId,
-                    Damage = damage.ValueRO,
-                    Hit = physBestHit,
-                    PreviousPosition = prev,
-                    CurrentPosition = cur
-                });
+                    float3 prev = motion.ValueRO.PreviousPosition;
+                    float3 cur = tf.ValueRO.Position;
+                    Vector3 disp = (Vector3)(cur - prev);
+                    float dist = disp.magnitude;
+                    if (dist < 1e-6f)
+                        continue;
+
+                    Vector3 dir = disp / dist;
+                    float radius = math.max(0.001f, hitSphere.ValueRO.Radius);
+                    Entity shooterRoot = shooter.ValueRO.Value;
+                    int legacyRootId = legacyRoot.ValueRO.Value;
+                    int ownerColliderId = owner.ValueRO.ColliderInstanceId;
+
+                    bool hasPhys = TryGetClosestPhysicsHit((Vector3)prev, radius, dir, dist, legacyRootId,
+                        ownerColliderId, out RaycastHit physBestHit, out float physBestDist);
+
+                    Entity dotsExclude = shooterRoot;
+
+                    bool hasDots = NpcProjectileDotsNpc.TryFindClosestAlongSegment(in npcCellMap, cellSize,
+                        in profileLookup, in combatLookup, in transformLookup, prev, cur, radius, dotsExclude,
+                        out Entity dotsVictim, out float dotsDist);
+                    bool preferDots = hasDots && (!hasPhys || dotsDist < physBestDist - 1e-4f);
+                    if (preferDots)
+                    {
+                        NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim, damage.ValueRO.Amount);
+                        ecb.DestroyEntity(entity);
+                        continue;
+                    }
+
+                    if (!hasPhys)
+                        continue;
+
+                    pending.Add(new PendingHit
+                    {
+                        Entity = entity,
+                        LegacyShooterRootInstanceId = legacyRootId,
+                        OwnerColliderInstanceId = ownerColliderId,
+                        Damage = damage.ValueRO,
+                        Hit = physBestHit,
+                        PreviousPosition = prev,
+                        CurrentPosition = cur
+                    });
+                }
+            }
+            finally
+            {
+                npcCellMap.Dispose();
             }
 
             ecb.Playback(em);

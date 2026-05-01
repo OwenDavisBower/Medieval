@@ -14,8 +14,20 @@ namespace Medieval.Npcs
         /// </summary>
         public const float CloseGroupedAlliedRangedFriendlyFireHorizMeters = 4f;
 
+        /// <summary>
+        /// Uniform XZ cell size for projectile vs NPC broadphase (see <see cref="TryFindClosestAlongSegment"/>).
+        /// </summary>
+        public const float ProjectileNpcSpatialCellSize = 2.5f;
+
+        /// <summary>
+        /// Narrowphase along segment using a single broadphase map built for all projectiles this tick.
+        /// </summary>
         public static bool TryFindClosestAlongSegment(
-            EntityManager em,
+            in NativeParallelMultiHashMap<int2, Entity> cellMap,
+            float cellSize,
+            in ComponentLookup<NpcProfile> profiles,
+            in ComponentLookup<NpcCharacterCombatState> combats,
+            in ComponentLookup<LocalTransform> transforms,
             float3 prev,
             float3 cur,
             float projectileRadius,
@@ -29,53 +41,70 @@ namespace Medieval.Npcs
             if (segLen < 1e-6f)
                 return false;
 
-            using var query = em.CreateEntityQuery(
-                ComponentType.ReadOnly<LocalTransform>(),
-                ComponentType.ReadOnly<NpcCharacterCombatState>(),
-                ComponentType.ReadOnly<NpcMovementTag>());
-            using var entities = query.ToEntityArray(Allocator.Temp);
-            using var states = query.ToComponentDataArray<NpcCharacterCombatState>(Allocator.Temp);
-            using var transforms = query.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+            // Expand segment AABB on XZ by NPC horizontal hit radius so feet in neighbor cells are not missed.
+            float horizReach = 0.5f + projectileRadius;
+            float minX = math.min(prev.x, cur.x) - horizReach;
+            float maxX = math.max(prev.x, cur.x) + horizReach;
+            float minZ = math.min(prev.z, cur.z) - horizReach;
+            float maxZ = math.max(prev.z, cur.z) + horizReach;
 
-            bool hasShooterProfile = excludeShooterRoot != Entity.Null && em.HasComponent<NpcProfile>(excludeShooterRoot);
+            int cminX = (int)math.floor(minX / cellSize);
+            int cmaxX = (int)math.floor(maxX / cellSize);
+            int cminZ = (int)math.floor(minZ / cellSize);
+            int cmaxZ = (int)math.floor(maxZ / cellSize);
+
+            bool hasShooterProfile = excludeShooterRoot != Entity.Null && profiles.HasComponent(excludeShooterRoot);
             NpcRole shooterRole = default;
             float3 shooterFoot = default;
             if (hasShooterProfile)
             {
-                shooterRole = em.GetComponentData<NpcProfile>(excludeShooterRoot).Role;
-                shooterFoot = em.GetComponentData<LocalTransform>(excludeShooterRoot).Position;
+                shooterRole = profiles[excludeShooterRoot].Role;
+                shooterFoot = transforms[excludeShooterRoot].Position;
             }
 
             float closeFfSq = CloseGroupedAlliedRangedFriendlyFireHorizMeters *
                 CloseGroupedAlliedRangedFriendlyFireHorizMeters;
 
-            for (int i = 0; i < entities.Length; i++)
+            for (int cx = cminX; cx <= cmaxX; cx++)
+            for (int cz = cminZ; cz <= cmaxZ; cz++)
             {
-                if (excludeShooterRoot != Entity.Null && entities[i] == excludeShooterRoot)
+                var key = new int2(cx, cz);
+                if (!cellMap.TryGetFirstValue(key, out Entity npcEntity, out var it))
                     continue;
-                if (states[i].IsDead != 0 || states[i].CurrentHealth <= 0f)
-                    continue;
-                float3 foot = transforms[i].Position;
-                if (hasShooterProfile && em.HasComponent<NpcProfile>(entities[i]))
+                do
                 {
-                    var victimRole = em.GetComponentData<NpcProfile>(entities[i]).Role;
-                    if (NpcCombatRoleHostility.AreAlliedForCloseRangedFriendlyFire(shooterRole, victimRole))
+                    if (excludeShooterRoot != Entity.Null && npcEntity == excludeShooterRoot)
+                        continue;
+                    if (!combats.HasComponent(npcEntity) || !transforms.HasComponent(npcEntity))
+                        continue;
+
+                    var combatState = combats[npcEntity];
+                    if (combatState.IsDead != 0 || combatState.CurrentHealth <= 0f)
+                        continue;
+
+                    float3 foot = transforms[npcEntity].Position;
+                    if (hasShooterProfile && profiles.HasComponent(npcEntity))
                     {
-                        float dx = foot.x - shooterFoot.x;
-                        float dz = foot.z - shooterFoot.z;
-                        if (dx * dx + dz * dz <= closeFfSq)
-                            continue;
+                        var victimRole = profiles[npcEntity].Role;
+                        if (NpcCombatRoleHostility.AreAlliedForCloseRangedFriendlyFire(shooterRole, victimRole))
+                        {
+                            float dx = foot.x - shooterFoot.x;
+                            float dz = foot.z - shooterFoot.z;
+                            if (dx * dx + dz * dz <= closeFfSq)
+                                continue;
+                        }
                     }
-                }
-                float t = MinTOnSegmentInNpcVolume(prev, cur, foot, projectileRadius);
-                if (t < 0f || t > 1f)
-                    continue;
-                float dist = t * segLen;
-                if (dist < closestHitDistanceFromPrev)
-                {
-                    closestHitDistanceFromPrev = dist;
-                    victim = entities[i];
-                }
+
+                    float t = MinTOnSegmentInNpcVolume(prev, cur, foot, projectileRadius);
+                    if (t < 0f || t > 1f)
+                        continue;
+                    float dist = t * segLen;
+                    if (dist < closestHitDistanceFromPrev)
+                    {
+                        closestHitDistanceFromPrev = dist;
+                        victim = npcEntity;
+                    }
+                } while (cellMap.TryGetNextValue(out npcEntity, ref it));
             }
 
             return victim != Entity.Null;
