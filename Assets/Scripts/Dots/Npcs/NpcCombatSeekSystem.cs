@@ -157,9 +157,14 @@ namespace Medieval.Npcs
                 bool useRangedHold = profile.ValueRO.WeaponClass == NpcWeaponClass.Ranged ||
                     profile.ValueRO.WeaponClass == NpcWeaponClass.Both;
                 float combatRange = math.max(0.25f, cfg.ValueRO.CombatRange);
+                float flatSq = (bestPos.x - selfFeet.x) * (bestPos.x - selfFeet.x) +
+                    (bestPos.z - selfFeet.z) * (bestPos.z - selfFeet.z);
+
                 float holdDist = 0f;
                 if (useRangedHold)
                 {
+                    if (flatSq > combatRange * combatRange)
+                        move.RangedMovementLock = 0;
                     float configured = cfg.ValueRO.RangedStandoffHoldDistance;
                     holdDist = configured > 0f
                         ? math.min(configured, combatRange * 0.94f)
@@ -177,10 +182,7 @@ namespace Medieval.Npcs
                 combatTarget.TargetNpcEntity = bestHostileNpc;
                 combatTarget.HasCombatTarget = 1;
 
-                float flatSq = (bestPos.x - selfFeet.x) * (bestPos.x - selfFeet.x) +
-                    (bestPos.z - selfFeet.z) * (bestPos.z - selfFeet.z);
-                float range = combatRange;
-                bool standoff = useRangedHold && flatSq <= range * range;
+                bool standoff = useRangedHold && flatSq <= combatRange * combatRange;
                 if (standoff)
                 {
                     float3 d = bestPos - selfFeet;

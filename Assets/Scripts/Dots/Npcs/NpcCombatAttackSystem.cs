@@ -91,7 +91,12 @@ namespace Medieval.Npcs
                 var rangedCfg = em.GetComponentData<NpcRangedCombatConfig>(entity);
                 float combatRange = cfg.ValueRO.CombatRange;
                 if (flatSq > combatRange * combatRange)
+                {
+                    var moveOutOfShootRange = em.GetComponentData<NpcMovementState>(entity);
+                    moveOutOfShootRange.RangedMovementLock = 0;
+                    em.SetComponentData(entity, moveOutOfShootRange);
                     continue;
+                }
 
                 var rangedState = em.GetComponentData<NpcRangedAttackState>(entity);
                 var move = em.GetComponentData<NpcMovementState>(entity);
