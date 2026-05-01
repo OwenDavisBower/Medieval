@@ -63,6 +63,10 @@ namespace Medieval.NpcMovement
         public float RepathGoalShiftDistance = 2f;
 
         [Header("Combat seek (DOTS)")]
+        [Tooltip("When true, baked SeeksCombatTargets is 0 (no hostile seek). Use for villager-style NPCs.")]
+        public bool CivilianNoCombatSeek;
+        [Tooltip("Faction id for DOTS when this prefab has no NpcProfileAuthoring/Affiliation bake. Leave -1 to use profile.")]
+        public int BakeFactionId = -1;
         public float CombatSeekAggroRadius = 50f;
         public float CombatSeekCombatRange = 20f;
         [Tooltip("Ranged standoff: stop advancing toward the target at this distance (must be < combat range). 0 = ~72% of combat range.")]
@@ -129,6 +133,40 @@ namespace Medieval.NpcMovement
             };
         }
 
+        /// <summary>Shared with <see cref="Medieval.Npcs.NpcProfileAuthoring"/> so combat seek can be merged after movement bake.</summary>
+        public static NpcCombatSeekConfig BuildCombatSeekConfig(NpcMovementAuthoring authoring)
+        {
+            float leash = authoring.CombatSeekMaxDistanceFromLeader;
+            if (leash <= 0f && authoring.SeparationGroup == NpcSeparationGroup.Followers)
+                leash = 25f;
+            float teleDist = 0f;
+            float teleTarget = 0f;
+            if (authoring.SeparationGroup == NpcSeparationGroup.Followers)
+            {
+                teleDist = math.max(0f, authoring.FollowerTeleportBackDistance);
+                teleTarget = authoring.FollowerTeleportBackTargetDistance;
+                if (teleTarget < 0f)
+                {
+                    teleDist = 0f;
+                    teleTarget = 0f;
+                }
+            }
+
+            return new NpcCombatSeekConfig
+            {
+                AggroRadius = authoring.CombatSeekAggroRadius,
+                CombatRange = authoring.CombatSeekCombatRange,
+                RangedStandoffHoldDistance = authoring.CombatSeekRangedStandoffHoldDistance,
+                EyeHeight = authoring.CombatSeekEyeHeight,
+                TargetAimHeight = authoring.CombatSeekTargetAimHeight,
+                ObstacleLayerMask = authoring.CombatSeekObstacleLayers.value != 0 ? authoring.CombatSeekObstacleLayers.value : ~0,
+                MaxDistanceFromLeader = leash,
+                FollowerTeleportBackDistance = teleDist,
+                FollowerTeleportBackTargetDistance = teleTarget,
+                SeeksCombatTargets = (byte)(authoring.CivilianNoCombatSeek ? 0 : 1)
+            };
+        }
+
         class NpcMovementBaker : Baker<NpcMovementAuthoring>
         {
             public override void Bake(NpcMovementAuthoring authoring)
@@ -158,34 +196,10 @@ namespace Medieval.NpcMovement
                 AddComponent<NpcPendingDodge>(entity);
                 AddComponent<NpcPathState>(entity);
                 AddBuffer<NpcPathCorner>(entity);
-                float leash = authoring.CombatSeekMaxDistanceFromLeader;
-                if (leash <= 0f && authoring.SeparationGroup == NpcSeparationGroup.Followers)
-                    leash = 25f;
-                float teleDist = 0f;
-                float teleTarget = 0f;
-                if (authoring.SeparationGroup == NpcSeparationGroup.Followers)
-                {
-                    teleDist = math.max(0f, authoring.FollowerTeleportBackDistance);
-                    teleTarget = authoring.FollowerTeleportBackTargetDistance;
-                    if (teleTarget < 0f)
-                    {
-                        teleDist = 0f;
-                        teleTarget = 0f;
-                    }
-                }
+                AddComponent(entity, BuildCombatSeekConfig(authoring));
 
-                AddComponent(entity, new NpcCombatSeekConfig
-                {
-                    AggroRadius = authoring.CombatSeekAggroRadius,
-                    CombatRange = authoring.CombatSeekCombatRange,
-                    RangedStandoffHoldDistance = authoring.CombatSeekRangedStandoffHoldDistance,
-                    EyeHeight = authoring.CombatSeekEyeHeight,
-                    TargetAimHeight = authoring.CombatSeekTargetAimHeight,
-                    ObstacleLayerMask = authoring.CombatSeekObstacleLayers.value != 0 ? authoring.CombatSeekObstacleLayers.value : ~0,
-                    MaxDistanceFromLeader = leash,
-                    FollowerTeleportBackDistance = teleDist,
-                    FollowerTeleportBackTargetDistance = teleTarget
-                });
+                if (authoring.BakeFactionId >= 0)
+                    AddComponent(entity, new NpcFactionId { Value = authoring.BakeFactionId });
             }
         }
     }

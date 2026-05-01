@@ -25,5 +25,7 @@ namespace Medieval.NpcMovement
         public float FollowerTeleportBackDistance;
         /// <summary>Followers: after snap, horizontal radius from the player on the same radial line (must be ≥ 0 when teleport is on).</summary>
         public float FollowerTeleportBackTargetDistance;
+        /// <summary>0 = civilian / no combat seek (villager-style); 1 = may acquire hostile targets via <see cref="Medieval.Npcs.NpcCombatSeekSystem"/>.</summary>
+        public byte SeeksCombatTargets;
     }
 }

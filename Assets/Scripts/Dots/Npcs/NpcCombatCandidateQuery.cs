@@ -11,6 +11,7 @@ namespace Medieval.Npcs
         {
             ComponentType.ReadOnly<LocalTransform>(),
             ComponentType.ReadOnly<NpcProfile>(),
+            ComponentType.ReadOnly<NpcFactionId>(),
             ComponentType.ReadOnly<NpcCharacterCombatState>(),
             ComponentType.ReadOnly<NpcMovementTag>(),
         };

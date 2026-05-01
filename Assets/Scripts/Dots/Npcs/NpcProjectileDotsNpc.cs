@@ -1,8 +1,9 @@
+using Medieval.Dots.Factions;
+using Medieval.NpcMovement;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
-using Medieval.NpcMovement;
 
 namespace Medieval.Npcs
 {
@@ -25,9 +26,11 @@ namespace Medieval.Npcs
         public static bool TryFindClosestAlongSegment(
             in NativeParallelMultiHashMap<int2, Entity> cellMap,
             float cellSize,
-            in ComponentLookup<NpcProfile> profiles,
+            in ComponentLookup<NpcFactionId> factions,
             in ComponentLookup<NpcCharacterCombatState> combats,
             in ComponentLookup<LocalTransform> transforms,
+            in DynamicBuffer<FactionRelationshipCell> relationshipBuf,
+            int relationshipMatrixSize,
             float3 prev,
             float3 cur,
             float projectileRadius,
@@ -53,12 +56,12 @@ namespace Medieval.Npcs
             int cminZ = (int)math.floor(minZ / cellSize);
             int cmaxZ = (int)math.floor(maxZ / cellSize);
 
-            bool hasShooterProfile = excludeShooterRoot != Entity.Null && profiles.HasComponent(excludeShooterRoot);
-            NpcRole shooterRole = default;
+            bool hasShooterFaction = excludeShooterRoot != Entity.Null && factions.HasComponent(excludeShooterRoot);
+            int shooterFactionId = -1;
             float3 shooterFoot = default;
-            if (hasShooterProfile)
+            if (hasShooterFaction)
             {
-                shooterRole = profiles[excludeShooterRoot].Role;
+                shooterFactionId = factions[excludeShooterRoot].Value;
                 shooterFoot = transforms[excludeShooterRoot].Position;
             }
 
@@ -83,10 +86,13 @@ namespace Medieval.Npcs
                         continue;
 
                     float3 foot = transforms[npcEntity].Position;
-                    if (hasShooterProfile && profiles.HasComponent(npcEntity))
+                    if (hasShooterFaction && shooterFactionId >= 0 && factions.HasComponent(npcEntity) &&
+                        relationshipMatrixSize > 0)
                     {
-                        var victimRole = profiles[npcEntity].Role;
-                        if (NpcCombatRoleHostility.AreAlliedForCloseRangedFriendlyFire(shooterRole, victimRole))
+                        int victimFaction = factions[npcEntity].Value;
+                        if (victimFaction >= 0 &&
+                            FactionRelationshipBufferUtil.IsAllied(in relationshipBuf, relationshipMatrixSize,
+                                shooterFactionId, victimFaction))
                         {
                             float dx = foot.x - shooterFoot.x;
                             float dz = foot.z - shooterFoot.z;

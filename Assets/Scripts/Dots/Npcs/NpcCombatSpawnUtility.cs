@@ -1,3 +1,4 @@
+using Medieval.NpcMovement;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -55,6 +56,7 @@ namespace Medieval.Npcs
             if (!em.HasComponent<NpcProfile>(npc))
             {
                 em.AddComponentData(npc, new NpcProfile { Role = role, WeaponClass = resolved });
+                ApplyFactionForSpawnRole(em, npc, role);
                 return;
             }
 
@@ -66,6 +68,25 @@ namespace Medieval.Npcs
                      profile.WeaponClass == NpcWeaponClass.Both)
                 profile.WeaponClass = UnityEngine.Random.value < 0.5f ? NpcWeaponClass.Melee : NpcWeaponClass.Ranged;
             em.SetComponentData(npc, profile);
+            ApplyFactionForSpawnRole(em, npc, role);
+        }
+
+        /// <summary>Aligns <see cref="NpcFactionId"/> with spawn kind (matches default faction assets).</summary>
+        public static void ApplyFactionForSpawnRole(EntityManager em, Entity npc, NpcRole role)
+        {
+            if (!em.Exists(npc))
+                return;
+            int id = role switch
+            {
+                NpcRole.Follower => WellKnownFactionIds.Player,
+                NpcRole.Bandit => WellKnownFactionIds.Bandit,
+                NpcRole.Villager => WellKnownFactionIds.Villager,
+                _ => -1
+            };
+            if (!em.HasComponent<NpcFactionId>(npc))
+                em.AddComponentData(npc, new NpcFactionId { Value = id });
+            else
+                em.SetComponentData(npc, new NpcFactionId { Value = id });
         }
 
         /// <summary>Uses combat config presence on this entity (baked root). For configs on child entities, set <see cref="NpcProfile.WeaponClass"/> in authoring.</summary>

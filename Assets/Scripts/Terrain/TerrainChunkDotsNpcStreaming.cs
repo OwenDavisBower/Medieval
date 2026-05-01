@@ -30,10 +30,14 @@ public static class TerrainChunkDotsNpcStreaming
 
         using var query = em.CreateEntityQuery(
             ComponentType.ReadOnly<LocalTransform>(),
+            ComponentType.ReadOnly<NpcFactionId>(),
+            ComponentType.ReadOnly<NpcMovementState>(),
             ComponentType.ReadOnly<NpcProfile>(),
             ComponentType.ReadOnly<NpcMovementTag>());
         using var entities = query.ToEntityArray(Allocator.Temp);
         using var transforms = query.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+        using var factions = query.ToComponentDataArray<NpcFactionId>(Allocator.Temp);
+        using var mstates = query.ToComponentDataArray<NpcMovementState>(Allocator.Temp);
         using var profiles = query.ToComponentDataArray<NpcProfile>(Allocator.Temp);
 
         if (!DisabledNpcRootsByChunk.TryGetValue(chunk, out HashSet<Entity>? bucket))
@@ -44,8 +48,14 @@ public static class TerrainChunkDotsNpcStreaming
 
         for (int i = 0; i < entities.Length; i++)
         {
+            if (mstates[i].Group == NpcSeparationGroup.Followers)
+                continue;
+
+            int fid = factions[i].Value;
+            bool banditOrVillagerFaction = fid == WellKnownFactionIds.Bandit || fid == WellKnownFactionIds.Villager;
             NpcRole role = profiles[i].Role;
-            if (role != NpcRole.Bandit && role != NpcRole.Villager)
+            bool banditOrVillagerRole = role == NpcRole.Bandit || role == NpcRole.Villager;
+            if (!banditOrVillagerFaction && !banditOrVillagerRole)
                 continue;
 
             float3 p = transforms[i].Position;

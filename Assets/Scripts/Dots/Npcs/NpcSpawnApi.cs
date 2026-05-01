@@ -125,12 +125,14 @@ namespace Medieval.Npcs
 
             if (!em.HasComponent<NpcCombatSeekConfig>(npc))
             {
+                bool followerGroup = em.HasComponent<NpcMovementState>(npc) &&
+                    em.GetComponentData<NpcMovementState>(npc).Group == NpcSeparationGroup.Followers;
                 float leash = 0f;
-                if (role == NpcRole.Follower && em.HasComponent<NpcMovementState>(npc) &&
-                    em.GetComponentData<NpcMovementState>(npc).Group == NpcSeparationGroup.Followers)
+                if (followerGroup)
                     leash = 25f;
-                float teleBack = role == NpcRole.Follower ? 80f : 0f;
-                float teleTarget = role == NpcRole.Follower ? 50f : 0f;
+                float teleBack = followerGroup ? 80f : 0f;
+                float teleTarget = followerGroup ? 50f : 0f;
+                byte seeks = role == NpcRole.Villager || role == NpcRole.Unknown ? (byte)0 : (byte)1;
                 em.AddComponentData(npc, new NpcCombatSeekConfig
                 {
                     AggroRadius = 50f,
@@ -141,7 +143,8 @@ namespace Medieval.Npcs
                     ObstacleLayerMask = ~0,
                     MaxDistanceFromLeader = leash,
                     FollowerTeleportBackDistance = teleBack,
-                    FollowerTeleportBackTargetDistance = teleTarget
+                    FollowerTeleportBackTargetDistance = teleTarget,
+                    SeeksCombatTargets = seeks
                 });
             }
 

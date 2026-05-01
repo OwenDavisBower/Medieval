@@ -9,11 +9,13 @@ using UnityEngine;
 namespace Medieval.Npcs
 {
     /// <summary>
-    /// Main-thread helper for GameObject systems (e.g. watchtowers) to acquire DOTS bandit targets.
+    /// Main-thread helper for GameObject systems (e.g. watchtowers) to acquire hostile DOTS NPC targets.
     /// </summary>
     public static class NpcWatchTowerBanditQuery
     {
-        public static bool TryFindNearestBanditForTower(
+        /// <param name="towerFactionId"><see cref="Affiliation.FactionId"/> for the tower; if &lt; 0, only entities with <see cref="WellKnownFactionIds.Bandit"/> are considered.</param>
+        public static bool TryFindNearestHostileDotsNpcForTower(
+            int towerFactionId,
             Vector3 towerFeetWorld,
             float maxRange,
             float eyeHeight,
@@ -36,9 +38,11 @@ namespace Medieval.Npcs
             if (query.IsEmpty)
                 return false;
 
+            FactionManager? fm = FactionManager.Instance;
+
             using NativeArray<Entity> entities = query.ToEntityArray(Allocator.TempJob);
             using NativeArray<LocalTransform> transforms = query.ToComponentDataArray<LocalTransform>(Allocator.TempJob);
-            using NativeArray<NpcProfile> profiles = query.ToComponentDataArray<NpcProfile>(Allocator.TempJob);
+            using NativeArray<NpcFactionId> factions = query.ToComponentDataArray<NpcFactionId>(Allocator.TempJob);
             using NativeArray<NpcCharacterCombatState> combats =
                 query.ToComponentDataArray<NpcCharacterCombatState>(Allocator.TempJob);
 
@@ -48,7 +52,13 @@ namespace Medieval.Npcs
 
             for (int i = 0; i < entities.Length; i++)
             {
-                if (profiles[i].Role != NpcRole.Bandit)
+                int npcFaction = factions[i].Value;
+                if (towerFactionId >= 0)
+                {
+                    if (fm == null || fm.GetRelationship(towerFactionId, npcFaction) != Relationship.Enemy)
+                        continue;
+                }
+                else if (npcFaction != WellKnownFactionIds.Bandit)
                     continue;
 
                 NpcCharacterCombatState combat = combats[i];

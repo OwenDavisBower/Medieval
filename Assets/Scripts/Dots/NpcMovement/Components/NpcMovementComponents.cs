@@ -145,6 +145,8 @@ namespace Medieval.NpcMovement
         public float3 Position;
         public float3 LinearVelocity;
         public byte HasPlayer;
+        /// <summary><see cref="Affiliation.FactionId"/> for the registered player; -1 if unknown.</summary>
+        public int PlayerFactionId;
     }
 
     public struct NpcSeekOverride : IComponentData

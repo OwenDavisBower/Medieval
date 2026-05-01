@@ -1,3 +1,4 @@
+using Medieval.NpcMovement;
 using Unity.Entities;
 using UnityEngine;
 
@@ -22,6 +23,21 @@ namespace Medieval.Npcs
                     Role = authoring.InitialRole,
                     WeaponClass = authoring.WeaponClass
                 });
+                var aff = authoring.GetComponent<Affiliation>();
+                int factionId = aff != null && aff.Faction != null ? aff.Faction.FactionID : -1;
+                AddComponent(entity, new NpcFactionId { Value = factionId });
+
+                var moveAuth = authoring.GetComponent<NpcMovementAuthoring>();
+                if (moveAuth != null)
+                {
+                    DependsOn(moveAuth);
+                    var cfg = NpcMovementAuthoring.BuildCombatSeekConfig(moveAuth);
+                    cfg.SeeksCombatTargets = (byte)((authoring.InitialRole == NpcRole.Villager ||
+                        authoring.InitialRole == NpcRole.Unknown)
+                        ? 0
+                        : 1);
+                    AddComponent(entity, cfg);
+                }
             }
         }
     }

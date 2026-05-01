@@ -83,7 +83,13 @@ public class WatchTowerArrowDefense : MonoBehaviour
             }
         }
 
-        if (NpcWatchTowerBanditQuery.TryFindNearestBanditForTower(
+        int towerFaction = -1;
+        var towerAff = GetComponent<Affiliation>();
+        if (towerAff != null)
+            towerFaction = towerAff.FactionId;
+
+        if (NpcWatchTowerBanditQuery.TryFindNearestHostileDotsNpcForTower(
+                towerFaction,
                 transform.position,
                 combatRange,
                 eyeHeight,

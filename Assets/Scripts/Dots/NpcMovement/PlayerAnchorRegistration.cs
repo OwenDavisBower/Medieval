@@ -10,11 +10,13 @@ namespace Medieval.NpcMovement
     {
         static Transform s_Transform;
         static Rigidbody s_Rigidbody;
+        static int s_PlayerFactionId = -1;
 
-        public static void Register(Transform transform, Rigidbody rigidbody)
+        public static void Register(Transform transform, Rigidbody rigidbody, int playerFactionId = -1)
         {
             s_Transform = transform;
             s_Rigidbody = rigidbody;
+            s_PlayerFactionId = playerFactionId;
         }
 
         public static void Unregister(Transform transform)
@@ -23,10 +25,12 @@ namespace Medieval.NpcMovement
                 return;
             s_Transform = null;
             s_Rigidbody = null;
+            s_PlayerFactionId = -1;
         }
 
         public static Transform Transform => s_Transform;
         public static Rigidbody Rigidbody => s_Rigidbody;
         public static bool HasPlayer => s_Transform != null;
+        public static int PlayerFactionId => s_PlayerFactionId;
     }
 }

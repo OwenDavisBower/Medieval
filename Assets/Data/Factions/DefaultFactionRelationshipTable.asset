@@ -18,9 +18,9 @@ MonoBehaviour:
   - FactionA: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770001, type: 2}
     FactionB: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770003, type: 2}
     Relationship: 1
-  - FactionA: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770001, type: 2}
+  - FactionA: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770003, type: 2}
     FactionB: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770002, type: 2}
     Relationship: 2
-  - FactionA: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770003, type: 2}
+  - FactionA: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770001, type: 2}
     FactionB: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770002, type: 2}
     Relationship: 2

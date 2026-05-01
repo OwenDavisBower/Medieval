@@ -38,7 +38,10 @@ namespace Medieval.NpcMovement
                 anchor.Position = new float3(p.x, p.y, p.z);
                 anchor.LinearVelocity = new float3(v.x, v.y, v.z);
                 anchor.HasPlayer = 1;
+                anchor.PlayerFactionId = PlayerAnchorRegistration.PlayerFactionId;
             }
+            else
+                anchor.PlayerFactionId = -1;
 
             Entity eSingleton = _q.GetSingletonEntity();
             EntityManager.SetComponentData(eSingleton, anchor);

@@ -10,7 +10,9 @@ public static class PlayerReference
 
     public static void Register(Transform transform, Rigidbody rigidbody, Character character)
     {
-        PlayerAnchorRegistration.Register(transform, rigidbody);
+        var aff = transform != null ? transform.GetComponentInParent<Affiliation>() : null;
+        int factionId = aff != null ? aff.FactionId : -1;
+        PlayerAnchorRegistration.Register(transform, rigidbody, factionId);
         s_Character = character;
     }
 

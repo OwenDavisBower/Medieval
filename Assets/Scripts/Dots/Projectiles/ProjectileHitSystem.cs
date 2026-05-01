@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Medieval.Dots.Factions;
 using Medieval.NpcMovement;
 using Medieval.Npcs;
 using Unity.Collections;
@@ -83,12 +84,16 @@ namespace Medieval.Projectiles
                     npcCellMap.Add(cell, entity);
                 }
 
-                var profileLookup = SystemAPI.GetComponentLookup<NpcProfile>(true);
+                var factionLookup = SystemAPI.GetComponentLookup<NpcFactionId>(true);
                 var combatLookup = SystemAPI.GetComponentLookup<NpcCharacterCombatState>(true);
                 var transformLookup = SystemAPI.GetComponentLookup<LocalTransform>(true);
-                profileLookup.Update(ref state);
+                factionLookup.Update(ref state);
                 combatLookup.Update(ref state);
                 transformLookup.Update(ref state);
+
+                bool hasRel = SystemAPI.TryGetSingleton(out FactionRelationshipState relState) && relState.MatrixSize > 0;
+                var relBuf = hasRel ? SystemAPI.GetSingletonBuffer<FactionRelationshipCell>() : default;
+                int relSize = hasRel ? relState.MatrixSize : 0;
 
                 foreach (var (tf, motion, hitSphere, damage, shooter, legacyRoot, owner, entity) in SystemAPI
                              .Query<RefRO<LocalTransform>, RefRO<ProjectileMotionState>, RefRO<ProjectileHitSphere>,
@@ -116,8 +121,8 @@ namespace Medieval.Projectiles
                     Entity dotsExclude = shooterRoot;
 
                     bool hasDots = NpcProjectileDotsNpc.TryFindClosestAlongSegment(in npcCellMap, cellSize,
-                        in profileLookup, in combatLookup, in transformLookup, prev, cur, radius, dotsExclude,
-                        out Entity dotsVictim, out float dotsDist);
+                        in factionLookup, in combatLookup, in transformLookup, in relBuf, relSize, prev, cur, radius,
+                        dotsExclude, out Entity dotsVictim, out float dotsDist);
                     bool preferDots = hasDots && (!hasPhys || dotsDist < physBestDist - 1e-4f);
                     if (preferDots)
                     {

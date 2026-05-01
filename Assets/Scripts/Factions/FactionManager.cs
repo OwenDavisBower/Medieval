@@ -22,7 +22,13 @@ public sealed class FactionManager : MonoBehaviour
     int _size;
     Relationship _defaultNeutral;
 
+    /// <summary>Increments when the relationship matrix is rebuilt or edited; DOTS bridge copies use this to detect changes.</summary>
+    public int RelationshipMatrixVersion { get; private set; }
+
     public IReadOnlyList<FactionDefinition> RegisteredFactions => registeredFactions;
+
+    /// <summary>Current matrix dimension (max faction id + 1). 0 if not initialized.</summary>
+    public int RelationshipMatrixSize => _matrix != null ? _size : 0;
 
     void OnEnable()
     {
@@ -72,6 +78,7 @@ public sealed class FactionManager : MonoBehaviour
 
         _matrix = new Relationship[newSize, newSize];
         _size = newSize;
+        RelationshipMatrixVersion++;
 
         for (int y = 0; y < _size; y++)
         for (int x = 0; x < _size; x++)
@@ -127,6 +134,7 @@ public sealed class FactionManager : MonoBehaviour
 
         EnsureCapacity(Mathf.Max(factionA, factionB) + 1);
         WriteSymmetricUnchecked(factionA, factionB, relationship);
+        RelationshipMatrixVersion++;
     }
 
     public void SetRelationship(FactionDefinition a, FactionDefinition b, Relationship relationship)
@@ -169,5 +177,16 @@ public sealed class FactionManager : MonoBehaviour
 
         _matrix = next;
         _size = requiredSize;
+    }
+
+    /// <summary>Writes row-major <paramref name="a"/> major × <paramref name="b"/> entries as enum bytes for ECS.</summary>
+    public void CopyRelationshipMatrixBytes(System.Span<byte> destination)
+    {
+        if (_matrix == null || destination.Length < _size * _size)
+            return;
+        int i = 0;
+        for (int a = 0; a < _size; a++)
+        for (int b = 0; b < _size; b++)
+            destination[i++] = (byte)_matrix[a, b];
     }
 }

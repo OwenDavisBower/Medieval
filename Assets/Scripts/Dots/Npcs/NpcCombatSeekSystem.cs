@@ -1,3 +1,4 @@
+using Medieval.Dots.Factions;
 using Medieval.NpcMovement;
 using Unity.Collections;
 using Unity.Entities;
@@ -22,15 +23,24 @@ namespace Medieval.Npcs
             if (_candidateQuery.IsEmpty)
                 return;
 
+            if (!SystemAPI.TryGetSingleton(out FactionRelationshipState relState) || relState.MatrixSize <= 0)
+                return;
+
+            var relBuf = SystemAPI.GetSingletonBuffer<FactionRelationshipCell>();
+
             using var candEnts = _candidateQuery.ToEntityArray(Allocator.TempJob);
             using var candTf = _candidateQuery.ToComponentDataArray<LocalTransform>(Allocator.TempJob);
-            using var candProf = _candidateQuery.ToComponentDataArray<NpcProfile>(Allocator.TempJob);
+            using var candFaction = _candidateQuery.ToComponentDataArray<NpcFactionId>(Allocator.TempJob);
             using var candCombat = _candidateQuery.ToComponentDataArray<NpcCharacterCombatState>(Allocator.TempJob);
 
             bool hasPlayer = SystemAPI.TryGetSingleton(out NpcPlayerAnchor playerAnchor) && playerAnchor.HasPlayer != 0;
             var em = state.EntityManager;
             var combatLookup = SystemAPI.GetComponentLookup<NpcCharacterCombatState>(true);
+            var factionLookup = SystemAPI.GetComponentLookup<NpcFactionId>(true);
             combatLookup.Update(ref state);
+            factionLookup.Update(ref state);
+
+            int matrixSize = relState.MatrixSize;
 
             foreach (var (seekRw, facingRw, moveRw, combatTargetRw, selfTf, profile, cfg, entity) in SystemAPI
                          .Query<RefRW<NpcSeekOverride>, RefRW<NpcOverrideFacing>, RefRW<NpcMovementState>,
@@ -46,7 +56,7 @@ namespace Medieval.Npcs
                 float3 selfFeet = selfTf.ValueRO.Position;
                 NpcCharacterCombatState combat = combatLookup[entity];
 
-                if (profile.ValueRO.Role == NpcRole.Villager || profile.ValueRO.Role == NpcRole.Unknown)
+                if (cfg.ValueRO.SeeksCombatTargets == 0)
                 {
                     ClearSeek(ref seek, ref facing, ref move, ref combatTarget);
                     continue;
@@ -68,7 +78,10 @@ namespace Medieval.Npcs
                     }
                 }
 
-                if (profile.ValueRO.Role == NpcRole.Follower && cfg.ValueRO.MaxDistanceFromLeader > 0f && hasPlayer)
+                int selfFaction = factionLookup.HasComponent(entity) ? factionLookup[entity].Value : -1;
+
+                if (move.Group == NpcSeparationGroup.Followers && cfg.ValueRO.MaxDistanceFromLeader > 0f &&
+                    hasPlayer)
                 {
                     float3 p = playerAnchor.Position;
                     float maxSq = cfg.ValueRO.MaxDistanceFromLeader * cfg.ValueRO.MaxDistanceFromLeader;
@@ -89,10 +102,12 @@ namespace Medieval.Npcs
                 {
                     if (candEnts[i] == entity)
                         continue;
-                    NpcRole otherRole = candProf[i].Role;
-                    if (!NpcCombatRoleHostility.IsHostilePair(profile.ValueRO.Role, otherRole))
-                        continue;
                     if (candCombat[i].IsDead != 0 || candCombat[i].CurrentHealth <= 0f)
+                        continue;
+
+                    int otherFaction = candFaction[i].Value;
+                    if (selfFaction < 0 || otherFaction < 0 ||
+                        !FactionRelationshipBufferUtil.IsHostile(in relBuf, matrixSize, selfFaction, otherFaction))
                         continue;
 
                     float3 op = candTf[i].Position;
@@ -115,7 +130,9 @@ namespace Medieval.Npcs
                     found = true;
                 }
 
-                if (profile.ValueRO.Role == NpcRole.Bandit && hasPlayer)
+                if (hasPlayer && playerAnchor.PlayerFactionId >= 0 && selfFaction >= 0 &&
+                    FactionRelationshipBufferUtil.IsHostile(in relBuf, matrixSize, selfFaction,
+                        playerAnchor.PlayerFactionId))
                 {
                     float3 op = playerAnchor.Position;
                     float sq = NpcMath.DistanceSqXZ(op, selfFeet);
