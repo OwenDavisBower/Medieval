@@ -103,7 +103,10 @@ namespace Medieval.Npcs
 
                 if (unityTime < rangedState.NextFireAllowedUnityTime)
                 {
-                    move.RangedMovementLock = unityTime < rangedState.MovementLockUntilUnityTime ? (byte)1 : (byte)0;
+                    // Cooldown between shots: keep steering/locomotion free; lock only applies during
+                    // ShotInProgress (draw/release) via TickInProgressRangedShot.
+                    move.RangedMovementLock = 0;
+                    move.ShootGestureSuppressLocomotionUntilUnityTime = 0f;
                     em.SetComponentData(entity, move);
                     continue;
                 }
