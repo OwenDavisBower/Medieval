@@ -46,3 +46,8 @@ Clean Mapping: Map Vector3 to float3 and Quaternion to quaternion automatically.
 When a file has both `using Unity.Mathematics` and `using UnityEngine`, the name `Random` is ambiguous (`Unity.Mathematics.Random` vs `UnityEngine.Random`) and fails with CS0104.
 
 Always qualify which API you mean: use `UnityEngine.Random` for `Range`, `value`, `insideUnitSphere`, etc.; use `Unity.Mathematics.Random` for the blittable RNG struct (constructor, `NextFloat`, jobs/Burst). Prefer fully qualified calls (e.g. `UnityEngine.Random.Range(min, max + 1)`) over bare `Random` in mixed-using files.
+
+8. Motion (disambiguate CS0104)
+When a file has both `using ProjectDawn.Animation` and `using UnityEngine`, the name `Motion` is ambiguous (`ProjectDawn.Animation.Motion` vs `UnityEngine.Motion`) and fails with CS0104 (and may cascade to CS8173 on `ref Motion`).
+
+Always qualify: use `ProjectDawn.Animation.Motion` for ECS animation data (`MotionRef`, `Animatron`, `TryFindAnimationIndex`, etc.). Use `UnityEngine.Motion` only for the legacy animation clip base type (`Animator`, `AnimationClip` hierarchy). Prefer fully qualified type names in mixed-using files over a type alias unless the file uses only one family of APIs.
