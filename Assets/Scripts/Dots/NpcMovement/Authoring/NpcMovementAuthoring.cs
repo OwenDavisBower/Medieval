@@ -62,6 +62,15 @@ namespace Medieval.NpcMovement
         [Tooltip("Distance the goal must move before forcing an early repath.")]
         public float RepathGoalShiftDistance = 2f;
 
+        [Header("Combat seek (DOTS)")]
+        public float CombatSeekAggroRadius = 50f;
+        public float CombatSeekCombatRange = 20f;
+        public float CombatSeekEyeHeight = 1.5f;
+        public float CombatSeekTargetAimHeight = 1f;
+        public LayerMask CombatSeekObstacleLayers = ~0;
+        [Tooltip("Followers: max horizontal distance from the player to pursue combat. 0 with Follower separation uses 25.")]
+        public float CombatSeekMaxDistanceFromLeader;
+
         [Header("Ground alignment")]
         public bool GroundSnapEnabled = true;
         public float GroundRaycastStartHeight = 1.25f;
@@ -140,6 +149,18 @@ namespace Medieval.NpcMovement
                 AddComponent<NpcPendingDodge>(entity);
                 AddComponent<NpcPathState>(entity);
                 AddBuffer<NpcPathCorner>(entity);
+                float leash = authoring.CombatSeekMaxDistanceFromLeader;
+                if (leash <= 0f && authoring.SeparationGroup == NpcSeparationGroup.Followers)
+                    leash = 25f;
+                AddComponent(entity, new NpcCombatSeekConfig
+                {
+                    AggroRadius = authoring.CombatSeekAggroRadius,
+                    CombatRange = authoring.CombatSeekCombatRange,
+                    EyeHeight = authoring.CombatSeekEyeHeight,
+                    TargetAimHeight = authoring.CombatSeekTargetAimHeight,
+                    ObstacleLayerMask = authoring.CombatSeekObstacleLayers.value != 0 ? authoring.CombatSeekObstacleLayers.value : ~0,
+                    MaxDistanceFromLeader = leash
+                });
             }
         }
     }

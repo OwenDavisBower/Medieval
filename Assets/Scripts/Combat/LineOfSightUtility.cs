@@ -64,4 +64,57 @@ public static class LineOfSightUtility
 
         return true;
     }
+
+    /// <summary>LOS between two world foot positions (e.g. DOTS NPCs without a target <see cref="Transform"/>).</summary>
+    public static bool HasClearLineOfSightWorldPoints(
+        Vector3 observerFeetWorld,
+        Vector3 targetFeetWorld,
+        float eyeHeight,
+        float targetHeight,
+        LayerMask obstacleLayers,
+        Transform ignoreHitsUnderHierarchy)
+    {
+        Vector3 eye = observerFeetWorld + Vector3.up * eyeHeight;
+        Vector3 tgt = targetFeetWorld + Vector3.up * targetHeight;
+        Vector3 delta = tgt - eye;
+        float distSq = delta.sqrMagnitude;
+        float minSq = MinRayLength * MinRayLength;
+        if (distSq < minSq)
+            return true;
+
+        float dist = Mathf.Sqrt(distSq);
+        Vector3 dir = delta / dist;
+        Vector3 origin = eye + dir * Skin;
+        float remain = dist - Skin;
+        if (remain <= 0.01f)
+            return true;
+
+        for (int seg = 0; seg < MaxSegments; seg++)
+        {
+            if (remain <= AdvanceEpsilon)
+                return true;
+
+            if (!Physics.Raycast(origin, dir, out RaycastHit hit, remain, obstacleLayers, QueryTriggerInteraction.Ignore))
+                return true;
+
+            Transform ht = hit.collider.transform;
+
+            if (ignoreHitsUnderHierarchy != null && SpatialMath.IsTransformUnderHierarchy(ht, ignoreHitsUnderHierarchy))
+            {
+                float adv = Mathf.Max(hit.distance + AdvanceEpsilon, AdvanceEpsilon);
+                if (adv >= remain - 1e-5f)
+                    return true;
+                origin += dir * adv;
+                remain -= adv;
+                continue;
+            }
+
+            if (hit.distance >= remain - 0.35f)
+                return true;
+
+            return false;
+        }
+
+        return true;
+    }
 }

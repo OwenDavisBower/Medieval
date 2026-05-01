@@ -8,7 +8,8 @@ namespace Medieval.NpcMovement
     /// Main-thread bridge from the player GameObject to a singleton <see cref="NpcPlayerAnchor"/> component.
     /// This is not a per-NPC companion/writeback; it's a single read-only anchor for DOTS followers.
     /// </summary>
-    [UpdateInGroup(typeof(InitializationSystemGroup))]
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateBefore(typeof(NpcFollowersAnchorSystem))]
     public partial class NpcPlayerAnchorSyncSystem : SystemBase
     {
         EntityQuery _q;

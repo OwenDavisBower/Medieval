@@ -1,10 +1,9 @@
-using Medieval.Projectiles;
 using UnityEngine;
 using UnityEngine.Serialization;
 
 /// <summary>
-/// Shared combat tick: ranged dodge response, flee, optional pre-seek gate, seek override, ranged/melee.
-/// Subclasses implement <see cref="FindCombatTarget"/> and may override <see cref="BeforeSeekCombat"/>.
+/// Legacy MonoBehaviour shell for GameObject NPCs: combat role and component wiring.
+/// Seek, path goals, and facing for baked DOTS NPCs are driven by <see cref="Medieval.Npcs.NpcCombatSeekSystem"/>.
 /// </summary>
 [RequireComponent(typeof(TargetSteeringMotor))]
 [RequireComponent(typeof(Rigidbody))]
@@ -105,72 +104,6 @@ public abstract class CombatSeekControllerBase : MonoBehaviour
             return;
 
         gameObject.AddComponent<LocomotionAnimatorDriver>();
-    }
-
-    protected virtual void FixedUpdate()
-    {
-        TryScheduleRangedDodge();
-
-        if (Character != null && Character.ShouldFleeFromCombatThreat)
-        {
-            Motor.SeekOverride = null;
-            Motor.ClearOverrideFacing();
-            Ranged?.CancelMovementLock();
-            Motor.SetRangedMovementLock(false);
-            return;
-        }
-
-        if (!BeforeSeekCombat())
-        {
-            Motor.SeekOverride = null;
-            Motor.ClearOverrideFacing();
-            Ranged?.CancelMovementLock();
-            Motor.SetRangedMovementLock(false);
-            return;
-        }
-
-        Transform target = FindCombatTarget();
-        Motor.SeekOverride = target;
-
-        if (target == null)
-        {
-            Motor.ClearOverrideFacing();
-            Motor.SetRangedMovementLock(Ranged != null && Ranged.IsMovementLocked);
-            return;
-        }
-
-        bool inRangedStandoff = IsRanged && Ranged != null && Ranged.enabled &&
-            SpatialMath.FlatSqrDistance(transform.position, target.position) <= combatRange * combatRange;
-
-        if (inRangedStandoff)
-            Motor.SetOverrideFacingTowardWorldPoint(target.position);
-        else
-            Motor.ClearOverrideFacing();
-
-        Motor.SetRangedMovementLock(Ranged != null && Ranged.IsMovementLocked);
-
-        TryExecuteCombatAgainst(target);
-    }
-
-    /// <summary>Return false to clear seek (e.g. follower leash to leader).</summary>
-    protected virtual bool BeforeSeekCombat() => true;
-
-    protected abstract Transform FindCombatTarget();
-
-    void TryScheduleRangedDodge()
-    {
-        if (Motor.CanScheduleRangedDodge && !Motor.HasPendingRangedDodge &&
-            ProjectileDodgeBridge.TryGetIncomingDodgeReference(transform.root, out Vector3 dodgeRef))
-            Motor.ScheduleRangedDodgeImpulse(dodgeRef);
-    }
-
-    void TryExecuteCombatAgainst(Transform target)
-    {
-        if (IsRanged && Ranged != null && Ranged.enabled &&
-            SpatialMath.FlatSqrDistance(transform.position, target.position) <= combatRange * combatRange)
-            Ranged.TryFireAt(target);
-        else if (!IsRanged && Melee != null && Melee.enabled)
-            Melee.TryAttack(target);
     }
 
     protected bool HasLineOfSightTo(Transform target) =>

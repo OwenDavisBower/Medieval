@@ -28,10 +28,9 @@ public class FollowerController : CombatSeekControllerBase
         ApplyMotorSpeedFromCharacter();
     }
 
-    protected override void FixedUpdate()
+    void Update()
     {
         TryTeleportBackTowardLeader();
-        base.FixedUpdate();
     }
 
     void TryAssignPlayerAnchor()
@@ -39,48 +38,6 @@ public class FollowerController : CombatSeekControllerBase
         var p = PlayerReference.TryGetTransform();
         if (p != null)
             Motor.AnchorTarget = p;
-    }
-
-    protected override bool BeforeSeekCombat()
-    {
-        if (maxDistanceFromLeader <= 0f)
-            return true;
-
-        Transform anchor = Motor.AnchorTarget;
-        if (anchor != null &&
-            SpatialMath.FlatSqrDistance(transform.position, anchor.position) >
-            maxDistanceFromLeader * maxDistanceFromLeader)
-            return false;
-
-        return true;
-    }
-
-    protected override Transform FindCombatTarget()
-    {
-        Transform viaFaction = TrySelectEnemyViaFactionFinder();
-        if (viaFaction != null)
-            return viaFaction;
-
-        float aggroSq = AggroRadiusSqr;
-        Transform best = null;
-        float bestSq = float.MaxValue;
-
-        BanditController[] bandits = CombatUnitRegistry.GetBandits();
-        for (int i = 0; i < bandits.Length; i++)
-        {
-            BanditController b = bandits[i];
-            if (b == null || !IsAliveDamageableTarget(b.transform))
-                continue;
-            Transform bt = b.transform;
-            float sq = SpatialMath.FlatSqrDistance(transform.position, bt.position);
-            if (sq <= aggroSq && sq < bestSq && HasLineOfSightTo(bt))
-            {
-                best = bt;
-                bestSq = sq;
-            }
-        }
-
-        return best;
     }
 
     void TryTeleportBackTowardLeader()
