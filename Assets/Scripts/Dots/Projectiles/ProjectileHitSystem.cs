@@ -13,6 +13,12 @@ namespace Medieval.Projectiles
     [UpdateBefore(typeof(ProjectileLifetimeSystem))]
     public partial struct ProjectileHitSystem : ISystem
     {
+        /// <summary>Non-alloc physics path; grown lazily if a cast ever fills the buffer.</summary>
+        const int InitialSphereCastHitCapacity = 64;
+
+        static RaycastHit[] s_SphereCastHits;
+        static List<PendingHit> s_PendingHits;
+
         struct PendingHit
         {
             public Entity Entity;
@@ -26,8 +32,12 @@ namespace Medieval.Projectiles
 
         public void OnUpdate(ref SystemState state)
         {
+            EnsureSphereCastBuffer(InitialSphereCastHitCapacity);
+            s_PendingHits ??= new List<PendingHit>(16);
+            s_PendingHits.Clear();
+
             var em = state.EntityManager;
-            var pending = new List<PendingHit>(8);
+            var pending = s_PendingHits;
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (tf, motion, hitSphere, damage, shooter, legacyRoot, owner, entity) in SystemAPI
@@ -50,30 +60,14 @@ namespace Medieval.Projectiles
                 int legacyRootId = legacyRoot.ValueRO.Value;
                 int ownerColliderId = owner.ValueRO.ColliderInstanceId;
 
-                RaycastHit[] hits = Physics.SphereCastAll((Vector3)prev, radius, dir, dist, ~0, QueryTriggerInteraction.Ignore);
-
-                int physBest = -1;
-                float physBestDist = float.MaxValue;
-                if (hits != null && hits.Length > 0)
-                {
-                    for (int i = 0; i < hits.Length; i++)
-                    {
-                        RaycastHit h = hits[i];
-                        if (ShouldIgnoreHit(in h, legacyRootId, ownerColliderId))
-                            continue;
-                        if (h.distance < physBestDist)
-                        {
-                            physBestDist = h.distance;
-                            physBest = i;
-                        }
-                    }
-                }
+                bool hasPhys = TryGetClosestPhysicsHit((Vector3)prev, radius, dir, dist, legacyRootId, ownerColliderId,
+                    out RaycastHit physBestHit, out float physBestDist);
 
                 Entity dotsExclude = shooterRoot;
 
                 bool hasDots = NpcProjectileDotsNpc.TryFindClosestAlongSegment(em, prev, cur, radius, dotsExclude,
                     out Entity dotsVictim, out float dotsDist);
-                bool preferDots = hasDots && (physBest < 0 || dotsDist < physBestDist - 1e-4f);
+                bool preferDots = hasDots && (!hasPhys || dotsDist < physBestDist - 1e-4f);
                 if (preferDots)
                 {
                     NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim, damage.ValueRO.Amount);
@@ -81,7 +75,7 @@ namespace Medieval.Projectiles
                     continue;
                 }
 
-                if (physBest < 0)
+                if (!hasPhys)
                     continue;
 
                 pending.Add(new PendingHit
@@ -90,7 +84,7 @@ namespace Medieval.Projectiles
                     LegacyShooterRootInstanceId = legacyRootId,
                     OwnerColliderInstanceId = ownerColliderId,
                     Damage = damage.ValueRO,
-                    Hit = hits[physBest],
+                    Hit = physBestHit,
                     PreviousPosition = prev,
                     CurrentPosition = cur
                 });
@@ -111,6 +105,67 @@ namespace Medieval.Projectiles
                 ApplyHitStickOrDestroy(em, p.Entity, p.LegacyShooterRootInstanceId, p.Damage, p.Hit, p.PreviousPosition,
                     p.CurrentPosition);
             }
+        }
+
+        static void EnsureSphereCastBuffer(int minCapacity)
+        {
+            if (s_SphereCastHits == null || s_SphereCastHits.Length < minCapacity)
+                s_SphereCastHits = new RaycastHit[minCapacity];
+        }
+
+        /// <summary>
+        /// Uses <see cref="Physics.SphereCastNonAlloc"/> into a reused buffer; falls back to
+        /// <see cref="Physics.SphereCastAll"/> only if the buffer is full (possible truncation).
+        /// </summary>
+        static bool TryGetClosestPhysicsHit(Vector3 origin, float radius, Vector3 direction, float maxDistance,
+            int legacyShooterRootInstanceId, int ownerColliderInstanceId, out RaycastHit bestHit, out float bestDist)
+        {
+            int n = Physics.SphereCastNonAlloc(origin, radius, direction, s_SphereCastHits, maxDistance, ~0,
+                QueryTriggerInteraction.Ignore);
+
+            if (n <= 0)
+            {
+                bestHit = default;
+                bestDist = default;
+                return false;
+            }
+
+            if (n < s_SphereCastHits.Length)
+                return TryPickClosestValidHit(s_SphereCastHits, n, legacyShooterRootInstanceId, ownerColliderInstanceId,
+                    out bestHit, out bestDist);
+
+            RaycastHit[] all = Physics.SphereCastAll(origin, radius, direction, maxDistance, ~0,
+                QueryTriggerInteraction.Ignore);
+            return TryPickClosestValidHit(all, all.Length, legacyShooterRootInstanceId, ownerColliderInstanceId,
+                out bestHit, out bestDist);
+        }
+
+        static bool TryPickClosestValidHit(RaycastHit[] hits, int count, int legacyShooterRootInstanceId,
+            int ownerColliderInstanceId, out RaycastHit bestHit, out float bestDist)
+        {
+            bestHit = default;
+            bestDist = float.MaxValue;
+            bool found = false;
+            for (int i = 0; i < count; i++)
+            {
+                RaycastHit h = hits[i];
+                if (ShouldIgnoreHit(in h, legacyShooterRootInstanceId, ownerColliderInstanceId))
+                    continue;
+                if (h.distance < bestDist)
+                {
+                    bestDist = h.distance;
+                    bestHit = h;
+                    found = true;
+                }
+            }
+
+            if (!found)
+            {
+                bestDist = default;
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
