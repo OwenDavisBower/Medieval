@@ -54,7 +54,7 @@ MonoBehaviour:
     placementRadius: 1
     spawnVillagersHere: 0
     applyMinus90XRotation: 1
-    uniformScale: 2
+    uniformScale: 1
   - prefab: {fileID: 3666824205312022667, guid: a19fc93718c5144f692055b1f0af1ddc, type: 3}
     minCount: 1
     maxCount: 4
@@ -81,7 +81,7 @@ MonoBehaviour:
     placementRadius: 1
     spawnVillagersHere: 0
     applyMinus90XRotation: 1
-    uniformScale: 1.75
+    uniformScale: 1
   - prefab: {fileID: 1319316169226225234, guid: 3162ebecd614941aabaa4f8811fc9fb0, type: 3}
     minCount: 0
     maxCount: 3
