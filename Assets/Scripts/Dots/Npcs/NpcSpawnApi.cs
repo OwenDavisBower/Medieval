@@ -134,7 +134,6 @@ namespace Medieval.Npcs
                 em.AddComponentData(npc, new NpcCombatSeekConfig
                 {
                     AggroRadius = 50f,
-                    LosChaseRadius = 100f,
                     CombatRange = 20f,
                     RangedStandoffHoldDistance = 0f,
                     EyeHeight = 1.5f,

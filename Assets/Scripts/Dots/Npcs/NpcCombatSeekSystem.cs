@@ -38,7 +38,7 @@ namespace Medieval.Npcs
                          .Query<RefRW<NpcSeekOverride>, RefRW<NpcOverrideFacing>, RefRW<NpcMovementState>,
                              RefRW<NpcCombatTarget>, RefRO<LocalTransform>, RefRO<NpcProfile>,
                              RefRO<NpcCombatSeekConfig>>()
-                         .WithAll<NpcMovementTag, NpcMovementConfig>()
+                         .WithAll<NpcMovementTag>()
                          .WithEntityAccess())
             {
                 ref NpcSeekOverride seek = ref seekRw.ValueRW;
@@ -87,18 +87,38 @@ namespace Medieval.Npcs
                 float bestSq = float.MaxValue;
                 float3 bestPos = default;
                 Entity bestHostileNpc = Entity.Null;
-                bool found = TryFindBestHostileInRadius(entity, profile.ValueRO.Role, selfFeet, aggroSq, cfg.ValueRO,
-                    candEnts, candTf, candProf, candCombat, ref bestSq, ref bestPos, ref bestHostileNpc);
+                var found = false;
 
-                bool rangedShotBusy = em.HasComponent<NpcRangedAttackState>(entity) &&
-                    em.GetComponentData<NpcRangedAttackState>(entity).ShotInProgress != 0;
-
-                if (!found && !rangedShotBusy && profile.ValueRO.Role == NpcRole.Follower &&
-                    cfg.ValueRO.LosChaseRadius > cfg.ValueRO.AggroRadius)
+                for (int i = 0; i < candEnts.Length; i++)
                 {
-                    float losSq = cfg.ValueRO.LosChaseRadius * cfg.ValueRO.LosChaseRadius;
-                    found = TryFindBestHostileInRadius(entity, profile.ValueRO.Role, selfFeet, losSq, cfg.ValueRO,
-                        candEnts, candTf, candProf, candCombat, ref bestSq, ref bestPos, ref bestHostileNpc);
+                    if (candEnts[i] == entity)
+                        continue;
+                    NpcRole otherRole = candProf[i].Role;
+                    if (!NpcCombatRoleHostility.IsHostilePair(profile.ValueRO.Role, otherRole))
+                        continue;
+                    if (candCombat[i].IsDead != 0 || candCombat[i].CurrentHealth <= 0f)
+                        continue;
+
+                    float3 op = candTf[i].Position;
+                    float dx = op.x - selfFeet.x;
+                    float dz = op.z - selfFeet.z;
+                    float sq = dx * dx + dz * dz;
+                    if (sq > aggroSq || sq >= bestSq)
+                        continue;
+
+                    if (!LineOfSightUtility.HasClearLineOfSightWorldPoints(
+                            new Vector3(selfFeet.x, selfFeet.y, selfFeet.z),
+                            new Vector3(op.x, op.y, op.z),
+                            cfg.ValueRO.EyeHeight,
+                            cfg.ValueRO.TargetAimHeight,
+                            cfg.ValueRO.ObstacleLayerMask,
+                            null))
+                        continue;
+
+                    bestSq = sq;
+                    bestPos = op;
+                    bestHostileNpc = candEnts[i];
+                    found = true;
                 }
 
                 if (profile.ValueRO.Role == NpcRole.Bandit && hasPlayer)
@@ -125,32 +145,8 @@ namespace Medieval.Npcs
 
                 if (!found)
                 {
-                    if (!rangedShotBusy && profile.ValueRO.Role == NpcRole.Follower && hasPlayer)
-                    {
-                        var mcfg = em.GetComponentData<NpcMovementConfig>(entity);
-                        // Regroup when outside the normal orbit annulus (not only when very far). Orbit sampling
-                        // can sit near the agent for many frames, so velocity stays ~0 until the anchor moves.
-                        float joinDist = mcfg.MaxLoiterRadius + 0.5f;
-                        float joinSq = joinDist * joinDist;
-                        float3 p = playerAnchor.Position;
-                        float pdx = selfFeet.x - p.x;
-                        float pdz = selfFeet.z - p.z;
-                        if (pdx * pdx + pdz * pdz > joinSq)
-                        {
-                            seek.Position = p;
-                            seek.SeekHoldDistance = math.max(1.5f, mcfg.MinLoiterRadius);
-                            seek.HasOverride = 1;
-                            facing = default;
-                            move.RangedMovementLock = 0;
-                            move.RangedCombatSeparationBoost = 0;
-                            combatTarget = default;
-                            continue;
-                        }
-                    }
-
                     seek.HasOverride = 0;
                     seek.Position = default;
-                    seek.SeekHoldDistance = 0f;
                     facing = default;
                     move.RangedMovementLock = 0;
                     move.RangedCombatSeparationBoost = 0;
@@ -213,56 +209,6 @@ namespace Medieval.Npcs
             move.RangedMovementLock = 0;
             move.RangedCombatSeparationBoost = 0;
             combatTarget = default;
-        }
-
-        static bool TryFindBestHostileInRadius(
-            Entity self,
-            NpcRole selfRole,
-            float3 selfFeet,
-            float maxRadiusSq,
-            NpcCombatSeekConfig cfg,
-            NativeArray<Entity> candEnts,
-            NativeArray<LocalTransform> candTf,
-            NativeArray<NpcProfile> candProf,
-            NativeArray<NpcCharacterCombatState> candCombat,
-            ref float bestSq,
-            ref float3 bestPos,
-            ref Entity bestHostileNpc)
-        {
-            bool found = false;
-            for (int i = 0; i < candEnts.Length; i++)
-            {
-                if (candEnts[i] == self)
-                    continue;
-                NpcRole otherRole = candProf[i].Role;
-                if (!NpcCombatRoleHostility.IsHostilePair(selfRole, otherRole))
-                    continue;
-                if (candCombat[i].IsDead != 0 || candCombat[i].CurrentHealth <= 0f)
-                    continue;
-
-                float3 op = candTf[i].Position;
-                float dx = op.x - selfFeet.x;
-                float dz = op.z - selfFeet.z;
-                float sq = dx * dx + dz * dz;
-                if (sq > maxRadiusSq || sq >= bestSq)
-                    continue;
-
-                if (!LineOfSightUtility.HasClearLineOfSightWorldPoints(
-                        new Vector3(selfFeet.x, selfFeet.y, selfFeet.z),
-                        new Vector3(op.x, op.y, op.z),
-                        cfg.EyeHeight,
-                        cfg.TargetAimHeight,
-                        cfg.ObstacleLayerMask,
-                        null))
-                    continue;
-
-                bestSq = sq;
-                bestPos = op;
-                bestHostileNpc = candEnts[i];
-                found = true;
-            }
-
-            return found;
         }
 
     }

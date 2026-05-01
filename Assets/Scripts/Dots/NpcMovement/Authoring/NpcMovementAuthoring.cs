@@ -64,8 +64,6 @@ namespace Medieval.NpcMovement
 
         [Header("Combat seek (DOTS)")]
         public float CombatSeekAggroRadius = 50f;
-        [Tooltip("Followers: if greater than aggro radius, acquire visible hostiles up to this distance when aggro finds none. 0 = off.")]
-        public float CombatSeekLosChaseRadius = 100f;
         public float CombatSeekCombatRange = 20f;
         [Tooltip("Ranged standoff: stop advancing toward the target at this distance (must be < combat range). 0 = ~72% of combat range.")]
         public float CombatSeekRangedStandoffHoldDistance;
@@ -179,7 +177,6 @@ namespace Medieval.NpcMovement
                 AddComponent(entity, new NpcCombatSeekConfig
                 {
                     AggroRadius = authoring.CombatSeekAggroRadius,
-                    LosChaseRadius = math.max(0f, authoring.CombatSeekLosChaseRadius),
                     CombatRange = authoring.CombatSeekCombatRange,
                     RangedStandoffHoldDistance = authoring.CombatSeekRangedStandoffHoldDistance,
                     EyeHeight = authoring.CombatSeekEyeHeight,
