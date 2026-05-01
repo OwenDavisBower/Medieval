@@ -7,6 +7,8 @@ Target: Unity 6 LTS / Entities 6.4.0.
 
 Modern Syntax: Use ISystem (struct-based) and IJobEntity (Source Generator style). Always mark Systems and Jobs with [BurstCompile].
 
+SystemAPI.Query arity: Generated overloads only support a limited number of type parameters in Query<...> (treat seven component access types as the safe maximum). More than that fails with CS0305 / CS8130. For an extra component: add .WithAll<ThatComponent>() and read it with EntityManager.GetComponentData or an updated read-only ComponentLookup inside the loop; or split the query / use EntityQuery or Aspects.
+
 2. Movement & Transforms (No Physics)
 LocalTransform Based: Do not use Rigidbody, PhysicsBody, or CapsuleCollider.
 
