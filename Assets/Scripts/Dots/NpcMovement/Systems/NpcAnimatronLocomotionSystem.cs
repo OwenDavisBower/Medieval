@@ -30,8 +30,10 @@ namespace Medieval.NpcMovement
 
             var parentFromEntity = SystemAPI.GetComponentLookup<Parent>(isReadOnly: true);
             var movementFromEntity = SystemAPI.GetComponentLookup<NpcMovementState>(isReadOnly: true);
+            var deadFromEntity = SystemAPI.GetComponentLookup<NpcDeadTag>(isReadOnly: true);
             parentFromEntity.Update(ref state);
             movementFromEntity.Update(ref state);
+            deadFromEntity.Update(ref state);
 
             const float stopThreshold = 0.04f;
             float stopSq = stopThreshold * stopThreshold;
@@ -42,7 +44,8 @@ namespace Medieval.NpcMovement
                          .Query<RefRW<Animatron>, MotionRef>()
                          .WithEntityAccess())
             {
-                if (!TryGetNpcMovementState(entity, parentFromEntity, movementFromEntity, out NpcMovementState move))
+                if (!TryGetNpcMovementState(entity, parentFromEntity, movementFromEntity, deadFromEntity,
+                        out NpcMovementState move))
                     continue;
 
                 if (Time.time < move.ShootGestureSuppressLocomotionUntilUnityTime)
@@ -87,6 +90,7 @@ namespace Medieval.NpcMovement
             Entity start,
             ComponentLookup<Parent> parents,
             ComponentLookup<NpcMovementState> movements,
+            ComponentLookup<NpcDeadTag> deadTags,
             out NpcMovementState move)
         {
             Entity e = start;
@@ -94,6 +98,12 @@ namespace Medieval.NpcMovement
             {
                 if (movements.HasComponent(e))
                 {
+                    if (deadTags.HasComponent(e))
+                    {
+                        move = default;
+                        return false;
+                    }
+
                     move = movements[e];
                     return true;
                 }

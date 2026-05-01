@@ -214,8 +214,6 @@ namespace Medieval.Npcs
                 vState.AttackStunUntilUnityTime =
                     math.max(vState.AttackStunUntilUnityTime, unityTime + meleeCfg.HitMeleeStunDuration);
                 em.SetComponentData(victimNpc, vState);
-                if (vState.IsDead != 0)
-                    NpcEntityDestroyUtility.DestroyNpcWithLinked(em, victimNpc);
 
                 ApplyMeleeKnockback(em, victimNpc, selfFeet, goalFlat, meleeCfg.KnockbackImpulse);
                 return;

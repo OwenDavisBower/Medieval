@@ -21,6 +21,11 @@ namespace Medieval.NpcMovement
     {
     }
 
+    /// <summary>Present on NPC root when dead: movement/combat systems skip this entity; corpse stays for rendering.</summary>
+    public struct NpcDeadTag : IComponentData
+    {
+    }
+
     /// <summary>
     /// One-shot initialization marker for loiter state (orbit / wander). A system will consume this tag
     /// to randomize base angle/radius/noise so baked prefab instances don't all loiter identically.

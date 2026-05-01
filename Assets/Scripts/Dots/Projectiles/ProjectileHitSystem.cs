@@ -77,9 +77,6 @@ namespace Medieval.Projectiles
                 if (preferDots)
                 {
                     NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim, damage.ValueRO.Amount);
-                    var st = em.GetComponentData<NpcCharacterCombatState>(dotsVictim);
-                    if (st.IsDead != 0)
-                        NpcEntityDestroyUtility.DestroyNpcWithLinked(ref ecb, em, dotsVictim);
                     ecb.DestroyEntity(entity);
                     continue;
                 }
