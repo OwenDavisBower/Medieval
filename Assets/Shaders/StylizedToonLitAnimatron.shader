@@ -5,10 +5,10 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
         [MainTexture] _BaseMap("Base Map", 2D) = "white" {}
         [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
 
-        _ShadowColor("Shadow Tint", Color) = (0.45, 0.55, 0.75, 1)
+        _ShadowColor("Shadow Tint", Color) = (0.12549, 0.21176, 0.38824, 1)
 
-        [IntRange] _StepCount("Cel Step Count", Range(1, 16)) = 4
-        _StepSmoothness("Step Edge Softness", Range(0.001, 0.5)) = 0.08
+        [IntRange] _StepCount("Cel Step Count", Range(1, 16)) = 3
+        _StepSmoothness("Step Edge Softness", Range(0.001, 0.5)) = 0.001
 
         [ToggleUI] _ReceiveShadows("Receive Shadows", Float) = 1.0
 
