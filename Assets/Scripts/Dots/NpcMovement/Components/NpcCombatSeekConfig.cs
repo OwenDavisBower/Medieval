@@ -9,6 +9,11 @@ namespace Medieval.NpcMovement
     public struct NpcCombatSeekConfig : IComponentData
     {
         public float AggroRadius;
+        /// <summary>
+        /// Followers: if &gt; <see cref="AggroRadius"/>, a second pass acquires the nearest visible hostile out to this
+        /// distance when the aggro pass finds nothing (e.g. stragglers just outside aggro). 0 = disabled.
+        /// </summary>
+        public float LosChaseRadius;
         /// <summary>Max horizontal distance at which ranged attacks are allowed; should be greater than standoff hold distance.</summary>
         public float CombatRange;
         /// <summary>

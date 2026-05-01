@@ -50,11 +50,29 @@ namespace Medieval.Npcs
                     }
                 }
 
+                // Seek cleared (no combat/regroup override) but lock can remain 1 if anything skipped updating
+                // NpcMovementState; steering then zeroes velocity every frame.
                 if (seek.ValueRO.HasOverride == 0)
+                {
+                    if (!em.HasComponent<NpcRangedAttackState>(entity) ||
+                        em.GetComponentData<NpcRangedAttackState>(entity).ShotInProgress == 0)
+                    {
+                        var moveClear = em.GetComponentData<NpcMovementState>(entity);
+                        if (moveClear.RangedMovementLock != 0)
+                        {
+                            moveClear.RangedMovementLock = 0;
+                            em.SetComponentData(entity, moveClear);
+                        }
+                    }
+
                     continue;
+                }
 
                 if (combatTarget.ValueRO.HasCombatTarget == 0)
+                {
+                    TryClearRangedMovementLockForLocomotion(em, entity);
                     continue;
+                }
 
                 float3 goal = seek.ValueRO.Position;
                 float dx = goal.x - selfFeet.x;
@@ -64,7 +82,10 @@ namespace Medieval.Npcs
                 bool hasMelee = em.HasComponent<NpcMeleeCombatConfig>(entity);
                 bool hasRanged = em.HasComponent<NpcRangedCombatConfig>(entity);
                 if (!hasMelee && !hasRanged)
+                {
+                    TryClearRangedMovementLockForLocomotion(em, entity);
                     continue;
+                }
 
                 bool wantMelee = profile.ValueRO.WeaponClass == NpcWeaponClass.Melee ||
                     profile.ValueRO.WeaponClass == NpcWeaponClass.Both;
@@ -81,17 +102,24 @@ namespace Medieval.Npcs
                         TryMeleeAttack(em, selfFeet, goal, combatTarget.ValueRO, in meleeCfg, ref combat,
                             ref meleeState, unityTime);
                         em.SetComponentData(entity, meleeState);
+                        TryClearRangedMovementLockForLocomotion(em, entity);
                         continue;
                     }
                 }
 
                 if (!hasRanged || !wantRanged || !em.HasComponent<NpcRangedAttackState>(entity))
+                {
+                    TryClearRangedMovementLockForLocomotion(em, entity);
                     continue;
+                }
 
                 var rangedCfg = em.GetComponentData<NpcRangedCombatConfig>(entity);
                 float combatRange = cfg.ValueRO.CombatRange;
                 if (flatSq > combatRange * combatRange)
+                {
+                    TryClearRangedMovementLockForLocomotion(em, entity);
                     continue;
+                }
 
                 var rangedState = em.GetComponentData<NpcRangedAttackState>(entity);
                 var move = em.GetComponentData<NpcMovementState>(entity);
@@ -130,6 +158,23 @@ namespace Medieval.Npcs
 
             ecb.Playback(EntityManager);
             ecb.Dispose();
+        }
+
+        /// <summary>
+        /// Drops <see cref="NpcMovementState.RangedMovementLock"/> when no ranged shot is in flight so steering can run
+        /// (avoids stale lock when attack logic exits early — e.g. out of <see cref="NpcCombatSeekConfig.CombatRange"/>).
+        /// </summary>
+        static void TryClearRangedMovementLockForLocomotion(EntityManager em, Entity entity)
+        {
+            if (!em.HasComponent<NpcRangedAttackState>(entity) || !em.HasComponent<NpcMovementState>(entity))
+                return;
+            if (em.GetComponentData<NpcRangedAttackState>(entity).ShotInProgress != 0)
+                return;
+            var move = em.GetComponentData<NpcMovementState>(entity);
+            if (move.RangedMovementLock == 0)
+                return;
+            move.RangedMovementLock = 0;
+            em.SetComponentData(entity, move);
         }
 
         /// <summary>
