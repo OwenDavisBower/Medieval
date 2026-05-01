@@ -313,6 +313,7 @@ public static class ProcessFbxContextMenu
             return;
 
         ti.maxTextureSize = 256;
+        ti.filterMode = FilterMode.Point;
         EditorUtility.SetDirty(ti);
         ti.SaveAndReimport();
     }
