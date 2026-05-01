@@ -26,6 +26,7 @@ namespace Medieval.Npcs
 #endif
             em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
             NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
+            NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Follower);
             return e;
         }
 
@@ -68,6 +69,7 @@ namespace Medieval.Npcs
 #endif
             em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
             NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
+            NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Villager);
             return e;
         }
 

@@ -36,8 +36,45 @@ namespace Medieval.Npcs
                 MovementSpeedMultiplier = StatMultiplier(dexterity, bake.MinDexterity, bake.MaxDexterity, 0.86f, 1.14f),
                 RangedAimErrorMultiplier = StatMultiplier(focus, bake.MinFocus, bake.MaxFocus, 1.28f, 0.62f),
                 Bravery = bravery,
+                AttackStunUntilUnityTime = 0f,
                 IsDead = 0
             });
+        }
+
+        /// <summary>Sets <see cref="NpcProfile.Role"/> from spawn and resolves <see cref="NpcProfile.WeaponClass"/> when <see cref="NpcWeaponClass.Unspecified"/>.</summary>
+        public static void FinalizeSpawnProfile(EntityManager em, Entity npc, NpcRole role)
+        {
+            if (!em.Exists(npc))
+                return;
+
+            NpcWeaponClass resolved = ResolveWeaponClass(em, npc);
+            if (!em.HasComponent<NpcProfile>(npc))
+            {
+                em.AddComponentData(npc, new NpcProfile { Role = role, WeaponClass = resolved });
+                return;
+            }
+
+            var profile = em.GetComponentData<NpcProfile>(npc);
+            profile.Role = role;
+            if (profile.WeaponClass == NpcWeaponClass.Unspecified)
+                profile.WeaponClass = resolved;
+            em.SetComponentData(npc, profile);
+        }
+
+        /// <summary>Uses combat config presence on this entity (baked root). For configs on child entities, set <see cref="NpcProfile.WeaponClass"/> in authoring.</summary>
+        public static NpcWeaponClass ResolveWeaponClass(EntityManager em, Entity npc)
+        {
+            if (!em.Exists(npc))
+                return NpcWeaponClass.None;
+            bool melee = em.HasComponent<NpcMeleeCombatConfig>(npc);
+            bool ranged = em.HasComponent<NpcRangedCombatConfig>(npc);
+            if (melee && ranged)
+                return NpcWeaponClass.Both;
+            if (melee)
+                return NpcWeaponClass.Melee;
+            if (ranged)
+                return NpcWeaponClass.Ranged;
+            return NpcWeaponClass.None;
         }
 
         static float StatT(float value, float min, float max)

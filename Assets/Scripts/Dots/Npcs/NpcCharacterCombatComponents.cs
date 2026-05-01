@@ -2,6 +2,33 @@ using Unity.Entities;
 
 namespace Medieval.Npcs
 {
+    /// <summary>High-level NPC kind for DOTS logic (spawn API sets this at runtime; optional bake for subscenes).</summary>
+    public enum NpcRole : byte
+    {
+        Unknown = 0,
+        Follower = 1,
+        Bandit = 2,
+        Villager = 3,
+    }
+
+    /// <summary>Weapon capability for AI and gameplay queries (see <see cref="NpcCombatSpawnUtility.FinalizeSpawnProfile"/>).</summary>
+    public enum NpcWeaponClass : byte
+    {
+        /// <summary>Infer from <see cref="NpcMeleeCombatConfig"/> / <see cref="NpcRangedCombatConfig"/> on the spawned root entity.</summary>
+        Unspecified = 0,
+        None = 1,
+        Melee = 2,
+        Ranged = 3,
+        Both = 4,
+    }
+
+    /// <summary>Role and weapon class for ECS NPCs; mirrors faction/weapon setup on <see cref="Character"/> + combat behaviours.</summary>
+    public struct NpcProfile : IComponentData
+    {
+        public NpcRole Role;
+        public NpcWeaponClass WeaponClass;
+    }
+
     /// <summary>Serialized stat ranges from <see cref="Character"/> for DOTS NPC prefabs.</summary>
     public struct NpcCharacterBakedStats : IComponentData
     {
@@ -28,6 +55,8 @@ namespace Medieval.Npcs
         public float MovementSpeedMultiplier;
         public float RangedAimErrorMultiplier;
         public float Bravery;
+        /// <summary>Unity <see cref="UnityEngine.Time.time"/> until melee-style attack stun clears; mirrors <see cref="Character.CanAttack"/>.</summary>
+        public float AttackStunUntilUnityTime;
         public byte IsDead;
     }
 
