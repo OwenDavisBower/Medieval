@@ -9,6 +9,11 @@ namespace Medieval.Npcs
     /// <summary>Projectile hits against baked NPCs that have no GameObject colliders in the physics scene.</summary>
     public static class NpcProjectileDotsNpc
     {
+        /// <summary>
+        /// Horizontal distance at or below which allied NPCs do not take ranged damage (clustered friendly fire).
+        /// </summary>
+        public const float CloseGroupedAlliedRangedFriendlyFireHorizMeters = 4f;
+
         public static bool TryFindClosestAlongSegment(
             EntityManager em,
             float3 prev,
@@ -32,6 +37,18 @@ namespace Medieval.Npcs
             using var states = query.ToComponentDataArray<NpcCharacterCombatState>(Allocator.Temp);
             using var transforms = query.ToComponentDataArray<LocalTransform>(Allocator.Temp);
 
+            bool hasShooterProfile = excludeShooterRoot != Entity.Null && em.HasComponent<NpcProfile>(excludeShooterRoot);
+            NpcRole shooterRole = default;
+            float3 shooterFoot = default;
+            if (hasShooterProfile)
+            {
+                shooterRole = em.GetComponentData<NpcProfile>(excludeShooterRoot).Role;
+                shooterFoot = em.GetComponentData<LocalTransform>(excludeShooterRoot).Position;
+            }
+
+            float closeFfSq = CloseGroupedAlliedRangedFriendlyFireHorizMeters *
+                CloseGroupedAlliedRangedFriendlyFireHorizMeters;
+
             for (int i = 0; i < entities.Length; i++)
             {
                 if (excludeShooterRoot != Entity.Null && entities[i] == excludeShooterRoot)
@@ -39,6 +56,17 @@ namespace Medieval.Npcs
                 if (states[i].IsDead != 0 || states[i].CurrentHealth <= 0f)
                     continue;
                 float3 foot = transforms[i].Position;
+                if (hasShooterProfile && em.HasComponent<NpcProfile>(entities[i]))
+                {
+                    var victimRole = em.GetComponentData<NpcProfile>(entities[i]).Role;
+                    if (NpcCombatRoleHostility.AreAlliedForCloseRangedFriendlyFire(shooterRole, victimRole))
+                    {
+                        float dx = foot.x - shooterFoot.x;
+                        float dz = foot.z - shooterFoot.z;
+                        if (dx * dx + dz * dz <= closeFfSq)
+                            continue;
+                    }
+                }
                 float t = MinTOnSegmentInNpcVolume(prev, cur, foot, projectileRadius);
                 if (t < 0f || t > 1f)
                     continue;

@@ -94,7 +94,7 @@ namespace Medieval.Npcs
                     if (candEnts[i] == entity)
                         continue;
                     NpcRole otherRole = candProf[i].Role;
-                    if (!IsHostilePair(profile.ValueRO.Role, otherRole))
+                    if (!NpcCombatRoleHostility.IsHostilePair(profile.ValueRO.Role, otherRole))
                         continue;
                     if (candCombat[i].IsDead != 0 || candCombat[i].CurrentHealth <= 0f)
                         continue;
@@ -197,13 +197,5 @@ namespace Medieval.Npcs
             combatTarget = default;
         }
 
-        static bool IsHostilePair(NpcRole self, NpcRole other)
-        {
-            if (self == NpcRole.Follower && other == NpcRole.Bandit)
-                return true;
-            if (self == NpcRole.Bandit && (other == NpcRole.Follower || other == NpcRole.Villager))
-                return true;
-            return false;
-        }
     }
 }

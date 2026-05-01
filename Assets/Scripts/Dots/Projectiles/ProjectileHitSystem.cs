@@ -116,6 +116,34 @@ namespace Medieval.Projectiles
             }
         }
 
+        /// <summary>
+        /// Same rule as DOTS NPCs: allied factions within horizontal range do not take ranged damage when bunched.
+        /// </summary>
+        static bool ShouldSuppressDamageCloseAlliedFaction(int legacyShooterRootInstanceId, Collider victimCollider,
+            Transform victimTransform)
+        {
+            if (legacyShooterRootInstanceId == 0 || victimCollider == null || victimTransform == null)
+                return false;
+
+            var shooterObj = Resources.InstanceIDToObject(legacyShooterRootInstanceId);
+            if (shooterObj is not Transform shooterTr)
+                return false;
+
+            var shooterAff = shooterTr.GetComponentInParent<Affiliation>();
+            if (shooterAff == null || !Affiliation.TryGetForCollider(victimCollider, out var victimAff))
+                return false;
+
+            FactionManager fm = FactionManager.Instance;
+            if (fm == null || fm.GetRelationship(shooterAff.FactionId, victimAff.FactionId) != Relationship.Allied)
+                return false;
+
+            Transform victimRoot = victimTransform.root;
+            float dx = victimRoot.position.x - shooterTr.position.x;
+            float dz = victimRoot.position.z - shooterTr.position.z;
+            float r = NpcProjectileDotsNpc.CloseGroupedAlliedRangedFriendlyFireHorizMeters;
+            return dx * dx + dz * dz <= r * r;
+        }
+
         static bool ShouldIgnoreHit(in RaycastHit hit, int legacyShooterRootInstanceId, int ownerColliderInstanceId)
         {
             if (hit.collider == null || hit.transform == null)
@@ -143,6 +171,13 @@ namespace Medieval.Projectiles
                 var victimMb = victim as MonoBehaviour;
                 if (victimMb != null && legacyShooterRootInstanceId != 0 && victimMb.transform.root != null &&
                     victimMb.transform.root.GetInstanceID() == legacyShooterRootInstanceId)
+                {
+                    em.DestroyEntity(entity);
+                    return;
+                }
+
+                if (victimMb != null && ShouldSuppressDamageCloseAlliedFaction(legacyShooterRootInstanceId,
+                        hit.collider, victimMb.transform))
                 {
                     em.DestroyEntity(entity);
                     return;
