@@ -18,6 +18,8 @@ public struct SettlementBuildingSpawnEntry
     public float placementRadius;
     [Tooltip("If true, spawns villagers near each instance (same behavior as former cabin placement).")]
     public bool spawnVillagersHere;
+    [Tooltip("Bandit camp only: use Euler (-90, yaw, 0) instead of (0, yaw, 0) when instantiating (common FBX axis fix). Ignored by settlement building spawn.")]
+    public bool applyMinus90XRotation;
 }
 
 [CreateAssetMenu(fileName = "SettlementSpawnConfig", menuName = "Medieval/Spawning/Settlement Spawn Config")]
