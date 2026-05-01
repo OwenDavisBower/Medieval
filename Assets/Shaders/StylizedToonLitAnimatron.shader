@@ -46,6 +46,19 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
 
         TEXTURE2D(_BaseMap);
         SAMPLER(sampler_BaseMap);
+
+        #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+
+        #ifndef UNITY_DOTS_INSTANCING_START
+            #define UNITY_DOTS_INSTANCING_START(name) UNITY_INSTANCING_BUFFER_START(name)
+            #define UNITY_DOTS_INSTANCING_END(name)   UNITY_INSTANCING_BUFFER_END(name)
+            #define UNITY_DOTS_INSTANCED_PROP(type, var) UNITY_DEFINE_INSTANCED_PROP(type, var)
+            #define UNITY_ACCESS_DOTS_INSTANCED_PROP(type, var) UNITY_ACCESS_INSTANCED_PROP(MaterialPropertyMetadata, var)
+        #endif
+
+        UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
+            UNITY_DOTS_INSTANCED_PROP(float, _SkinMatrixIndex)
+        UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
     ENDHLSL
 
     SubShader
@@ -109,23 +122,8 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
 
             #pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
-            // URP/Entities versions differ on where DOTS instancing macros live.
-            // On some Metal builds the DOTS include doesn't define UNITY_DOTS_* macros, so we provide a compatibility shim.
             #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            // Unity 6 / URP ships DOTS instancing helpers in URP's ShaderLibrary.
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-
-            #ifndef UNITY_DOTS_INSTANCING_START
-                #define UNITY_DOTS_INSTANCING_START(name) UNITY_INSTANCING_BUFFER_START(name)
-                #define UNITY_DOTS_INSTANCING_END(name)   UNITY_INSTANCING_BUFFER_END(name)
-                #define UNITY_DOTS_INSTANCED_PROP(type, var) UNITY_DEFINE_INSTANCED_PROP(type, var)
-                #define UNITY_ACCESS_DOTS_INSTANCED_PROP(type, var) UNITY_ACCESS_INSTANCED_PROP(MaterialPropertyMetadata, var)
-            #endif
-
-            // Animatron per-instance property (required)
-            UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
-                UNITY_DOTS_INSTANCED_PROP(float, _SkinMatrixIndex)
-            UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #if defined(LOD_FADE_CROSSFADE)
@@ -406,8 +404,6 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
             ENDHLSL
         }
 
-        // NOTE: These passes remain URP stock. If you see incorrect shadows/depth for skinned meshes,
-        // we can add skinned variants of these passes too.
         Pass
         {
             Name "ShadowCaster"
@@ -424,13 +420,14 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
             #pragma vertex ShadowPassVertex
             #pragma fragment ShadowPassFragment
 
+            #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
             #pragma multi_compile _ LOD_FADE_CROSSFADE
 
             #pragma multi_compile_instancing
             #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
+            #include "StylizedToonLitAnimatronMetaPasses.hlsl"
             ENDHLSL
         }
 
@@ -455,7 +452,7 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
             #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthNormalsPass.hlsl"
+            #include "StylizedToonLitAnimatronMetaPasses.hlsl"
             ENDHLSL
         }
 
@@ -481,7 +478,7 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
             #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
+            #include "StylizedToonLitAnimatronMetaPasses.hlsl"
             ENDHLSL
         }
     }
