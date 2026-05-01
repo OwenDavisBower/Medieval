@@ -1,0 +1,105 @@
+fileFormatVersion: 2
+guid: 28716b10853044565b8becda0d4ad3d1
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 53fd01ce4939a0646ac1d7d002f4ace1, type: 3}
+  Prefab: {fileID: 919132149155446097, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  Animations:
+  - Name: Idle
+    Clip: {fileID: 7400000, guid: 002b2350ee7ca45e5b778948cf99d33e, type: 2}
+    Speed: 1
+    ApplyFootIK: 0
+    Events: []
+  - Name: Walking
+    Clip: {fileID: 7400000, guid: 26a088a3d368249d8bd5da4351490582, type: 2}
+    Speed: 1
+    ApplyFootIK: 0
+    Events: []
+  - Name: ShootArrow
+    Clip: {fileID: 7400000, guid: fb5b064844ff343089638c63c58a8104, type: 2}
+    Speed: 1
+    ApplyFootIK: 0
+    Events: []
+  - Name: DeathBackward
+    Clip: {fileID: 7400000, guid: e2040e4221e4b4c94aa961ddb0724b54, type: 2}
+    Speed: 1
+    ApplyFootIK: 0
+    Events: []
+  - Name: DeathBackward2
+    Clip: {fileID: 7400000, guid: eb5fd4694499f47a29a03c616e366c49, type: 2}
+    Speed: 1
+    ApplyFootIK: 0
+    Events: []
+  - Name: DeathRight
+    Clip: {fileID: 7400000, guid: d723e2b51447e4a9890ee29f18757f3c, type: 2}
+    Speed: 1
+    ApplyFootIK: 0
+    Events: []
+  AnimationNames: 1
+  Skins:
+  - Enabled: 1
+    SkinnedMeshRenderer: {fileID: 8111781155169087978, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  Force4BlendWeights: 1
+  Joints:
+  - Enabled: 1
+    Transform: {fileID: 8879528566716807029, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 3742407835892290726, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -6679048010460921364, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 5420033347761576298, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -3013317397218381484, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -8211682993464967936, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 6162258519646862899, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 1404671781229238895, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 8721056732114653340, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 734122489633926935, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 9209473232806845289, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -2933462074546144371, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -7520100684144184798, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -6071295137351723276, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 1234279849924444142, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -6142299176988321073, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 4971310860725525745, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 8573173560056127949, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -131761456609737084, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -334426454937481025, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -1157916872652671966, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -653992566022304585, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: 2258100166189598859, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -7383910877443114823, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 1
+    Transform: {fileID: -639763325267172598, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  - Enabled: 0
+    Transform: {fileID: 505485589189708005, guid: 0fa7fd16d0b3f49289885530a2953768, type: 3}
+  JointNames: 1
+  PrefabMode: 1
+  references:
+    version: 2
+    RefIds: []
