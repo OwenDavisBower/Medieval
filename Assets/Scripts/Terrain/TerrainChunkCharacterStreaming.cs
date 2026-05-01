@@ -5,7 +5,8 @@ using UnityEngine;
 /// <summary>
 /// When terrain streaming moves the logical chunk window, disables bandit and villager roots inside
 /// chunks that left the window and re-enables those previously disabled when a chunk re-enters.
-/// Uses an axis-aligned physics box over the chunk XZ cell (full vertical span).
+/// Uses an axis-aligned physics box over the chunk XZ cell (full vertical span) for GameObject NPCs;
+/// <see cref="TerrainChunkDotsNpcStreaming"/> applies the same policy to baked DOTS NPC entities.
 /// </summary>
 public static class TerrainChunkCharacterStreaming
 {
@@ -48,7 +49,10 @@ public static class TerrainChunkCharacterStreaming
                 DiffScratch.Add(c);
         }
         foreach (Vector2Int c in DiffScratch)
+        {
             DisableUnitsInChunk(c, origin, ws, axis, centerY, verticalHalf);
+            TerrainChunkDotsNpcStreaming.DisableNpcsInChunk(c, terrain);
+        }
 
         DiffScratch.Clear();
         foreach (Vector2Int c in NewWindowScratch)
@@ -57,7 +61,10 @@ public static class TerrainChunkCharacterStreaming
                 DiffScratch.Add(c);
         }
         foreach (Vector2Int c in DiffScratch)
+        {
             EnableUnitsForChunk(c);
+            TerrainChunkDotsNpcStreaming.EnableNpcsForChunk(c);
+        }
 
         CombatUnitRegistry.InvalidateCaches();
     }
