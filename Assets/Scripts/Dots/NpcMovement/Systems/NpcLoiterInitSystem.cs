@@ -25,12 +25,17 @@ namespace Medieval.NpcMovement
         [BurstCompile]
         partial struct InitJob : IJobEntity
         {
-            public void Execute(ref NpcMovementState mstate, in NpcMovementConfig cfg, in NpcLoiterInitTag _)
+            public void Execute(Entity entity, ref NpcMovementState mstate, in NpcMovementConfig cfg, in NpcLoiterInitTag _)
             {
                 if (mstate.Mode != NpcMovementMode.Orbit && mstate.Mode != NpcMovementMode.WanderAroundTarget)
                     return;
 
-                var rng = mstate.Rng;
+                // Prefab instances share the baker's RNG seed; derive a unique stream per entity so orbit/wander
+                // goals differ even when anchor and mode match (e.g. many bandits at one camp).
+                uint seed = (uint)math.hash(new int2(entity.Index, entity.Version));
+                if (seed == 0u)
+                    seed = 1u;
+                var rng = new Unity.Mathematics.Random(seed);
                 mstate.BaseAngle = rng.NextFloat(0f, math.PI * 2f);
                 mstate.NoiseA = rng.NextFloat(0f, 100f);
                 mstate.NoiseB = rng.NextFloat(0f, 100f);
