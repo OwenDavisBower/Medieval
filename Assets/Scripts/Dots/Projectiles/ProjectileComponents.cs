@@ -20,22 +20,28 @@ namespace Medieval.Projectiles
         public float Amount;
     }
 
-    /// <summary>Unity instance ID of <c>transform.root</c> for friendly-fire and dodge filtering.</summary>
-    public struct ProjectileShooterId : IComponentData
+    /// <summary>
+    /// Combat root entity for friendly-fire, dodge filtering, and DOTS segment-hit exclusion.
+    /// <see cref="Unity.Entities.Entity.Null"/> when the shooter is not represented in ECS (use legacy id) or is environmental.
+    /// </summary>
+    public struct ProjectileShooterRoot : IComponentData
     {
-        public int RootInstanceId;
+        public Entity Value;
+    }
+
+    /// <summary>
+    /// When <see cref="ProjectileShooterRoot"/> is <see cref="Unity.Entities.Entity.Null"/>, Unity instance ID of
+    /// <c>transform.root</c> for physics self-hit filtering (GameObject archers, towers) until those call sites pass an entity.
+    /// </summary>
+    public struct ProjectileShooterLegacyRootInstanceId : IComponentData
+    {
+        public int Value;
     }
 
     /// <summary>Unity instance ID of the shooter's collider to ignore self-hits.</summary>
     public struct ProjectileOwnerColliderId : IComponentData
     {
         public int ColliderInstanceId;
-    }
-
-    /// <summary>When set, projectile was fired by this DOTS NPC root; used to skip self in ECS hit tests.</summary>
-    public struct ProjectileShooterNpcRoot : IComponentData
-    {
-        public Entity Value;
     }
 
     public struct ProjectileHitSphere : IComponentData
@@ -59,6 +65,7 @@ namespace Medieval.Projectiles
     {
         public float3 PositionFlat;
         public float3 VelocityFlat;
-        public int ShooterRootInstanceId;
+        public Entity ShooterRoot;
+        public int LegacyShooterRootInstanceId;
     }
 }

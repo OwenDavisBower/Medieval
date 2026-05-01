@@ -16,7 +16,7 @@ namespace Medieval.Projectiles
         struct PendingHit
         {
             public Entity Entity;
-            public int ShooterRootInstanceId;
+            public int LegacyShooterRootInstanceId;
             public int OwnerColliderInstanceId;
             public ProjectileDamage Damage;
             public RaycastHit Hit;
@@ -30,9 +30,10 @@ namespace Medieval.Projectiles
             var pending = new List<PendingHit>(8);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
-            foreach (var (tf, motion, hitSphere, damage, shooter, owner, entity) in SystemAPI
+            foreach (var (tf, motion, hitSphere, damage, shooter, legacyRoot, owner, entity) in SystemAPI
                          .Query<RefRO<LocalTransform>, RefRO<ProjectileMotionState>, RefRO<ProjectileHitSphere>,
-                             RefRO<ProjectileDamage>, RefRO<ProjectileShooterId>, RefRO<ProjectileOwnerColliderId>>()
+                             RefRO<ProjectileDamage>, RefRO<ProjectileShooterRoot>,
+                             RefRO<ProjectileShooterLegacyRootInstanceId>, RefRO<ProjectileOwnerColliderId>>()
                          .WithAll<ProjectileTag>()
                          .WithEntityAccess())
             {
@@ -45,7 +46,8 @@ namespace Medieval.Projectiles
 
                 Vector3 dir = disp / dist;
                 float radius = math.max(0.001f, hitSphere.ValueRO.Radius);
-                int shooterRootId = shooter.ValueRO.RootInstanceId;
+                Entity shooterRoot = shooter.ValueRO.Value;
+                int legacyRootId = legacyRoot.ValueRO.Value;
                 int ownerColliderId = owner.ValueRO.ColliderInstanceId;
 
                 RaycastHit[] hits = Physics.SphereCastAll((Vector3)prev, radius, dir, dist, ~0, QueryTriggerInteraction.Ignore);
@@ -57,7 +59,7 @@ namespace Medieval.Projectiles
                     for (int i = 0; i < hits.Length; i++)
                     {
                         RaycastHit h = hits[i];
-                        if (ShouldIgnoreHit(in h, shooterRootId, ownerColliderId))
+                        if (ShouldIgnoreHit(in h, legacyRootId, ownerColliderId))
                             continue;
                         if (h.distance < physBestDist)
                         {
@@ -67,9 +69,7 @@ namespace Medieval.Projectiles
                     }
                 }
 
-                Entity dotsExclude = Entity.Null;
-                if (em.HasComponent<ProjectileShooterNpcRoot>(entity))
-                    dotsExclude = em.GetComponentData<ProjectileShooterNpcRoot>(entity).Value;
+                Entity dotsExclude = shooterRoot;
 
                 bool hasDots = NpcProjectileDotsNpc.TryFindClosestAlongSegment(em, prev, cur, radius, dotsExclude,
                     out Entity dotsVictim, out float dotsDist);
@@ -90,7 +90,7 @@ namespace Medieval.Projectiles
                 pending.Add(new PendingHit
                 {
                     Entity = entity,
-                    ShooterRootInstanceId = shooterRootId,
+                    LegacyShooterRootInstanceId = legacyRootId,
                     OwnerColliderInstanceId = ownerColliderId,
                     Damage = damage.ValueRO,
                     Hit = hits[physBest],
@@ -111,18 +111,19 @@ namespace Medieval.Projectiles
                     continue;
                 }
 
-                ApplyHitStickOrDestroy(em, p.Entity, p.ShooterRootInstanceId, p.Damage, p.Hit, p.PreviousPosition,
+                ApplyHitStickOrDestroy(em, p.Entity, p.LegacyShooterRootInstanceId, p.Damage, p.Hit, p.PreviousPosition,
                     p.CurrentPosition);
             }
         }
 
-        static bool ShouldIgnoreHit(in RaycastHit hit, int shooterRootInstanceId, int ownerColliderInstanceId)
+        static bool ShouldIgnoreHit(in RaycastHit hit, int legacyShooterRootInstanceId, int ownerColliderInstanceId)
         {
             if (hit.collider == null || hit.transform == null)
                 return true;
             if (ownerColliderInstanceId != 0 && hit.collider.GetInstanceID() == ownerColliderInstanceId)
                 return true;
-            if (shooterRootInstanceId != 0 && hit.transform.root.GetInstanceID() == shooterRootInstanceId)
+            if (legacyShooterRootInstanceId != 0 && hit.transform.root != null &&
+                hit.transform.root.GetInstanceID() == legacyShooterRootInstanceId)
                 return true;
             return false;
         }
@@ -130,7 +131,7 @@ namespace Medieval.Projectiles
         static void ApplyHitStickOrDestroy(
             EntityManager em,
             Entity entity,
-            int shooterRootInstanceId,
+            int legacyShooterRootInstanceId,
             ProjectileDamage damage,
             RaycastHit hit,
             float3 prevPos,
@@ -140,8 +141,8 @@ namespace Medieval.Projectiles
             if (victim != null && !victim.IsDead)
             {
                 var victimMb = victim as MonoBehaviour;
-                if (victimMb != null && shooterRootInstanceId != 0 &&
-                    victimMb.transform.root.GetInstanceID() == shooterRootInstanceId)
+                if (victimMb != null && legacyShooterRootInstanceId != 0 && victimMb.transform.root != null &&
+                    victimMb.transform.root.GetInstanceID() == legacyShooterRootInstanceId)
                 {
                     em.DestroyEntity(entity);
                     return;
@@ -187,7 +188,9 @@ namespace Medieval.Projectiles
             if (em.HasComponent<ProjectileLifetime>(entity)) em.RemoveComponent<ProjectileLifetime>(entity);
             if (em.HasComponent<ProjectileHitSphere>(entity)) em.RemoveComponent<ProjectileHitSphere>(entity);
             if (em.HasComponent<ProjectileDamage>(entity)) em.RemoveComponent<ProjectileDamage>(entity);
-            if (em.HasComponent<ProjectileShooterId>(entity)) em.RemoveComponent<ProjectileShooterId>(entity);
+            if (em.HasComponent<ProjectileShooterRoot>(entity)) em.RemoveComponent<ProjectileShooterRoot>(entity);
+            if (em.HasComponent<ProjectileShooterLegacyRootInstanceId>(entity))
+                em.RemoveComponent<ProjectileShooterLegacyRootInstanceId>(entity);
             if (em.HasComponent<ProjectileOwnerColliderId>(entity)) em.RemoveComponent<ProjectileOwnerColliderId>(entity);
             if (em.HasComponent<ProjectileTag>(entity)) em.RemoveComponent<ProjectileTag>(entity);
         }

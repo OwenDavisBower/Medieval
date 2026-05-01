@@ -60,10 +60,15 @@ namespace Medieval.NpcMovement
                     continue;
 
                 float3 origin = transformRO.ValueRO.Position;
-                var extents = new UnityEngine.Vector3(
-                    cfg.ValueRO.NavMeshSampleMaxDistance,
-                    cfg.ValueRO.NavMeshSampleMaxDistance,
-                    cfg.ValueRO.NavMeshSampleMaxDistance);
+                if (!math.all(math.isfinite(origin)) || !math.all(math.isfinite(goal)))
+                {
+                    corners.Clear();
+                    pathStateRW.ValueRW.PathValid = 0;
+                    continue;
+                }
+
+                float halfExtent = math.max(1e-2f, cfg.ValueRO.NavMeshSampleMaxDistance);
+                var extents = new UnityEngine.Vector3(halfExtent, halfExtent, halfExtent);
                 var startLoc = query.MapLocation(new UnityEngine.Vector3(origin.x, origin.y, origin.z),
                     extents, 0);
                 if (!query.IsValid(startLoc))

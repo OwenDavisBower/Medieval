@@ -30,19 +30,32 @@ namespace Medieval.Npcs
                          .WithAll<NpcMovementTag>()
                          .WithEntityAccess())
             {
-                if (seek.ValueRO.HasOverride == 0)
-                    continue;
-
                 ref NpcCharacterCombatState combat = ref combatRw.ValueRW;
                 if (combat.IsDead != 0 || combat.CurrentHealth <= 0f)
                     continue;
                 if (unityTime < combat.AttackStunUntilUnityTime)
                     continue;
 
+                float3 selfFeet = selfTf.ValueRO.Position;
+
+                if (em.HasComponent<NpcRangedAttackState>(entity) && em.HasComponent<NpcRangedCombatConfig>(entity))
+                {
+                    var rangedStateEarly = em.GetComponentData<NpcRangedAttackState>(entity);
+                    if (rangedStateEarly.ShotInProgress != 0)
+                    {
+                        var rangedCfgEarly = em.GetComponentData<NpcRangedCombatConfig>(entity);
+                        TickInProgressRangedShot(em, ref ecb, entity, selfFeet, seek.ValueRO, in rangedCfgEarly,
+                            combat.RangedAimErrorMultiplier, unityTime, ref rangedStateEarly);
+                        continue;
+                    }
+                }
+
+                if (seek.ValueRO.HasOverride == 0)
+                    continue;
+
                 if (combatTarget.ValueRO.HasCombatTarget == 0)
                     continue;
 
-                float3 selfFeet = selfTf.ValueRO.Position;
                 float3 goal = seek.ValueRO.Position;
                 float dx = goal.x - selfFeet.x;
                 float dz = goal.z - selfFeet.z;
@@ -83,21 +96,6 @@ namespace Medieval.Npcs
                 var rangedState = em.GetComponentData<NpcRangedAttackState>(entity);
                 var move = em.GetComponentData<NpcMovementState>(entity);
 
-                if (rangedState.ShotInProgress != 0)
-                {
-                    if (unityTime >= rangedState.ReleaseShotAtUnityTime)
-                    {
-                        ReleaseRangedShot(ref ecb, entity, selfFeet, goal, in rangedCfg, combat.RangedAimErrorMultiplier);
-                        rangedState.ShotInProgress = 0;
-                        rangedState.PendingTargetNpcEntity = Entity.Null;
-                    }
-
-                    move.RangedMovementLock = unityTime < rangedState.MovementLockUntilUnityTime ? (byte)1 : (byte)0;
-                    em.SetComponentData(entity, move);
-                    em.SetComponentData(entity, rangedState);
-                    continue;
-                }
-
                 if (unityTime < rangedState.NextFireAllowedUnityTime)
                 {
                     move.RangedMovementLock = unityTime < rangedState.MovementLockUntilUnityTime ? (byte)1 : (byte)0;
@@ -132,6 +130,52 @@ namespace Medieval.Npcs
 
             ecb.Playback(EntityManager);
             ecb.Dispose();
+        }
+
+        /// <summary>
+        /// Finishes draw/release even when <see cref="NpcSeekOverride.HasOverride"/> dropped for a frame (LOS, leash, aggro edge).
+        /// Uses pending target feet when seek is cleared so the arrow still releases toward the last hostile.
+        /// </summary>
+        static void TickInProgressRangedShot(
+            EntityManager em,
+            ref EntityCommandBuffer ecb,
+            Entity entity,
+            float3 selfFeet,
+            in NpcSeekOverride seek,
+            in NpcRangedCombatConfig rangedCfg,
+            float aimErrorMultiplier,
+            float unityTime,
+            ref NpcRangedAttackState rangedState)
+        {
+            var move = em.GetComponentData<NpcMovementState>(entity);
+            move.RangedMovementLock = unityTime < rangedState.MovementLockUntilUnityTime ? (byte)1 : (byte)0;
+            em.SetComponentData(entity, move);
+
+            if (unityTime >= rangedState.ReleaseShotAtUnityTime)
+            {
+                float3 goalFeet = default;
+                bool haveGoal = false;
+                if (seek.HasOverride != 0)
+                {
+                    goalFeet = seek.Position;
+                    haveGoal = true;
+                }
+                else if (rangedState.PendingTargetNpcEntity != Entity.Null &&
+                         em.Exists(rangedState.PendingTargetNpcEntity) &&
+                         em.HasComponent<LocalTransform>(rangedState.PendingTargetNpcEntity))
+                {
+                    goalFeet = em.GetComponentData<LocalTransform>(rangedState.PendingTargetNpcEntity).Position;
+                    haveGoal = true;
+                }
+
+                if (haveGoal)
+                    ReleaseRangedShot(ref ecb, entity, selfFeet, goalFeet, in rangedCfg, aimErrorMultiplier);
+
+                rangedState.ShotInProgress = 0;
+                rangedState.PendingTargetNpcEntity = Entity.Null;
+            }
+
+            em.SetComponentData(entity, rangedState);
         }
 
         static void TryMeleeAttack(

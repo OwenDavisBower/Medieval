@@ -10,7 +10,10 @@ namespace Medieval.Projectiles
     {
         const float DefaultHitRadius = 0.08f;
 
-        /// <summary>Spawns a projectile entity and sets initial state.</summary>
+        /// <summary>
+        /// Spawns a projectile entity and sets initial state.
+        /// Prefer passing a non-null <paramref name="shooterCombatRoot"/> when the shooter exists in ECS so friendly-fire and dodge use entities only.
+        /// </summary>
         public static void Spawn(
             Vector3 worldOrigin,
             Vector3 velocity,
@@ -18,7 +21,8 @@ namespace Medieval.Projectiles
             float maxLifetimeSeconds,
             Transform shooterRoot,
             Collider ownerCollider,
-            float hitRadius = DefaultHitRadius)
+            float hitRadius = DefaultHitRadius,
+            Entity shooterCombatRoot = default)
         {
             World world = World.DefaultGameObjectInjectionWorld;
             if (world == null || !world.IsCreated)
@@ -48,8 +52,11 @@ namespace Medieval.Projectiles
             em.AddComponentData(e, new ProjectileVelocity { Value = new float3(velocity.x, velocity.y, velocity.z) });
             em.AddComponentData(e, new ProjectileLifetime { SecondsRemaining = maxLifetimeSeconds });
             em.AddComponentData(e, new ProjectileDamage { Amount = damage });
-            int shooterId = shooterRoot != null ? shooterRoot.root.GetInstanceID() : 0;
-            em.AddComponentData(e, new ProjectileShooterId { RootInstanceId = shooterId });
+            em.AddComponentData(e, new ProjectileShooterRoot { Value = shooterCombatRoot });
+            int legacyRootId = 0;
+            if (shooterCombatRoot == Entity.Null && shooterRoot != null)
+                legacyRootId = shooterRoot.root.GetInstanceID();
+            em.AddComponentData(e, new ProjectileShooterLegacyRootInstanceId { Value = legacyRootId });
             int ownerColliderId = ownerCollider != null ? ownerCollider.GetInstanceID() : 0;
             em.AddComponentData(e, new ProjectileOwnerColliderId { ColliderInstanceId = ownerColliderId });
             em.AddComponentData(e, new ProjectileHitSphere { Radius = hitRadius });
@@ -92,9 +99,9 @@ namespace Medieval.Projectiles
             em.AddComponentData(e, new ProjectileVelocity { Value = new float3(velocity.x, velocity.y, velocity.z) });
             em.AddComponentData(e, new ProjectileLifetime { SecondsRemaining = maxLifetimeSeconds });
             em.AddComponentData(e, new ProjectileDamage { Amount = damage });
-            em.AddComponentData(e, new ProjectileShooterId { RootInstanceId = 0 });
+            em.AddComponentData(e, new ProjectileShooterRoot { Value = shooterNpcRoot });
+            em.AddComponentData(e, new ProjectileShooterLegacyRootInstanceId { Value = 0 });
             em.AddComponentData(e, new ProjectileOwnerColliderId { ColliderInstanceId = 0 });
-            em.AddComponentData(e, new ProjectileShooterNpcRoot { Value = shooterNpcRoot });
             em.AddComponentData(e, new ProjectileHitSphere { Radius = hitRadius });
             em.AddComponentData(e, new ProjectileMotionState { PreviousPosition = pos });
         }
@@ -134,9 +141,9 @@ namespace Medieval.Projectiles
             ecb.AddComponent(e, new ProjectileVelocity { Value = new float3(velocity.x, velocity.y, velocity.z) });
             ecb.AddComponent(e, new ProjectileLifetime { SecondsRemaining = maxLifetimeSeconds });
             ecb.AddComponent(e, new ProjectileDamage { Amount = damage });
-            ecb.AddComponent(e, new ProjectileShooterId { RootInstanceId = 0 });
+            ecb.AddComponent(e, new ProjectileShooterRoot { Value = shooterNpcRoot });
+            ecb.AddComponent(e, new ProjectileShooterLegacyRootInstanceId { Value = 0 });
             ecb.AddComponent(e, new ProjectileOwnerColliderId { ColliderInstanceId = 0 });
-            ecb.AddComponent(e, new ProjectileShooterNpcRoot { Value = shooterNpcRoot });
             ecb.AddComponent(e, new ProjectileHitSphere { Radius = hitRadius });
             ecb.AddComponent(e, new ProjectileMotionState { PreviousPosition = pos });
         }

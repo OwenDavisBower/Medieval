@@ -40,8 +40,9 @@ namespace Medieval.Projectiles
             var buffer = em.GetBuffer<ProjectileDodgeSnapshotElement>(reg);
             buffer.Clear();
 
-            foreach (var (lt, vel, shooter) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<ProjectileVelocity>,
-                         RefRO<ProjectileShooterId>>().WithAll<ProjectileTag>())
+            foreach (var (lt, vel, shooter, legacy) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<ProjectileVelocity>,
+                         RefRO<ProjectileShooterRoot>, RefRO<ProjectileShooterLegacyRootInstanceId>>()
+                         .WithAll<ProjectileTag>())
             {
                 float3 p = lt.ValueRO.Position;
                 float3 v = vel.ValueRO.Value;
@@ -49,7 +50,8 @@ namespace Medieval.Projectiles
                 {
                     PositionFlat = new float3(p.x, 0f, p.z),
                     VelocityFlat = new float3(v.x, 0f, v.z),
-                    ShooterRootInstanceId = shooter.ValueRO.RootInstanceId
+                    ShooterRoot = shooter.ValueRO.Value,
+                    LegacyShooterRootInstanceId = legacy.ValueRO.Value
                 });
             }
         }

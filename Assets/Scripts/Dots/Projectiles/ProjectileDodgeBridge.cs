@@ -9,8 +9,10 @@ namespace Medieval.Projectiles
     {
         /// <summary>
         /// Picks a hostile arrow whose horizontal path passes near this character (incoming along velocity).
+        /// Pass <paramref name="selfShooterRoot"/> when this character has an ECS combat root entity; otherwise use <see cref="Entity.Null"/>.
         /// </summary>
-        public static bool TryGetIncomingDodgeReference(Transform characterRoot, out Vector3 dodgeReferencePosition,
+        public static bool TryGetIncomingDodgeReference(Transform characterRoot, Entity selfShooterRoot,
+            out Vector3 dodgeReferencePosition,
             float maxRange = 28f, float maxLateral = 2.8f, float minHorizSpeed = 2.5f, float minAlong = 0.25f)
         {
             dodgeReferencePosition = default;
@@ -32,7 +34,7 @@ namespace Medieval.Projectiles
                 return false;
 
             Transform selfRoot = characterRoot.root;
-            int selfId = selfRoot.GetInstanceID();
+            int selfLegacyId = selfRoot != null ? selfRoot.GetInstanceID() : 0;
             Vector3 selfFlat = new Vector3(characterRoot.position.x, 0f, characterRoot.position.z);
 
             float bestAlong = float.MaxValue;
@@ -42,7 +44,9 @@ namespace Medieval.Projectiles
             for (int i = 0; i < buffer.Length; i++)
             {
                 ProjectileDodgeSnapshotElement snap = buffer[i];
-                if (snap.ShooterRootInstanceId != 0 && snap.ShooterRootInstanceId == selfId)
+                if (selfShooterRoot != Entity.Null && snap.ShooterRoot == selfShooterRoot)
+                    continue;
+                if (snap.LegacyShooterRootInstanceId != 0 && snap.LegacyShooterRootInstanceId == selfLegacyId)
                     continue;
 
                 float3 vf = snap.VelocityFlat;
