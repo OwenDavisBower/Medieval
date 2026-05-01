@@ -169,6 +169,8 @@ MonoBehaviour:
   ObstacleProbeDistance: 1.25
   RepathInterval: 0.35
   RepathGoalShiftDistance: 2
+  CivilianNoCombatSeek: 1
+  BakeFactionId: -1
   CombatSeekAggroRadius: 50
   CombatSeekCombatRange: 20
   CombatSeekRangedStandoffHoldDistance: 0
