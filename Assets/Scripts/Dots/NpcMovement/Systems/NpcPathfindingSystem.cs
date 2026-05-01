@@ -96,11 +96,7 @@ namespace Medieval.NpcMovement
                         out var startLoc))
                 {
                     corners.Clear();
-                    corners.Add(new NpcPathCorner { Value = goal });
-                    pathStateRW.PathValid = 1;
-                    pathStateRW.CurrentCorner = 0;
-                    pathStateRW.LastPathTime = ElapsedTime;
-                    pathStateRW.LastPathGoal = goal;
+                    pathStateRW.PathValid = 0;
                     return;
                 }
 
@@ -140,8 +136,8 @@ namespace Medieval.NpcMovement
                 }
                 else
                 {
-                    corners.Add(new NpcPathCorner { Value = goal });
-                    pathStateRW.PathValid = 1;
+                    pathStateRW.PathValid = 0;
+                    return;
                 }
 
                 pathStateRW.CurrentCorner = 0;

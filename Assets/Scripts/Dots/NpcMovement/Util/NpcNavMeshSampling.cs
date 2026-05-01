@@ -20,10 +20,22 @@ namespace Medieval.NpcMovement
             return query.MapLocation(ToVector3(worldPos), SampleExtents(navMeshSampleMaxDistance), 0);
         }
 
+        /// <summary>
+        /// Maps an agent position to the navmesh. Tries a tight vertical extent first so a rooftop / tower
+        /// platform is not snapped down to ground under the same horizontal box (which breaks island raycasts).
+        /// Falls back to full <see cref="SampleExtents"/> for ramps and rough spawn alignment.
+        /// </summary>
         public static bool TryMapStartLocation(NavMeshQuery query, float3 worldPos, float navMeshSampleMaxDistance,
             out NavMeshLocation location)
         {
-            location = MapLocation(query, worldPos, navMeshSampleMaxDistance);
+            float halfXZ = math.max(1e-2f, navMeshSampleMaxDistance);
+            float halfY = math.min(0.75f, halfXZ * 0.35f);
+            var tightExtents = new Vector3(halfXZ, halfY, halfXZ);
+            location = query.MapLocation(ToVector3(worldPos), tightExtents, 0);
+            if (query.IsValid(location))
+                return true;
+
+            location = query.MapLocation(ToVector3(worldPos), SampleExtents(navMeshSampleMaxDistance), 0);
             return query.IsValid(location);
         }
 

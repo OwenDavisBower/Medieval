@@ -46,6 +46,7 @@ namespace Medieval.NpcMovement
                 in NpcMovementConfig cfg,
                 in NpcAnchorTarget anchor,
                 in NpcSeekOverride seek,
+                in NpcPathState pathState,
                 DynamicBuffer<NpcPathCorner> corners,
                 ref NpcMovementState mstate)
             {
@@ -67,6 +68,14 @@ namespace Medieval.NpcMovement
                 {
                     DecelerateHorizontal(ref mstate, cfg, DeltaTime);
                     mstate.HasSmoothTarget = 0;
+                    return;
+                }
+
+                if (cfg.UseNavMeshWhenAvailable != 0 && seek.HasOverride != 0 &&
+                    (pathState.PathValid == 0 || corners.Length == 0))
+                {
+                    mstate.HasSmoothTarget = 0;
+                    DecelerateHorizontal(ref mstate, cfg, DeltaTime);
                     return;
                 }
 
