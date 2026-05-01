@@ -146,6 +146,7 @@ namespace Medieval.NpcMovement
                 AddComponent<NpcAnchorTarget>(entity);
                 AddComponent<NpcSeekOverride>(entity);
                 AddComponent<NpcOverrideFacing>(entity);
+                AddComponent<NpcCombatTarget>(entity);
                 AddComponent<NpcPendingDodge>(entity);
                 AddComponent<NpcPathState>(entity);
                 AddBuffer<NpcPathCorner>(entity);

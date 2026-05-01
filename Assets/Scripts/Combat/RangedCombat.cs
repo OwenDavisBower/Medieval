@@ -128,6 +128,7 @@ public class RangedCombat : MonoBehaviour
                 FireAnimationLeadSeconds = authoring.fireAnimationLeadSeconds,
                 MovementLockDuration = authoring.movementLockDuration
             });
+            AddComponent(entity, new Medieval.Npcs.NpcRangedAttackState());
         }
     }
 }

@@ -83,4 +83,20 @@ namespace Medieval.Npcs
         public float KnockbackImpulse;
         public float HitMeleeStunDuration;
     }
+
+    /// <summary>Runtime ranged cadence and release scheduling (Unity time).</summary>
+    public struct NpcRangedAttackState : IComponentData
+    {
+        public float NextFireAllowedUnityTime;
+        public float MovementLockUntilUnityTime;
+        public float ReleaseShotAtUnityTime;
+        public Entity PendingTargetNpcEntity;
+        public byte ShotInProgress;
+    }
+
+    /// <summary>Runtime melee cooldown (Unity time).</summary>
+    public struct NpcMeleeAttackState : IComponentData
+    {
+        public float NextAttackAllowedUnityTime;
+    }
 }

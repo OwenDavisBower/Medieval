@@ -34,9 +34,9 @@ namespace Medieval.Npcs
             bool hasPlayer = SystemAPI.TryGetSingleton(out NpcPlayerAnchor playerAnchor) && playerAnchor.HasPlayer != 0;
             var em = EntityManager;
 
-            foreach (var (seekRw, facingRw, moveRw, selfTf, profile, combat, cfg, entity) in SystemAPI
+            foreach (var (seekRw, facingRw, moveRw, combatTargetRw, selfTf, profile, cfg, entity) in SystemAPI
                          .Query<RefRW<NpcSeekOverride>, RefRW<NpcOverrideFacing>, RefRW<NpcMovementState>,
-                             RefRO<LocalTransform>, RefRO<NpcProfile>, RefRO<NpcCharacterCombatState>,
+                             RefRW<NpcCombatTarget>, RefRO<LocalTransform>, RefRO<NpcProfile>,
                              RefRO<NpcCombatSeekConfig>>()
                          .WithAll<NpcMovementTag>()
                          .WithEntityAccess())
@@ -44,26 +44,28 @@ namespace Medieval.Npcs
                 ref NpcSeekOverride seek = ref seekRw.ValueRW;
                 ref NpcOverrideFacing facing = ref facingRw.ValueRW;
                 ref NpcMovementState move = ref moveRw.ValueRW;
+                ref NpcCombatTarget combatTarget = ref combatTargetRw.ValueRW;
                 float3 selfFeet = selfTf.ValueRO.Position;
+                var combat = em.GetComponentData<NpcCharacterCombatState>(entity);
 
                 if (profile.ValueRO.Role == NpcRole.Villager || profile.ValueRO.Role == NpcRole.Unknown)
                 {
-                    ClearSeek(ref seek, ref facing, ref move);
+                    ClearSeek(ref seek, ref facing, ref move, ref combatTarget);
                     continue;
                 }
 
-                if (combat.ValueRO.IsDead != 0 || combat.ValueRO.CurrentHealth <= 0f)
+                if (combat.IsDead != 0 || combat.CurrentHealth <= 0f)
                 {
-                    ClearSeek(ref seek, ref facing, ref move);
+                    ClearSeek(ref seek, ref facing, ref move, ref combatTarget);
                     continue;
                 }
 
                 if (em.HasComponent<NpcCharacterBakedStats>(entity))
                 {
                     var bake = em.GetComponentData<NpcCharacterBakedStats>(entity);
-                    if (NpcCombatStateQueries.ShouldFleeFromCombatThreat(combat.ValueRO, bake))
+                    if (NpcCombatStateQueries.ShouldFleeFromCombatThreat(combat, bake))
                     {
-                        ClearSeek(ref seek, ref facing, ref move);
+                        ClearSeek(ref seek, ref facing, ref move, ref combatTarget);
                         continue;
                     }
                 }
@@ -76,7 +78,7 @@ namespace Medieval.Npcs
                     float dz = selfFeet.z - p.z;
                     if (dx * dx + dz * dz > maxSq)
                     {
-                        ClearSeek(ref seek, ref facing, ref move);
+                        ClearSeek(ref seek, ref facing, ref move, ref combatTarget);
                         continue;
                     }
                 }
@@ -84,6 +86,7 @@ namespace Medieval.Npcs
                 float aggroSq = cfg.ValueRO.AggroRadius * cfg.ValueRO.AggroRadius;
                 float bestSq = float.MaxValue;
                 float3 bestPos = default;
+                Entity bestHostileNpc = Entity.Null;
                 var found = false;
 
                 for (int i = 0; i < candEnts.Length; i++)
@@ -114,6 +117,7 @@ namespace Medieval.Npcs
 
                     bestSq = sq;
                     bestPos = op;
+                    bestHostileNpc = candEnts[i];
                     found = true;
                 }
 
@@ -134,6 +138,7 @@ namespace Medieval.Npcs
                     {
                         bestSq = sq;
                         bestPos = op;
+                        bestHostileNpc = Entity.Null;
                         found = true;
                     }
                 }
@@ -144,6 +149,7 @@ namespace Medieval.Npcs
                     seek.Position = default;
                     facing = default;
                     move.RangedMovementLock = 0;
+                    combatTarget = default;
                     continue;
                 }
 
@@ -154,6 +160,9 @@ namespace Medieval.Npcs
                 seek.Position = bestPos;
                 seek.SeekHoldDistance = holdDist;
                 seek.HasOverride = 1;
+
+                combatTarget.TargetNpcEntity = bestHostileNpc;
+                combatTarget.HasCombatTarget = 1;
 
                 float flatSq = (bestPos.x - selfFeet.x) * (bestPos.x - selfFeet.x) +
                     (bestPos.z - selfFeet.z) * (bestPos.z - selfFeet.z);
@@ -174,18 +183,18 @@ namespace Medieval.Npcs
                 }
                 else
                     facing = default;
-
-                move.RangedMovementLock = 0;
             }
         }
 
-        static void ClearSeek(ref NpcSeekOverride seek, ref NpcOverrideFacing facing, ref NpcMovementState move)
+        static void ClearSeek(ref NpcSeekOverride seek, ref NpcOverrideFacing facing, ref NpcMovementState move,
+            ref NpcCombatTarget combatTarget)
         {
             seek.HasOverride = 0;
             seek.Position = default;
             seek.SeekHoldDistance = 0f;
             facing = default;
             move.RangedMovementLock = 0;
+            combatTarget = default;
         }
 
         static bool IsHostilePair(NpcRole self, NpcRole other)

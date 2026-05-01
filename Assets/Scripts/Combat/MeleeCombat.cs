@@ -97,6 +97,7 @@ public class MeleeCombat : MonoBehaviour
                 KnockbackImpulse = authoring.knockbackImpulse,
                 HitMeleeStunDuration = authoring.hitMeleeStunDuration
             });
+            AddComponent(entity, new Medieval.Npcs.NpcMeleeAttackState());
         }
     }
 }

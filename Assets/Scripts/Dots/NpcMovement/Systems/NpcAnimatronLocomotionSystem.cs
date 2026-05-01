@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Medieval.NpcMovement
 {
@@ -44,9 +45,13 @@ namespace Medieval.NpcMovement
                 if (!TryGetNpcMovementState(entity, parentFromEntity, movementFromEntity, out NpcMovementState move))
                     continue;
 
-                ref Motion motion = ref motionRef.Value.Value;
-                if (!motion.TryFindAnimationIndex(k_Idle, out AnimationIndex idleIdx) ||
-                    !motion.TryFindAnimationIndex(k_Walking, out AnimationIndex walkIdx))
+                if (Time.time < move.ShootGestureSuppressLocomotionUntilUnityTime)
+                    continue;
+
+                ref ProjectDawn.Animation.Motion motion = ref motionRef.Value.Value;
+                if (!motion.TryFindAnimationIndex(k_Idle, out AnimationIndex idleIdx))
+                    continue;
+                if (!motion.TryFindAnimationIndex(k_Walking, out AnimationIndex walkIdx))
                     continue;
 
                 float3 h = move.CurrentHorizontalVelocity;

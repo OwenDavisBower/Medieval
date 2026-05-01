@@ -28,7 +28,7 @@ namespace Medieval.Npcs
             em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
             NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
             NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Follower);
-            EnsureCombatSeekConfig(em, e, NpcRole.Follower);
+            EnsureCombatPipelineComponents(em, e, NpcRole.Follower);
             return e;
         }
 
@@ -51,7 +51,7 @@ namespace Medieval.Npcs
             em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
             NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
             NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Bandit);
-            EnsureCombatSeekConfig(em, e, NpcRole.Bandit);
+            EnsureCombatPipelineComponents(em, e, NpcRole.Bandit);
             return e;
         }
 
@@ -74,7 +74,7 @@ namespace Medieval.Npcs
             em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
             NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
             NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Villager);
-            EnsureCombatSeekConfig(em, e, NpcRole.Villager);
+            EnsureCombatPipelineComponents(em, e, NpcRole.Villager);
             return e;
         }
 
@@ -114,24 +114,37 @@ namespace Medieval.Npcs
             return prefab != Entity.Null && em.Exists(prefab);
         }
 
-        /// <summary>Older baked prefabs may lack <see cref="NpcCombatSeekConfig"/>; runtime spawns always get one.</summary>
-        static void EnsureCombatSeekConfig(EntityManager em, Entity npc, NpcRole role)
+        /// <summary>Ensures seek config, combat target, and attack state components exist (older baked prefabs).</summary>
+        static void EnsureCombatPipelineComponents(EntityManager em, Entity npc, NpcRole role)
         {
-            if (!em.Exists(npc) || em.HasComponent<NpcCombatSeekConfig>(npc))
+            if (!em.Exists(npc))
                 return;
-            float leash = 0f;
-            if (role == NpcRole.Follower && em.HasComponent<NpcMovementState>(npc) &&
-                em.GetComponentData<NpcMovementState>(npc).Group == NpcSeparationGroup.Followers)
-                leash = 25f;
-            em.AddComponentData(npc, new NpcCombatSeekConfig
+
+            if (!em.HasComponent<NpcCombatSeekConfig>(npc))
             {
-                AggroRadius = 50f,
-                CombatRange = 20f,
-                EyeHeight = 1.5f,
-                TargetAimHeight = 1f,
-                ObstacleLayerMask = ~0,
-                MaxDistanceFromLeader = leash
-            });
+                float leash = 0f;
+                if (role == NpcRole.Follower && em.HasComponent<NpcMovementState>(npc) &&
+                    em.GetComponentData<NpcMovementState>(npc).Group == NpcSeparationGroup.Followers)
+                    leash = 25f;
+                em.AddComponentData(npc, new NpcCombatSeekConfig
+                {
+                    AggroRadius = 50f,
+                    CombatRange = 20f,
+                    EyeHeight = 1.5f,
+                    TargetAimHeight = 1f,
+                    ObstacleLayerMask = ~0,
+                    MaxDistanceFromLeader = leash
+                });
+            }
+
+            if (!em.HasComponent<NpcCombatTarget>(npc))
+                em.AddComponentData(npc, new NpcCombatTarget());
+
+            if (em.HasComponent<NpcRangedCombatConfig>(npc) && !em.HasComponent<NpcRangedAttackState>(npc))
+                em.AddComponentData(npc, new NpcRangedAttackState());
+
+            if (em.HasComponent<NpcMeleeCombatConfig>(npc) && !em.HasComponent<NpcMeleeAttackState>(npc))
+                em.AddComponentData(npc, new NpcMeleeAttackState());
         }
     }
 }

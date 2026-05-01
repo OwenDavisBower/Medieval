@@ -117,6 +117,9 @@ namespace Medieval.NpcMovement
 
         /// <summary>Scratch for <see cref="NpcTransformWritebackSystem"/> vertical SmoothDamp.</summary>
         public float GroundSnapYVelocity;
+
+        /// <summary>While &gt; <c>UnityEngine.Time.time</c>, <see cref="NpcAnimatronLocomotionSystem"/> skips idle/walk.</summary>
+        public float ShootGestureSuppressLocomotionUntilUnityTime;
     }
 
     public struct NpcAnchorTarget : IComponentData
@@ -142,6 +145,14 @@ namespace Medieval.NpcMovement
         public float3 Position;
         public float SeekHoldDistance;
         public byte HasOverride;
+    }
+
+    /// <summary>Written by DOTS combat seek: current hostile ECS target, if any.</summary>
+    public struct NpcCombatTarget : IComponentData
+    {
+        /// <summary>Entity.Null when the current seek goal is not an ECS NPC (e.g. player).</summary>
+        public Entity TargetNpcEntity;
+        public byte HasCombatTarget;
     }
 
     public struct NpcOverrideFacing : IComponentData

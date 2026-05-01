@@ -32,6 +32,12 @@ namespace Medieval.Projectiles
         public int ColliderInstanceId;
     }
 
+    /// <summary>When set, projectile was fired by this DOTS NPC root; used to skip self in ECS hit tests.</summary>
+    public struct ProjectileShooterNpcRoot : IComponentData
+    {
+        public Entity Value;
+    }
+
     public struct ProjectileHitSphere : IComponentData
     {
         public float Radius;

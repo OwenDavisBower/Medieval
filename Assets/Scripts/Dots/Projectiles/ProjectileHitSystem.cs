@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Medieval.Npcs;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -27,6 +28,7 @@ namespace Medieval.Projectiles
         {
             var em = EntityManager;
             var pending = new List<PendingHit>(8);
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (tf, motion, hitSphere, damage, shooter, owner, entity) in SystemAPI
                          .Query<RefRO<LocalTransform>, RefRO<ProjectileMotionState>, RefRO<ProjectileHitSphere>,
@@ -65,16 +67,20 @@ namespace Medieval.Projectiles
                     }
                 }
 
-                bool hasDots = NpcProjectileDotsNpc.TryFindClosestAlongSegment(em, prev, cur, radius, out Entity dotsVictim,
-                    out float dotsDist);
+                Entity dotsExclude = Entity.Null;
+                if (em.HasComponent<ProjectileShooterNpcRoot>(entity))
+                    dotsExclude = em.GetComponentData<ProjectileShooterNpcRoot>(entity).Value;
+
+                bool hasDots = NpcProjectileDotsNpc.TryFindClosestAlongSegment(em, prev, cur, radius, dotsExclude,
+                    out Entity dotsVictim, out float dotsDist);
                 bool preferDots = hasDots && (physBest < 0 || dotsDist < physBestDist - 1e-4f);
                 if (preferDots)
                 {
                     NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim, damage.ValueRO.Amount);
                     var st = em.GetComponentData<NpcCharacterCombatState>(dotsVictim);
                     if (st.IsDead != 0)
-                        NpcEntityDestroyUtility.DestroyNpcWithLinked(em, dotsVictim);
-                    em.DestroyEntity(entity);
+                        NpcEntityDestroyUtility.DestroyNpcWithLinked(ref ecb, em, dotsVictim);
+                    ecb.DestroyEntity(entity);
                     continue;
                 }
 
@@ -92,6 +98,9 @@ namespace Medieval.Projectiles
                     CurrentPosition = cur
                 });
             }
+
+            ecb.Playback(em);
+            ecb.Dispose();
 
             for (int i = 0; i < pending.Count; i++)
             {

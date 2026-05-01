@@ -14,6 +14,7 @@ namespace Medieval.Npcs
             float3 prev,
             float3 cur,
             float projectileRadius,
+            Entity excludeShooterRoot,
             out Entity victim,
             out float closestHitDistanceFromPrev)
         {
@@ -33,6 +34,8 @@ namespace Medieval.Npcs
 
             for (int i = 0; i < entities.Length; i++)
             {
+                if (excludeShooterRoot != Entity.Null && entities[i] == excludeShooterRoot)
+                    continue;
                 if (states[i].IsDead != 0 || states[i].CurrentHealth <= 0f)
                     continue;
                 float3 foot = transforms[i].Position;
