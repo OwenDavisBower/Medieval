@@ -71,6 +71,12 @@ namespace Medieval.NpcMovement
         [Tooltip("Followers: max horizontal distance from the player to pursue combat. 0 with Follower separation uses 25.")]
         public float CombatSeekMaxDistanceFromLeader;
 
+        [Header("Follower anti-stranding")]
+        [Tooltip("Horizontal distance from the player past which the follower snaps closer. 0 = disabled. Non-follower groups ignore this at bake.")]
+        public float FollowerTeleportBackDistance = 80f;
+        [Tooltip("After a snap, placed this far from the player on the same radial line in XZ.")]
+        public float FollowerTeleportBackTargetDistance = 50f;
+
         [Header("Ground alignment")]
         public bool GroundSnapEnabled = true;
         public float GroundRaycastStartHeight = 1.25f;
@@ -153,6 +159,19 @@ namespace Medieval.NpcMovement
                 float leash = authoring.CombatSeekMaxDistanceFromLeader;
                 if (leash <= 0f && authoring.SeparationGroup == NpcSeparationGroup.Followers)
                     leash = 25f;
+                float teleDist = 0f;
+                float teleTarget = 0f;
+                if (authoring.SeparationGroup == NpcSeparationGroup.Followers)
+                {
+                    teleDist = math.max(0f, authoring.FollowerTeleportBackDistance);
+                    teleTarget = authoring.FollowerTeleportBackTargetDistance;
+                    if (teleTarget < 0f)
+                    {
+                        teleDist = 0f;
+                        teleTarget = 0f;
+                    }
+                }
+
                 AddComponent(entity, new NpcCombatSeekConfig
                 {
                     AggroRadius = authoring.CombatSeekAggroRadius,
@@ -160,7 +179,9 @@ namespace Medieval.NpcMovement
                     EyeHeight = authoring.CombatSeekEyeHeight,
                     TargetAimHeight = authoring.CombatSeekTargetAimHeight,
                     ObstacleLayerMask = authoring.CombatSeekObstacleLayers.value != 0 ? authoring.CombatSeekObstacleLayers.value : ~0,
-                    MaxDistanceFromLeader = leash
+                    MaxDistanceFromLeader = leash,
+                    FollowerTeleportBackDistance = teleDist,
+                    FollowerTeleportBackTargetDistance = teleTarget
                 });
             }
         }

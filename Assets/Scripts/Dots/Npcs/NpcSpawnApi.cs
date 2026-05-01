@@ -126,6 +126,8 @@ namespace Medieval.Npcs
                 if (role == NpcRole.Follower && em.HasComponent<NpcMovementState>(npc) &&
                     em.GetComponentData<NpcMovementState>(npc).Group == NpcSeparationGroup.Followers)
                     leash = 25f;
+                float teleBack = role == NpcRole.Follower ? 80f : 0f;
+                float teleTarget = role == NpcRole.Follower ? 50f : 0f;
                 em.AddComponentData(npc, new NpcCombatSeekConfig
                 {
                     AggroRadius = 50f,
@@ -133,7 +135,9 @@ namespace Medieval.Npcs
                     EyeHeight = 1.5f,
                     TargetAimHeight = 1f,
                     ObstacleLayerMask = ~0,
-                    MaxDistanceFromLeader = leash
+                    MaxDistanceFromLeader = leash,
+                    FollowerTeleportBackDistance = teleBack,
+                    FollowerTeleportBackTargetDistance = teleTarget
                 });
             }
 
