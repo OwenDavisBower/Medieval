@@ -176,7 +176,7 @@ namespace Medieval.Npcs
                     move.RangedCombatSeparationBoost = 1;
                 }
                 else
-                    move.RangedCombatSeparationBoost = 0;
+                    move.RangedCombatSeparationBoost = 1;
 
                 seek.Position = bestPos;
                 seek.SeekHoldDistance = holdDist;

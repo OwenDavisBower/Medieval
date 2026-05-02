@@ -139,7 +139,7 @@ namespace Medieval.NpcMovement
                     float sepScale = 1f;
                     if (seek.HasOverride != 0 && Profiles.HasComponent(entity) &&
                         Profiles[entity].WeaponClass == NpcWeaponClass.Melee)
-                        sepScale = 0.12f;
+                        sepScale = 0.72f;
                     desired += mstate.SeparationAccum * sepScale;
                     float maxHoriz = mstate.EffectiveMoveSpeed;
                     if (math.lengthsq(desired) > maxHoriz * maxHoriz)
@@ -150,7 +150,18 @@ namespace Medieval.NpcMovement
                 }
                 else
                 {
-                    velocity = NpcMath.MoveTowards(velocity, float3.zero, cfg.Acceleration * DeltaTime);
+                    bool meleeRingHold = seek.HasOverride != 0 && Profiles.HasComponent(entity) &&
+                        Profiles[entity].WeaponClass == NpcWeaponClass.Melee;
+                    if (meleeRingHold && math.lengthsq(mstate.SeparationAccum) > 1e-8f)
+                    {
+                        float3 sepDesired = mstate.SeparationAccum * 0.82f;
+                        float maxSepSpeed = mstate.EffectiveMoveSpeed * 0.48f;
+                        if (math.lengthsq(sepDesired) > maxSepSpeed * maxSepSpeed)
+                            sepDesired = math.normalize(sepDesired) * maxSepSpeed;
+                        velocity = NpcMath.MoveTowards(velocity, sepDesired, cfg.Acceleration * DeltaTime);
+                    }
+                    else
+                        velocity = NpcMath.MoveTowards(velocity, float3.zero, cfg.Acceleration * DeltaTime);
                 }
 
                 mstate.CurrentHorizontalVelocity = velocity;
