@@ -45,7 +45,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BanditSpawner
   minCount: 1
-  maxCount: 3
+  maxCount: 1
   uniformScale: 1
 --- !u!1001 &4092241010164014116
 PrefabInstance:
