@@ -11,9 +11,6 @@ namespace Medieval.Npcs
     [UpdateInGroup(typeof(NpcCombatSeekSystemGroup))]
     public partial struct NpcCombatSeekSystem : ISystem
     {
-        /// <summary>Horizontal capsule-ish width: allied NPC whose disk crosses the shot segment blocks ranged acquisition.</summary>
-        const float RangedFriendlyFireBlockHorizRadius = 0.55f;
-
         EntityQuery _candidateQuery;
 
         public void OnCreate(ref SystemState state)
@@ -101,15 +98,6 @@ namespace Medieval.Npcs
                 Entity bestHostileNpc = Entity.Null;
                 var found = false;
 
-                var weaponClass = profile.ValueRO.WeaponClass;
-                bool mayUseRanged = weaponClass == NpcWeaponClass.Ranged || weaponClass == NpcWeaponClass.Both;
-                float meleeRangeSq = 0f;
-                if (weaponClass == NpcWeaponClass.Both && em.HasComponent<NpcMeleeCombatConfig>(entity))
-                {
-                    float mr = em.GetComponentData<NpcMeleeCombatConfig>(entity).MeleeRange;
-                    meleeRangeSq = mr * mr;
-                }
-
                 for (int i = 0; i < candEnts.Length; i++)
                 {
                     if (candEnts[i] == entity)
@@ -136,12 +124,6 @@ namespace Medieval.Npcs
                             null))
                         continue;
 
-                    bool requireClearRangedLane = mayUseRanged &&
-                        (weaponClass == NpcWeaponClass.Ranged || sq > meleeRangeSq);
-                    if (requireClearRangedLane && AlliedNpcInRangedLine(selfFeet, op, selfFaction, entity, candEnts[i],
-                            in candEnts, in candTf, in candFaction, in candCombat, in relBuf, matrixSize))
-                        continue;
-
                     bestSq = sq;
                     bestPos = op;
                     bestHostileNpc = candEnts[i];
@@ -163,17 +145,10 @@ namespace Medieval.Npcs
                             cfg.ValueRO.ObstacleLayerMask,
                             null))
                     {
-                        bool requireClearRangedLanePlayer = mayUseRanged &&
-                            (weaponClass == NpcWeaponClass.Ranged || sq > meleeRangeSq);
-                        if (!(requireClearRangedLanePlayer && AlliedNpcInRangedLine(selfFeet, op, selfFaction, entity,
-                                Entity.Null, in candEnts, in candTf, in candFaction, in candCombat, in relBuf,
-                                matrixSize)))
-                        {
-                            bestSq = sq;
-                            bestPos = op;
-                            bestHostileNpc = Entity.Null;
-                            found = true;
-                        }
+                        bestSq = sq;
+                        bestPos = op;
+                        bestHostileNpc = Entity.Null;
+                        found = true;
                     }
                 }
 
@@ -239,42 +214,6 @@ namespace Medieval.Npcs
             move.RangedMovementLock = 0;
             move.RangedCombatSeparationBoost = 0;
             combatTarget = default;
-        }
-
-        static bool AlliedNpcInRangedLine(
-            float3 selfFeet,
-            float3 targetFeet,
-            int selfFaction,
-            Entity selfEntity,
-            Entity hostileNpcEntity,
-            in NativeArray<Entity> candEnts,
-            in NativeArray<LocalTransform> candTf,
-            in NativeArray<NpcFactionId> candFaction,
-            in NativeArray<NpcCharacterCombatState> candCombat,
-            in DynamicBuffer<FactionRelationshipCell> relBuf,
-            int matrixSize)
-        {
-            float2 p = selfFeet.xz;
-            float2 q = targetFeet.xz;
-            float r = RangedFriendlyFireBlockHorizRadius;
-
-            for (int j = 0; j < candEnts.Length; j++)
-            {
-                if (candEnts[j] == selfEntity || candEnts[j] == hostileNpcEntity)
-                    continue;
-                if (candCombat[j].IsDead != 0 || candCombat[j].CurrentHealth <= 0f)
-                    continue;
-
-                int allyFaction = candFaction[j].Value;
-                if (selfFaction < 0 || allyFaction < 0 ||
-                    !FactionRelationshipBufferUtil.IsAllied(in relBuf, matrixSize, selfFaction, allyFaction))
-                    continue;
-
-                if (NpcMath.HorizSegmentEntersDisk(p, q, candTf[j].Position.xz, r))
-                    return true;
-            }
-
-            return false;
         }
     }
 }
