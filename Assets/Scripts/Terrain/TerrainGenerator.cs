@@ -723,7 +723,7 @@ public sealed class TerrainGenerator : MonoBehaviour
         if (_deferInitialPipeline)
             return;
 
-        RunPipeline();
+        RunPipeline(notifyDependents: true);
     }
 
     static bool IsEditorValidated()
@@ -807,13 +807,17 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>
     /// Disposes native buffers and rebuilds the full procedural pipeline (edit or play mode).
     /// </summary>
+    /// <param name="notifyDependents">
+    /// When true (default), <see cref="TerrainGenerated"/> is invoked in play mode so coordinators / spawners can react.
+    /// Pass false to rebuild height, splat, and chunk meshes only (e.g. iterating terrain in play mode without re-running settlements or trees).
+    /// </param>
     [ContextMenu("Regenerate")]
-    public void Regenerate()
+    public void Regenerate(bool notifyDependents = true)
     {
         _chunkManager.DestroyChunkObjects(transform, TerrainChunkGameObjectPrefix);
         _chunksBuilt = false;
 
-        RunPipeline();
+        RunPipeline(notifyDependents);
     }
 
     /// <summary>
@@ -835,7 +839,7 @@ public sealed class TerrainGenerator : MonoBehaviour
         }
     }
 
-    void RunPipeline()
+    void RunPipeline(bool notifyDependents = true)
     {
         if (worldResolution < 8 || chunkCount < 1 || worldSize <= 0f)
             return;
@@ -961,7 +965,7 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         terrainNavMeshBuilder?.RebuildImmediatelyAfterTerrainPipeline();
 
-        if (Application.isPlaying)
+        if (Application.isPlaying && notifyDependents)
             TerrainGenerated?.Invoke(this);
     }
 

@@ -30,10 +30,28 @@ public sealed class TerrainGeneratorEditor : Editor
         if (GUILayout.Button("Generate"))
         {
             Undo.RecordObject(gen, "Generate Terrain");
-            gen.Regenerate();
+            gen.Regenerate(notifyDependents: true);
             EditorUtility.SetDirty(gen);
             if (!Application.isPlaying)
                 EditorSceneManager.MarkSceneDirty(gen.gameObject.scene);
+        }
+
+        if (GUILayout.Button(new GUIContent(
+                "Re-generate",
+                "Rebuild heightmap, splat, and chunk meshes. Does not invoke TerrainGenerated (settlements, trees, and other listeners are not re-run). NavMesh still rebuilds to match terrain.")))
+        {
+            Undo.RecordObject(gen, "Re-generate Terrain");
+            gen.Regenerate(notifyDependents: false);
+            EditorUtility.SetDirty(gen);
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(gen.gameObject.scene);
+        }
+
+        if (Application.isPlaying)
+        {
+            EditorGUILayout.HelpBox(
+                "While playing, use Re-generate to iterate terrain. Generate also fires TerrainGenerated and may re-run world spawners.",
+                MessageType.Info);
         }
     }
 }

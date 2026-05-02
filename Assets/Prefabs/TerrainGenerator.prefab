@@ -60,11 +60,11 @@ MonoBehaviour:
   rollingValleyFlattenExponent: 1.65
   domainWarpStrength: 0.81
   domainWarpChainedGradients: 1
-  cliffTerraceSinAmplitude: 0.1
+  cliffTerraceSinAmplitude: 0.21
   cliffTerraceSinCycles: 4
-  cliffShelfBlend: 0
-  cliffShelfStepCount: 12
-  cliffShelfSteepGate: 0.12
+  cliffShelfBlend: 0.534
+  cliffShelfStepCount: 4
+  cliffShelfSteepGate: 0.643
   cliffShelfSteepScale: 6
   chunkCount: 8
   splineSampleCount: 400
