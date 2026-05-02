@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Medieval.NpcMovement
 {
@@ -25,11 +26,13 @@ namespace Medieval.NpcMovement
         {
             float dt = SystemAPI.Time.DeltaTime;
             float elapsed = (float)SystemAPI.Time.ElapsedTime;
+            float worldTime = Time.time;
 
             state.Dependency = new IntegrationJob
             {
                 DeltaTime = dt,
-                ElapsedTime = elapsed
+                ElapsedTime = elapsed,
+                WorldTime = worldTime
             }.ScheduleParallel(state.Dependency);
         }
 
@@ -39,6 +42,7 @@ namespace Medieval.NpcMovement
         {
             public float DeltaTime;
             public float ElapsedTime;
+            public float WorldTime;
 
             public void Execute(
                 ref LocalTransform tf,
@@ -47,7 +51,8 @@ namespace Medieval.NpcMovement
                 ref NpcPendingDodge dodge,
                 ref NpcMovementState mstate)
             {
-                if (dodge.HasPending != 0 && ElapsedTime >= dodge.FireTime)
+                bool gestureHold = WorldTime < mstate.ShootGestureSuppressLocomotionUntilUnityTime;
+                if (!gestureHold && dodge.HasPending != 0 && ElapsedTime >= dodge.FireTime)
                 {
                     ApplyDodge(ref mstate, in cfg, tf.Position, dodge.ReferencePosition);
                     dodge.HasPending = 0;
@@ -67,6 +72,11 @@ namespace Medieval.NpcMovement
                 float sq = math.lengthsq(hvel);
                 if (sq > cap * cap)
                     hvel = math.normalize(hvel) * cap;
+                if (gestureHold)
+                {
+                    hvel = float3.zero;
+                    sq = 0f;
+                }
                 mstate.CurrentHorizontalVelocity = hvel;
 
                 tf.Position += new float3(hvel.x, 0f, hvel.z) * DeltaTime;

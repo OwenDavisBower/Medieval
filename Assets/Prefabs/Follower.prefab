@@ -105,7 +105,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MeleeCombat
   attackInterval: 1.2
-  meleeRange: 1
+  meleeRange: 1.2
   hitChance: 0.88
   damage: 14
   knockbackImpulse: 4.2

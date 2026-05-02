@@ -127,7 +127,10 @@ namespace Medieval.NpcMovement
         /// <summary>Scratch for <see cref="NpcTransformWritebackSystem"/> vertical SmoothDamp.</summary>
         public float GroundSnapYVelocity;
 
-        /// <summary>While &gt; <c>UnityEngine.Time.time</c>, <see cref="NpcAnimatronLocomotionSystem"/> skips idle/walk.</summary>
+        /// <summary>
+        /// While &gt; <c>UnityEngine.Time.time</c>, <see cref="NpcAnimatronLocomotionSystem"/> skips idle/walk and
+        /// <see cref="NpcSteeringSystem"/> / <see cref="NpcIntegrationSystem"/> hold horizontal movement (ranged shot, melee slash).
+        /// </summary>
         public float ShootGestureSuppressLocomotionUntilUnityTime;
     }
 

@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Medieval.NpcMovement
 {
@@ -27,11 +28,13 @@ namespace Medieval.NpcMovement
         {
             float dt = SystemAPI.Time.DeltaTime;
             float elapsed = (float)SystemAPI.Time.ElapsedTime;
+            float worldTime = Time.time;
 
             state.Dependency = new SteeringJob
             {
                 DeltaTime = dt,
-                ElapsedTime = elapsed
+                ElapsedTime = elapsed,
+                WorldTime = worldTime
             }.ScheduleParallel(state.Dependency);
         }
 
@@ -41,6 +44,7 @@ namespace Medieval.NpcMovement
         {
             public float DeltaTime;
             public float ElapsedTime;
+            public float WorldTime;
             public void Execute(
                 in LocalTransform tf,
                 in NpcMovementConfig cfg,
@@ -55,7 +59,8 @@ namespace Medieval.NpcMovement
                 mstate.EffectiveMoveSpeed = cfg.MoveSpeed * cfg.MoveSpeedScale *
                                             NpcMath.WaterSpeedMultiplier(selfPos.y);
 
-                if (mstate.RangedMovementLock != 0 || mstate.MeleeEngageMovementLock != 0)
+                if (mstate.RangedMovementLock != 0 || mstate.MeleeEngageMovementLock != 0 ||
+                    WorldTime < mstate.ShootGestureSuppressLocomotionUntilUnityTime)
                 {
                     mstate.CurrentHorizontalVelocity = float3.zero;
                     mstate.HasSmoothTarget = 0;
