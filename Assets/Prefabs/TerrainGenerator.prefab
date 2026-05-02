@@ -50,7 +50,7 @@ MonoBehaviour:
   worldSize: 1024
   baseHeight: 0
   waterHeightAdjustmentAmount: 10
-  maxHeightVariation: 25
+  maxHeightVariation: 75
   flatRadius: 20
   falloffDistance: 35
   rollingHillBaseFrequency: 0.0018
@@ -58,6 +58,14 @@ MonoBehaviour:
   rollingHillPersistence: 0.42
   rollingHillLacunarity: 2.04
   rollingValleyFlattenExponent: 1.65
+  domainWarpStrength: 0.81
+  domainWarpChainedGradients: 1
+  cliffTerraceSinAmplitude: 0.1
+  cliffTerraceSinCycles: 4
+  cliffShelfBlend: 0
+  cliffShelfStepCount: 12
+  cliffShelfSteepGate: 0.12
+  cliffShelfSteepScale: 6
   chunkCount: 8
   splineSampleCount: 400
   authoringPathSplines: []
@@ -73,15 +81,16 @@ MonoBehaviour:
   wormBoundaryMargin: 24
   riverBedDepth: 20
   riverChannelHalfWidth: 0.5
-  riverCarveBlendDistance: 7.5
+  riverCarveBlendDistance: 5
   cameraTransform: {fileID: 0}
+  streamingAnchor: {fileID: 0}
   terrainMaterial: {fileID: 2100000, guid: ce161d6f295cc4485a1fb30129cf8277, type: 2}
   chunkVertexDensity: 32
   lod1Distance: 180
   lod2Distance: 360
   lodCameraMoveEpsilonSqr: 0.25
-  rockSlopeBlendStart: 0.7
-  rockSlopeBlendEnd: 2.23
+  rockSlopeBlendStart: 0.25
+  rockSlopeBlendEnd: 2
   terrainNavMeshBuilder: {fileID: 8749668901560032296}
 --- !u!114 &8922804896616379102
 MonoBehaviour:

@@ -98,6 +98,29 @@ public sealed class TerrainGenerator : MonoBehaviour
     [Range(1f, 4f)]
     public float rollingValleyFlattenExponent = 1.65f;
 
+    [Header("Cliffs & domain warp (IQ-style noise)")]
+    [Tooltip("Offsets higher octaves in noise space by the gradient of the previous octave (organic ridges). 0 = classic fBm.")]
+    public float domainWarpStrength = 0f;
+    [Tooltip("If true, each octave refreshes the warp from its own gradient (richer, costlier). If false, only octave 0's gradient warps all higher octaves.")]
+    public bool domainWarpChainedGradients = false;
+    [Tooltip("Adds sin modulation to normalized height before the valley curve; subtle values create shelf-like undulation.")]
+    public float cliffTerraceSinAmplitude = 0f;
+    [Tooltip("Number of sin cycles across the [0,1] height range before terracing.")]
+    [Range(0.5f, 24f)]
+    public float cliffTerraceSinCycles = 4f;
+    [Tooltip("Blends toward stepped plateaus where the domain-warp gradient is strong (sharp geological shelves).")]
+    [Range(0f, 1f)]
+    public float cliffShelfBlend = 0f;
+    [Tooltip("Number of discrete height bands for shelf stepping.")]
+    [Range(2, 48)]
+    public int cliffShelfStepCount = 12;
+    [Tooltip("Minimum |∇n| (octave 0, noise space) before shelf stepping applies; raise to limit shelves to steep breaks.")]
+    [Range(0f, 2f)]
+    public float cliffShelfSteepGate = 0.12f;
+    [Tooltip("Scales how quickly shelf blend ramps up as gradient magnitude increases.")]
+    [Range(0.5f, 32f)]
+    public float cliffShelfSteepScale = 6f;
+
     /// <summary>Logical chunks along each axis for sampling the heightmap (full world is chunkCount × chunkCount cells).</summary>
     public int chunkCount = 16;
 
@@ -879,6 +902,14 @@ public sealed class TerrainGenerator : MonoBehaviour
             math.clamp(rollingHillPersistence, 0.05f, 0.95f),
             math.max(1.01f, rollingHillLacunarity),
             math.max(1f, rollingValleyFlattenExponent),
+            domainWarpStrength,
+            domainWarpChainedGradients,
+            math.max(0f, cliffTerraceSinAmplitude),
+            math.max(0.01f, cliffTerraceSinCycles),
+            math.saturate(cliffShelfBlend),
+            math.clamp(cliffShelfStepCount, 2, 48),
+            math.max(0f, cliffShelfSteepGate),
+            math.max(0.01f, cliffShelfSteepScale),
             _heightmap,
             _heightmapSlope);
 
@@ -1416,6 +1447,14 @@ public sealed class TerrainGenerator : MonoBehaviour
             float rollingPersistence,
             float rollingLacunarity,
             float rollingValleyExponent,
+            float domainWarpStrength,
+            bool domainWarpChainedGradients,
+            float cliffTerraceSinAmplitude,
+            float cliffTerraceSinCycles,
+            float cliffShelfBlend,
+            int cliffShelfStepCount,
+            float cliffShelfSteepGate,
+            float cliffShelfSteepScale,
             NativeArray<float> heightOut,
             NativeArray<float> slopeOut)
         {
@@ -1440,6 +1479,14 @@ public sealed class TerrainGenerator : MonoBehaviour
                 RollingPersistence = rollingPersistence,
                 RollingLacunarity = rollingLacunarity,
                 RollingValleyExponent = rollingValleyExponent,
+                DomainWarpStrength = domainWarpStrength,
+                DomainWarpChainedGradients = domainWarpChainedGradients,
+                CliffTerraceSinAmplitude = cliffTerraceSinAmplitude,
+                CliffTerraceSinCycles = cliffTerraceSinCycles,
+                CliffShelfBlend = cliffShelfBlend,
+                CliffShelfStepCount = cliffShelfStepCount,
+                CliffShelfSteepGate = cliffShelfSteepGate,
+                CliffShelfSteepScale = cliffShelfSteepScale,
                 HeightOut = heightOut
             }.Schedule(heightOut.Length, 64);
 
@@ -1474,6 +1521,14 @@ public sealed class TerrainGenerator : MonoBehaviour
             public float RollingPersistence;
             public float RollingLacunarity;
             public float RollingValleyExponent;
+            public float DomainWarpStrength;
+            public bool DomainWarpChainedGradients;
+            public float CliffTerraceSinAmplitude;
+            public float CliffTerraceSinCycles;
+            public float CliffShelfBlend;
+            public int CliffShelfStepCount;
+            public float CliffShelfSteepGate;
+            public float CliffShelfSteepScale;
             public NativeArray<float> HeightOut;
 
             public void Execute(int index)
@@ -1488,7 +1543,22 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var riverDist = RiverDf[index];
                 var distToAny = math.min(pathDist, riverDist);
 
-                var n01 = RollingPerlinFbm01(wx, wz, Seed, RollingBaseFreq, RollingOctaves, RollingPersistence, RollingLacunarity);
+                var n01 = RollingPerlinDomainWarpFbm01(
+                    wx,
+                    wz,
+                    Seed,
+                    RollingBaseFreq,
+                    RollingOctaves,
+                    RollingPersistence,
+                    RollingLacunarity,
+                    DomainWarpStrength,
+                    DomainWarpChainedGradients,
+                    CliffTerraceSinAmplitude,
+                    CliffTerraceSinCycles,
+                    CliffShelfBlend,
+                    CliffShelfStepCount,
+                    CliffShelfSteepGate,
+                    CliffShelfSteepScale);
                 var shaped = math.pow(math.max(n01, 1e-5f), RollingValleyExponent);
 
                 var t = (distToAny - FlatRadius) / math.max(1e-4f, FalloffDistance);
@@ -1517,9 +1587,38 @@ public sealed class TerrainGenerator : MonoBehaviour
                 HeightOut[index] = h;
             }
 
-            /// <summary>Fractal Perlin (<see cref="noise.cnoise"/>) in ~[0,1]; low base frequency, decaying octaves.</summary>
-            static float RollingPerlinFbm01(float wx, float wz, int seed, float baseFreq, int octaves, float persistence, float lacunarity)
+            /// <summary>
+            /// Symmetric difference gradient of <see cref="noise.cnoise"/> in noise input space (Burst-friendly; same pattern ports to HLSL).
+            /// </summary>
+            static float2 PerlinNoiseGradient2(float2 p, float h)
             {
+                var twoH = 2f * h;
+                var nx = (noise.cnoise(p + new float2(h, 0f)) - noise.cnoise(p - new float2(h, 0f))) / twoH;
+                var ny = (noise.cnoise(p + new float2(0f, h)) - noise.cnoise(p - new float2(0f, h))) / twoH;
+                return new float2(nx, ny);
+            }
+
+            /// <summary>
+            /// fBm with optional domain warp f(p) → f(p + g(p)) using the previous octave's gradient, plus terrace/shelf remapping.
+            /// </summary>
+            static float RollingPerlinDomainWarpFbm01(
+                float wx,
+                float wz,
+                int seed,
+                float baseFreq,
+                int octaves,
+                float persistence,
+                float lacunarity,
+                float domainWarpStrength,
+                bool domainWarpChainedGradients,
+                float cliffTerraceSinAmplitude,
+                float cliffTerraceSinCycles,
+                float cliffShelfBlend,
+                int cliffShelfStepCount,
+                float cliffShelfSteepGate,
+                float cliffShelfSteepScale)
+            {
+                const float gradH = 2e-3f;
                 var world = new float2(wx, wz);
                 var seedPhase = new float2(seed * 0.031f, seed * 0.017f);
                 var sum = 0f;
@@ -1527,17 +1626,57 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var freq = baseFreq;
                 var weight = 0f;
                 var oMax = math.clamp(octaves, 1, 8);
+                var warp = float2.zero;
+                var useWarp = domainWarpStrength > 1e-6f;
+                var useShelf = cliffShelfBlend > 1e-6f && cliffShelfSteepScale > 1e-6f;
+                var firstOctaveGradientMag = 0f;
+
                 for (var o = 0; o < oMax; o++)
                 {
-                    var p = world * freq + seedPhase + new float2(o * 19.1f, o * 23.7f);
+                    var p = world * freq + seedPhase + new float2(o * 19.1f, o * 23.7f) + warp;
                     sum += amp * noise.cnoise(p);
                     weight += amp;
+
+                    if (o < oMax - 1)
+                    {
+                        var needShelfGrad = useShelf && o == 0;
+                        var needWarpGrad = useWarp && (domainWarpChainedGradients || o == 0);
+                        if (needShelfGrad || needWarpGrad)
+                        {
+                            var g = PerlinNoiseGradient2(p, gradH);
+                            if (o == 0)
+                                firstOctaveGradientMag = math.length(g);
+                            if (useWarp && needWarpGrad)
+                                warp = domainWarpStrength * g;
+                        }
+                    }
+
                     freq *= lacunarity;
                     amp *= persistence;
                 }
 
-                var n = sum / math.max(1e-5f, weight);
-                return math.saturate(n * 0.5f + 0.5f);
+                var n01 = sum / math.max(1e-5f, weight);
+                n01 = math.saturate(n01 * 0.5f + 0.5f);
+
+                if (cliffTerraceSinAmplitude > 1e-6f)
+                {
+                    var twoPi = 2f * math.PI;
+                    n01 = math.saturate(n01 + cliffTerraceSinAmplitude * math.sin(cliffTerraceSinCycles * twoPi * n01));
+                }
+
+                if (cliffShelfBlend > 1e-6f)
+                {
+                    var steep = math.saturate((firstOctaveGradientMag - cliffShelfSteepGate) * cliffShelfSteepScale);
+                    var f = math.max(2f, cliffShelfStepCount);
+                    var band = n01 * f;
+                    var qh = math.floor(band) / f;
+                    var rf = band - math.floor(band);
+                    var riser = math.smoothstep(0.12f, 0.88f, rf) / f;
+                    var stepped = math.min(qh + riser, 1f);
+                    n01 = math.lerp(n01, stepped, cliffShelfBlend * steep);
+                }
+
+                return math.saturate(n01);
             }
         }
 
