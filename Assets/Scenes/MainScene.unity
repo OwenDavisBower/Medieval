@@ -787,6 +787,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 330585546}
     - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
+      propertyPath: maxHeightVariation
+      value: 75
+      objectReference: {fileID: 0}
+    - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
       propertyPath: riverCarveBlendDistance
       value: 5
       objectReference: {fileID: 0}

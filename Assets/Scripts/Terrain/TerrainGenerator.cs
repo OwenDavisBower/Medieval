@@ -83,21 +83,20 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Distance over which noise fades in after the flat radius.</summary>
     public float falloffDistance = 35f;
 
-    [Header("Cliffs / height noise")]
-    [Tooltip("When false, height noise uses billow only (no ridge blend or cliff steepening).")]
-    public bool proceduralCliffsEnabled = true;
-    [Tooltip("Billow noise above this value (0–1) is remapped toward 1 for sheer faces.")]
-    public float cliffThreshold = 0.6f;
-    [Tooltip("Cliff remap exponent on the normalized tail above the threshold. Larger = steeper cliffs.")]
-    public float cliffSteepPower = 2.5f;
-    [Tooltip("Frequency multiplier for ridge simplex relative to billow coordinates.")]
-    public float ridgeNoiseFrequencyScale = 1.12f;
-    [Tooltip("Ridge channel is saturate(abs(snoise) * this). Higher = sharper ridge peaks.")]
-    public float ridgeSharpness = 2f;
-    [Tooltip("smoothstep low edge: billow below this stays mostly billowy.")]
-    public float ridgeBlendBillowLow = 0.22f;
-    [Tooltip("smoothstep high edge: billow above this is mostly ridge-shaped.")]
-    public float ridgeBlendBillowHigh = 0.92f;
+    [Header("Rolling hills (height noise)")]
+    [Tooltip("Low frequency for broad, gentle swells (applied to world XZ before Perlin).")]
+    public float rollingHillBaseFrequency = 0.0018f;
+    [Tooltip("Stacked octaves; with low persistence, the first octave stays dominant.")]
+    [Range(1, 8)]
+    public int rollingHillOctaves = 4;
+    [Tooltip("Amplitude ratio each octave; keep modest so higher octaves are subtle surface detail.")]
+    [Range(0.1f, 0.9f)]
+    public float rollingHillPersistence = 0.42f;
+    [Tooltip("Frequency multiplier between successive octaves.")]
+    public float rollingHillLacunarity = 2.04f;
+    [Tooltip("Power curve on normalized height [0,1]. >1 flattens valleys into wide plains; 1 = no extra flattening.")]
+    [Range(1f, 4f)]
+    public float rollingValleyFlattenExponent = 1.65f;
 
     /// <summary>Logical chunks along each axis for sampling the heightmap (full world is chunkCount × chunkCount cells).</summary>
     public int chunkCount = 16;
@@ -860,7 +859,6 @@ public sealed class TerrainGenerator : MonoBehaviour
             _pathDistanceField,
             _riverDistanceField);
 
-        RidgeBlendClamped(ridgeBlendBillowLow, ridgeBlendBillowHigh, out var ridgeBlendLow, out var ridgeBlendHigh);
         _heightmapGenerator.Generate(
             _pathDistanceField,
             _riverDistanceField,
@@ -876,13 +874,11 @@ public sealed class TerrainGenerator : MonoBehaviour
             math.max(1e-4f, riverBedDepth),
             math.max(1e-4f, riverChannelHalfWidth),
             math.max(1e-4f, riverCarveBlendDistance),
-            proceduralCliffsEnabled,
-            math.clamp(cliffThreshold, 0.05f, 0.95f),
-            math.max(1.01f, cliffSteepPower),
-            math.max(0.01f, ridgeNoiseFrequencyScale),
-            math.max(0.01f, ridgeSharpness),
-            ridgeBlendLow,
-            ridgeBlendHigh,
+            math.max(1e-6f, rollingHillBaseFrequency),
+            math.clamp(rollingHillOctaves, 1, 8),
+            math.clamp(rollingHillPersistence, 0.05f, 0.95f),
+            math.max(1.01f, rollingHillLacunarity),
+            math.max(1f, rollingValleyFlattenExponent),
             _heightmap,
             _heightmapSlope);
 
@@ -1010,12 +1006,6 @@ public sealed class TerrainGenerator : MonoBehaviour
         if (buffer.IsCreated)
             buffer.Dispose();
         buffer = new NativeArray<float>(length, Allocator.Persistent);
-    }
-
-    static void RidgeBlendClamped(float billowLow, float billowHigh, out float clampedLow, out float clampedHigh)
-    {
-        clampedHigh = math.clamp(billowHigh, 0.02f, 1f);
-        clampedLow = math.clamp(billowLow, 0f, clampedHigh - 0.01f);
     }
 
     static void EnsureSplatmapTexture(ref Texture2D? texture, NativeArray<float> rgbaData)
@@ -1421,13 +1411,11 @@ public sealed class TerrainGenerator : MonoBehaviour
             float riverBedDepth,
             float riverChannelHalfWidth,
             float riverCarveBlendDistance,
-            bool cliffsEnabled,
-            float cliffTh,
-            float cliffPower,
-            float ridgeFreqScale,
-            float ridgeSharp,
-            float ridgeBlendLow,
-            float ridgeBlendHigh,
+            float rollingBaseFreq,
+            int rollingOctaves,
+            float rollingPersistence,
+            float rollingLacunarity,
+            float rollingValleyExponent,
             NativeArray<float> heightOut,
             NativeArray<float> slopeOut)
         {
@@ -1447,13 +1435,11 @@ public sealed class TerrainGenerator : MonoBehaviour
                 RiverBedDepth = riverBedDepth,
                 RiverChannelHalfWidth = riverChannelHalfWidth,
                 RiverCarveBlendDistance = riverCarveBlendDistance,
-                CliffsEnabled = cliffsEnabled,
-                CliffThreshold = cliffTh,
-                CliffSteepPower = cliffPower,
-                RidgeFrequencyScale = ridgeFreqScale,
-                RidgeSharpness = ridgeSharp,
-                RidgeBlendBillowLow = ridgeBlendLow,
-                RidgeBlendBillowHigh = ridgeBlendHigh,
+                RollingBaseFreq = rollingBaseFreq,
+                RollingOctaves = rollingOctaves,
+                RollingPersistence = rollingPersistence,
+                RollingLacunarity = rollingLacunarity,
+                RollingValleyExponent = rollingValleyExponent,
                 HeightOut = heightOut
             }.Schedule(heightOut.Length, 64);
 
@@ -1483,13 +1469,11 @@ public sealed class TerrainGenerator : MonoBehaviour
             public float RiverBedDepth;
             public float RiverChannelHalfWidth;
             public float RiverCarveBlendDistance;
-            public bool CliffsEnabled;
-            public float CliffThreshold;
-            public float CliffSteepPower;
-            public float RidgeFrequencyScale;
-            public float RidgeSharpness;
-            public float RidgeBlendBillowLow;
-            public float RidgeBlendBillowHigh;
+            public float RollingBaseFreq;
+            public int RollingOctaves;
+            public float RollingPersistence;
+            public float RollingLacunarity;
+            public float RollingValleyExponent;
             public NativeArray<float> HeightOut;
 
             public void Execute(int index)
@@ -1504,39 +1488,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var riverDist = RiverDf[index];
                 var distToAny = math.min(pathDist, riverDist);
 
-                // Domain warp: low-frequency simplex offsets world XZ before main height sampling.
-                const float warpScale = 0.001f;
-                const float warpStrength = 15f;
-                var warpPhase = new float2(Seed * 0.023f, Seed * 0.041f);
-                var warpCoord = new float2(wx, wz) * warpScale + warpPhase;
-                var warpOffset = new float2(
-                    noise.snoise(warpCoord),
-                    noise.snoise(warpCoord + new float2(17.3f, 29.1f))) * warpStrength;
-                var warpedX = wx + warpOffset.x;
-                var warpedZ = wz + warpOffset.y;
-
-                var noiseCoord = new float2(warpedX, warpedZ) * 0.0042f + new float2(Seed * 0.031f, Seed * 0.017f);
-                var billow = FbmBillow2(noiseCoord);
-                float n;
-                if (CliffsEnabled)
-                {
-                    var ridgeCoord = noiseCoord * RidgeFrequencyScale + new float2(Seed * 0.073f, -Seed * 0.051f);
-                    var ridgeRaw = noise.snoise(ridgeCoord);
-                    var ridge = math.saturate(math.abs(ridgeRaw) * RidgeSharpness);
-                    var peakBlend = math.smoothstep(RidgeBlendBillowLow, RidgeBlendBillowHigh, billow);
-                    n = math.lerp(billow, ridge, peakBlend);
-                    var th = CliffThreshold;
-                    if (n > th)
-                    {
-                        var u = math.saturate((n - th) / math.max(1e-5f, 1f - th));
-                        u = math.pow(u, 1f / CliffSteepPower);
-                        n = th + u * (1f - th);
-                    }
-                }
-                else
-                    n = billow;
-
-                var shaped = math.smoothstep(0.1f, 0.9f, math.saturate(n));
+                var n01 = RollingPerlinFbm01(wx, wz, Seed, RollingBaseFreq, RollingOctaves, RollingPersistence, RollingLacunarity);
+                var shaped = math.pow(math.max(n01, 1e-5f), RollingValleyExponent);
 
                 var t = (distToAny - FlatRadius) / math.max(1e-4f, FalloffDistance);
                 var variationMask = math.smoothstep(0f, 1f, math.saturate(t));
@@ -1547,9 +1500,6 @@ public sealed class TerrainGenerator : MonoBehaviour
                 var inner = RiverChannelHalfWidth;
                 var outer = RiverChannelHalfWidth + RiverCarveBlendDistance;
                 var carveMask = math.smoothstep(outer, inner, riverDist);
-                // Cross-section weight (0 at outer blend, 1 at channel center). Multiply by RiverBedDepth —
-                // do not min() with bed depth here: carveMask is in [0,1] and the old formula reduced to
-                // min(bedDepth, carveMask), capping the carve at ~1 unit regardless of RiverBedDepth.
                 var riverCarve = carveMask * RiverBedDepth;
 
                 var wScale = inner / 2.2f;
@@ -1567,23 +1517,27 @@ public sealed class TerrainGenerator : MonoBehaviour
                 HeightOut[index] = h;
             }
 
-            /// <summary>Two octaves of billow (1 - |snoise|) fBm; normalized to ~[0,1] for shaping.</summary>
-            static float FbmBillow2(float2 p)
+            /// <summary>Fractal Perlin (<see cref="noise.cnoise"/>) in ~[0,1]; low base frequency, decaying octaves.</summary>
+            static float RollingPerlinFbm01(float wx, float wz, int seed, float baseFreq, int octaves, float persistence, float lacunarity)
             {
+                var world = new float2(wx, wz);
+                var seedPhase = new float2(seed * 0.031f, seed * 0.017f);
                 var sum = 0f;
-                var amp = 0.5f;
-                var freq = 1f;
+                var amp = 1f;
+                var freq = baseFreq;
                 var weight = 0f;
-                for (var o = 0; o < 2; o++)
+                var oMax = math.clamp(octaves, 1, 8);
+                for (var o = 0; o < oMax; o++)
                 {
-                    var billow = 1f - math.abs(noise.snoise(p * freq));
-                    sum += amp * billow;
+                    var p = world * freq + seedPhase + new float2(o * 19.1f, o * 23.7f);
+                    sum += amp * noise.cnoise(p);
                     weight += amp;
-                    freq *= 2.02f;
-                    amp *= 0.5f;
+                    freq *= lacunarity;
+                    amp *= persistence;
                 }
 
-                return sum / math.max(1e-5f, weight);
+                var n = sum / math.max(1e-5f, weight);
+                return math.saturate(n * 0.5f + 0.5f);
             }
         }
 

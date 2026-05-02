@@ -53,13 +53,11 @@ MonoBehaviour:
   maxHeightVariation: 25
   flatRadius: 20
   falloffDistance: 35
-  proceduralCliffsEnabled: 1
-  cliffThreshold: 0.6
-  cliffSteepPower: 6.33
-  ridgeNoiseFrequencyScale: 0.91
-  ridgeSharpness: 4.48
-  ridgeBlendBillowLow: 0.22
-  ridgeBlendBillowHigh: 0.92
+  rollingHillBaseFrequency: 0.0018
+  rollingHillOctaves: 4
+  rollingHillPersistence: 0.42
+  rollingHillLacunarity: 2.04
+  rollingValleyFlattenExponent: 1.65
   chunkCount: 8
   splineSampleCount: 400
   authoringPathSplines: []
