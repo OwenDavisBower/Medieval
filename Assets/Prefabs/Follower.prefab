@@ -104,8 +104,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7f3e2d1c0b9a8f7e6d5c4b3a291807f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MeleeCombat
-  attackInterval: 0.42
-  meleeRange: 0.5
+  attackInterval: 1.2
+  meleeRange: 1
   hitChance: 0.88
   damage: 14
   knockbackImpulse: 4.2

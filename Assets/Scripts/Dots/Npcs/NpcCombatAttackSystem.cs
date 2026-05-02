@@ -18,6 +18,9 @@ namespace Medieval.Npcs
     public partial class NpcCombatAttackSystem : SystemBase
     {
         static readonly FixedString64Bytes k_ShootArrow = "ShootArrow";
+        static readonly FixedString64Bytes k_SwordSlash = "SwordSlash";
+        /// <summary>Matches <c>SwordSlash.anim</c> stop time so locomotion does not override the attack clip.</summary>
+        const float k_SwordSlashLocomotionSuppressSeconds = 1.5f;
 
         protected override void OnUpdate()
         {
@@ -71,8 +74,8 @@ namespace Medieval.Npcs
                 {
                     var meleeCfg = em.GetComponentData<NpcMeleeCombatConfig>(entity);
                     var meleeState = em.GetComponentData<NpcMeleeAttackState>(entity);
-                    TryDotsNpcMeleeStrike(em, ref combat, combatTarget.ValueRO, ref meleeState, in meleeCfg, flatSq,
-                        unityTime);
+                    TryDotsNpcMeleeStrike(em, entity, ref combat, combatTarget.ValueRO, ref meleeState, in meleeCfg,
+                        flatSq, unityTime);
                     em.SetComponentData(entity, meleeState);
                     continue;
                 }
@@ -138,6 +141,7 @@ namespace Medieval.Npcs
 
         static void TryDotsNpcMeleeStrike(
             EntityManager em,
+            Entity attacker,
             ref NpcCharacterCombatState attackerCombat,
             in NpcCombatTarget combatTarget,
             ref NpcMeleeAttackState meleeState,
@@ -153,6 +157,15 @@ namespace Medieval.Npcs
                 return;
 
             meleeState.NextAttackAllowedUnityTime = unityTime + meleeCfg.AttackInterval;
+            TryPlayAnimOnNpcRoot(em, attacker, k_SwordSlash);
+            if (em.HasComponent<NpcMovementState>(attacker))
+            {
+                var move = em.GetComponentData<NpcMovementState>(attacker);
+                float suppressUntil = unityTime + k_SwordSlashLocomotionSuppressSeconds;
+                if (suppressUntil > move.ShootGestureSuppressLocomotionUntilUnityTime)
+                    move.ShootGestureSuppressLocomotionUntilUnityTime = suppressUntil;
+                em.SetComponentData(attacker, move);
+            }
 
             if (UnityEngine.Random.value > meleeCfg.HitChance)
                 return;
