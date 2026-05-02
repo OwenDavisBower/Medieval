@@ -7,6 +7,7 @@ using Random = UnityEngine.Random;
 
 /// <summary>
 /// Places configured building prefabs on flat terrain (near <see cref="TerrainGenerator.baseHeight"/>).
+/// Uses <see cref="SettlementStructureSpawnLayout"/> so lower <see cref="SettlementBuildingSpawnEntry.layer"/> values finish before outer layers; within a layer, building types are interleaved randomly.
 /// </summary>
 public class SettlementBuilder : MonoBehaviour
 {
@@ -54,6 +55,8 @@ public class SettlementBuilder : MonoBehaviour
     readonly List<Bounds> _placementBurnBounds = new List<Bounds>();
     readonly List<Transform> _villagerSpawnAnchors = new List<Transform>();
     readonly List<Vector3> _villagerSpawnPositions = new List<Vector3>();
+    readonly List<SettlementBuildingSpawnEntry> _placementJobsScratch = new List<SettlementBuildingSpawnEntry>();
+    readonly Dictionary<int, (float inner, float outer)> _layerAnnulusScratch = new Dictionary<int, (float inner, float outer)>();
 
     public void SetSettlementId(int id) => _settlementId = id;
 
@@ -144,41 +147,37 @@ public class SettlementBuilder : MonoBehaviour
         _villagerSpawnAnchors.Clear();
         _villagerSpawnPositions.Clear();
 
-        for (int e = 0; e < entries.Length; e++)
+        SettlementStructureSpawnLayout.PrecomputeLayerAnnulusBounds(entries, _layerAnnulusScratch);
+        SettlementStructureSpawnLayout.BuildShuffledLayerJobQueue(entries, _placementJobsScratch);
+
+        for (int j = 0; j < _placementJobsScratch.Count; j++)
         {
-            var entry = entries[e];
-            if (entry.prefab == null)
+            var entry = _placementJobsScratch[j];
+            if (!_layerAnnulusScratch.TryGetValue(entry.EffectiveLayer, out var band))
                 continue;
 
-            int lo = Mathf.Min(entry.minCount, entry.maxCount);
-            int hi = Mathf.Max(entry.minCount, entry.maxCount);
-            int count = Random.Range(lo, hi + 1);
-            float rMin = Mathf.Min(entry.radiusMin, entry.radiusMax);
-            float rMax = Mathf.Max(entry.radiusMin, entry.radiusMax);
+            SettlementStructureSpawnLayout.GetPlacementAnnulus(entry, band.inner, band.outer, out float rMin, out float rMax);
 
-            for (int i = 0; i < count; i++)
+            if (!TryPlaceStructure(gen, baseH, placed, minSepSq, rMin, rMax, entry.placementRadius, out Vector3 pos))
+                continue;
+
+            placed.Add(pos);
+            GameObject structure = SpawnPrefab(entry.prefab, pos, entry.EffectiveUniformScale);
+            if (structure == null)
+                continue;
+
+            structureRoots.Add(structure);
+            if (_placementMask != null)
             {
-                if (!TryPlaceStructure(gen, baseH, placed, minSepSq, rMin, rMax, entry.placementRadius, out Vector3 pos))
-                    continue;
+                var b = SettlementPathSplatOverlay.CombineRendererBounds(structure);
+                _placementBurnBounds.Add(b);
+                _placementMask.BurnFromRendererBoundsXZ(b, burnBoundsPadding);
+            }
 
-                placed.Add(pos);
-                GameObject structure = SpawnPrefab(entry.prefab, pos, entry.EffectiveUniformScale);
-                if (structure == null)
-                    continue;
-
-                structureRoots.Add(structure);
-                if (_placementMask != null)
-                {
-                    var b = SettlementPathSplatOverlay.CombineRendererBounds(structure);
-                    _placementBurnBounds.Add(b);
-                    _placementMask.BurnFromRendererBoundsXZ(b, burnBoundsPadding);
-                }
-
-                if (entry.spawnVillagersHere)
-                {
-                    _villagerSpawnAnchors.Add(structure.transform);
-                    _villagerSpawnPositions.Add(pos);
-                }
+            if (entry.spawnVillagersHere)
+            {
+                _villagerSpawnAnchors.Add(structure.transform);
+                _villagerSpawnPositions.Add(pos);
             }
         }
 

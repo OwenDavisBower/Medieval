@@ -23,9 +23,129 @@ public struct SettlementBuildingSpawnEntry
     [Tooltip("Uniform multiplier for prefab local scale on X, Y, and Z. Defaults to 1; values ≤ 0 are treated as 1 for older serialized entries.")]
     [Min(0.0001f)]
     public float uniformScale;
+    [Tooltip("Lower layers are fully placed before higher layers. Within a layer, rolled instances are shuffled so building types interleave randomly.")]
+    [Min(1)]
+    public int layer;
 
     /// <summary>Safe multiplier for spawn code (legacy serialized entries may have 0 before re-save).</summary>
     public readonly float EffectiveUniformScale => uniformScale > 0f ? uniformScale : 1f;
+
+    /// <summary>Serialized 0 (older assets) behaves as layer 1.</summary>
+    public readonly int EffectiveLayer => layer < 1 ? 1 : layer;
+}
+
+/// <summary>
+/// Layer-ordered settlement/camp structure placement: expand counts per entry, shuffle within each layer, outer layers after inner.
+/// </summary>
+public static class SettlementStructureSpawnLayout
+{
+    public static void PrecomputeLayerAnnulusBounds(
+        SettlementBuildingSpawnEntry[] entries,
+        Dictionary<int, (float inner, float outer)> into)
+    {
+        into.Clear();
+        if (entries == null || entries.Length == 0)
+            return;
+
+        for (int i = 0; i < entries.Length; i++)
+        {
+            var e = entries[i];
+            if (e.prefab == null)
+                continue;
+
+            int L = e.EffectiveLayer;
+            float a = Mathf.Min(e.radiusMin, e.radiusMax);
+            float b = Mathf.Max(e.radiusMin, e.radiusMax);
+
+            if (into.TryGetValue(L, out var prev))
+            {
+                into[L] = (Mathf.Min(prev.inner, a), Mathf.Max(prev.outer, b));
+            }
+            else
+                into[L] = (a, b);
+        }
+
+        var layerKeys = new List<int>(into.Keys);
+        for (int k = 0; k < layerKeys.Count; k++)
+        {
+            int id = layerKeys[k];
+            var (inner, outer) = into[id];
+            if (inner > outer)
+                into[id] = (outer, inner);
+        }
+    }
+
+    /// <summary>Builds placement jobs: for each layer ascending, all rolled instances for that layer in random order.</summary>
+    public static void BuildShuffledLayerJobQueue(SettlementBuildingSpawnEntry[] entries, List<SettlementBuildingSpawnEntry> outJobs)
+    {
+        outJobs.Clear();
+        if (entries == null || entries.Length == 0)
+            return;
+
+        var layerIds = new List<int>();
+        for (int i = 0; i < entries.Length; i++)
+        {
+            if (entries[i].prefab == null)
+                continue;
+            int L = entries[i].EffectiveLayer;
+            if (!layerIds.Contains(L))
+                layerIds.Add(L);
+        }
+
+        layerIds.Sort();
+
+        for (int li = 0; li < layerIds.Count; li++)
+        {
+            int L = layerIds[li];
+            var layerJobs = new List<SettlementBuildingSpawnEntry>();
+
+            for (int e = 0; e < entries.Length; e++)
+            {
+                var entry = entries[e];
+                if (entry.prefab == null || entry.EffectiveLayer != L)
+                    continue;
+
+                int lo = Mathf.Min(entry.minCount, entry.maxCount);
+                int hi = Mathf.Max(entry.minCount, entry.maxCount);
+                int count = UnityEngine.Random.Range(lo, hi + 1);
+                for (int i = 0; i < count; i++)
+                    layerJobs.Add(entry);
+            }
+
+            Shuffle(layerJobs);
+            outJobs.AddRange(layerJobs);
+        }
+    }
+
+    /// <summary>Annulus for one placement: intersect entry radii with the layer band; if empty, use the full layer band.</summary>
+    public static void GetPlacementAnnulus(
+        SettlementBuildingSpawnEntry entry,
+        float layerInner,
+        float layerOuter,
+        out float rMin,
+        out float rMax)
+    {
+        float eLo = Mathf.Min(entry.radiusMin, entry.radiusMax);
+        float eHi = Mathf.Max(entry.radiusMin, entry.radiusMax);
+        rMin = Mathf.Max(eLo, layerInner);
+        rMax = Mathf.Min(eHi, layerOuter);
+        if (rMin > rMax)
+        {
+            rMin = Mathf.Min(layerInner, layerOuter);
+            rMax = Mathf.Max(layerInner, layerOuter);
+        }
+    }
+
+    static void Shuffle(List<SettlementBuildingSpawnEntry> list)
+    {
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            SettlementBuildingSpawnEntry tmp = list[i];
+            list[i] = list[j];
+            list[j] = tmp;
+        }
+    }
 }
 
 [CreateAssetMenu(fileName = "SettlementSpawnConfig", menuName = "Medieval/Spawning/Settlement Spawn Config")]

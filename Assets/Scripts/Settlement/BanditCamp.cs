@@ -145,35 +145,33 @@ public class BanditCamp : MonoBehaviour
         float baseH = gen.baseHeight;
         float minSepSq = minSeparation * minSeparation;
         var structureRoots = new List<GameObject>();
+        var layerAnnuli = new Dictionary<int, (float inner, float outer)>();
+        var jobs = new List<SettlementBuildingSpawnEntry>();
 
-        for (int e = 0; e < campStructures.Length; e++)
+        SettlementStructureSpawnLayout.PrecomputeLayerAnnulusBounds(campStructures, layerAnnuli);
+        SettlementStructureSpawnLayout.BuildShuffledLayerJobQueue(campStructures, jobs);
+
+        for (int j = 0; j < jobs.Count; j++)
         {
-            var entry = campStructures[e];
-            if (entry.prefab == null)
+            var entry = jobs[j];
+            if (!layerAnnuli.TryGetValue(entry.EffectiveLayer, out var band))
                 continue;
 
-            int lo = Mathf.Min(entry.minCount, entry.maxCount);
-            int hi = Mathf.Max(entry.minCount, entry.maxCount);
-            int count = Random.Range(lo, hi + 1);
-            float rMin = Mathf.Min(entry.radiusMin, entry.radiusMax);
-            float rMax = Mathf.Max(entry.radiusMin, entry.radiusMax);
+            SettlementStructureSpawnLayout.GetPlacementAnnulus(entry, band.inner, band.outer, out float rMin, out float rMax);
 
-            for (int i = 0; i < count; i++)
-            {
-                if (!TryPlaceStructure(gen, baseH, occupied, minSepSq, rMin, rMax, out Vector3 pos))
-                    continue;
+            if (!TryPlaceStructure(gen, baseH, occupied, minSepSq, rMin, rMax, out Vector3 pos))
+                continue;
 
-                occupied.Add(pos);
-                GameObject structure = SpawnStructurePrefab(
-                    entry.prefab,
-                    pos,
-                    entry.applyMinus90XRotation,
-                    entry.EffectiveUniformScale);
-                if (structure == null)
-                    occupied.RemoveAt(occupied.Count - 1);
-                else
-                    structureRoots.Add(structure);
-            }
+            occupied.Add(pos);
+            GameObject structure = SpawnStructurePrefab(
+                entry.prefab,
+                pos,
+                entry.applyMinus90XRotation,
+                entry.EffectiveUniformScale);
+            if (structure == null)
+                occupied.RemoveAt(occupied.Count - 1);
+            else
+                structureRoots.Add(structure);
         }
 
         if (structureRoots.Count > 0)
