@@ -96,6 +96,8 @@ namespace Medieval.NpcMovement
 
         public byte HasSmoothTarget;
         public byte RangedMovementLock;
+        /// <summary>Set by combat seek when within melee range of the current hostile; steers like <see cref="RangedMovementLock"/>.</summary>
+        public byte MeleeEngageMovementLock;
         /// <summary>Set by combat seek while pursuing with ranged standoff; scales neighbor separation.</summary>
         public byte RangedCombatSeparationBoost;
         public byte DodgeImpulseThisFrame;

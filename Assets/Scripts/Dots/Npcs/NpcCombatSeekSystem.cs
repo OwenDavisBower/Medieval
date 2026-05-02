@@ -185,9 +185,20 @@ namespace Medieval.Npcs
                 combatTarget.TargetNpcEntity = bestHostileNpc;
                 combatTarget.HasCombatTarget = 1;
 
-                bool standoff = useRangedHold && flatSq <= combatRange * combatRange;
-                if (standoff)
+                bool wantMelee = profile.ValueRO.WeaponClass == NpcWeaponClass.Melee ||
+                    profile.ValueRO.WeaponClass == NpcWeaponClass.Both;
+                bool meleeEngage = false;
+                if (wantMelee && em.HasComponent<NpcMeleeCombatConfig>(entity))
                 {
+                    float meleeR = em.GetComponentData<NpcMeleeCombatConfig>(entity).MeleeRange;
+                    meleeEngage = flatSq <= meleeR * meleeR;
+                }
+
+                if (meleeEngage)
+                {
+                    move.MeleeEngageMovementLock = 1;
+                    if (em.HasComponent<NpcPendingDodge>(entity))
+                        em.SetComponentData(entity, new NpcPendingDodge());
                     float3 d = bestPos - selfFeet;
                     d.y = 0f;
                     if (math.lengthsq(d) > 1e-6f)
@@ -200,7 +211,25 @@ namespace Medieval.Npcs
                         facing = default;
                 }
                 else
-                    facing = default;
+                {
+                    move.MeleeEngageMovementLock = 0;
+                    bool standoff = useRangedHold && flatSq <= combatRange * combatRange;
+                    if (standoff)
+                    {
+                        float3 d = bestPos - selfFeet;
+                        d.y = 0f;
+                        if (math.lengthsq(d) > 1e-6f)
+                        {
+                            d = math.normalize(d);
+                            facing.FlatDirection = d;
+                            facing.HasOverride = 1;
+                        }
+                        else
+                            facing = default;
+                    }
+                    else
+                        facing = default;
+                }
             }
         }
 
@@ -212,6 +241,7 @@ namespace Medieval.Npcs
             seek.SeekHoldDistance = 0f;
             facing = default;
             move.RangedMovementLock = 0;
+            move.MeleeEngageMovementLock = 0;
             move.RangedCombatSeparationBoost = 0;
             combatTarget = default;
         }

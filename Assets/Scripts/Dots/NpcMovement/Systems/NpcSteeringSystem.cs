@@ -61,7 +61,7 @@ namespace Medieval.NpcMovement
                 mstate.EffectiveMoveSpeed = cfg.MoveSpeed * cfg.MoveSpeedScale *
                                             NpcMath.WaterSpeedMultiplier(selfPos.y);
 
-                if (mstate.RangedMovementLock != 0)
+                if (mstate.RangedMovementLock != 0 || mstate.MeleeEngageMovementLock != 0)
                 {
                     mstate.CurrentHorizontalVelocity = float3.zero;
                     mstate.HasSmoothTarget = 0;

@@ -85,6 +85,9 @@ namespace Medieval.NpcMovement
         {
             if (!em.Exists(npc) || !em.HasComponent<NpcPendingDodge>(npc))
                 return;
+            if (em.HasComponent<NpcMovementState>(npc) &&
+                em.GetComponentData<NpcMovementState>(npc).MeleeEngageMovementLock != 0)
+                return;
             em.SetComponentData(npc, new NpcPendingDodge
             {
                 ReferencePosition = referencePosition,
