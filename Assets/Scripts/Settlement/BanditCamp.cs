@@ -257,7 +257,8 @@ public class BanditCamp : MonoBehaviour
 
             occupied.Add(pos);
 
-            var e = NpcSpawnApi.SpawnBandit(pos, quaternion.identity);
+            var wc = NpcSpawnApi.WeaponClassForHalfMeleeHalfRangedSplit(i, banditCount);
+            var e = NpcSpawnApi.SpawnBandit(pos, quaternion.identity, 1f, wc);
             if (e == Unity.Entities.Entity.Null)
             {
                 Debug.LogWarning(

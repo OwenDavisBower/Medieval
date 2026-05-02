@@ -1,4 +1,6 @@
+using Medieval.Npcs;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -26,11 +28,14 @@ namespace Medieval.NpcMovement
         {
             float dt = SystemAPI.Time.DeltaTime;
             float elapsed = (float)SystemAPI.Time.ElapsedTime;
+            var profiles = SystemAPI.GetComponentLookup<NpcProfile>(true);
+            profiles.Update(ref state);
 
             state.Dependency = new SteeringJob
             {
                 DeltaTime = dt,
-                ElapsedTime = elapsed
+                ElapsedTime = elapsed,
+                Profiles = profiles
             }.ScheduleParallel(state.Dependency);
         }
 
@@ -40,6 +45,7 @@ namespace Medieval.NpcMovement
         {
             public float DeltaTime;
             public float ElapsedTime;
+            [ReadOnly] public ComponentLookup<NpcProfile> Profiles;
 
             public void Execute(
                 in LocalTransform tf,
@@ -48,7 +54,8 @@ namespace Medieval.NpcMovement
                 in NpcSeekOverride seek,
                 in NpcPathState pathState,
                 DynamicBuffer<NpcPathCorner> corners,
-                ref NpcMovementState mstate)
+                ref NpcMovementState mstate,
+                Entity entity)
             {
                 float3 selfPos = tf.Position;
                 mstate.EffectiveMoveSpeed = cfg.MoveSpeed * cfg.MoveSpeedScale *
@@ -129,7 +136,11 @@ namespace Medieval.NpcMovement
                     if (math.lengthsq(mstate.ObstacleDeflectDir) > 1e-4f)
                         desiredDir = math.normalizesafe(desiredDir * 0.35f + mstate.ObstacleDeflectDir * 0.65f, desiredDir);
                     float3 desired = desiredDir * mstate.EffectiveMoveSpeed;
-                    desired += mstate.SeparationAccum;
+                    float sepScale = 1f;
+                    if (seek.HasOverride != 0 && Profiles.HasComponent(entity) &&
+                        Profiles[entity].WeaponClass == NpcWeaponClass.Melee)
+                        sepScale = 0.12f;
+                    desired += mstate.SeparationAccum * sepScale;
                     float maxHoriz = mstate.EffectiveMoveSpeed;
                     if (math.lengthsq(desired) > maxHoriz * maxHoriz)
                         desired = math.normalize(desired) * maxHoriz;

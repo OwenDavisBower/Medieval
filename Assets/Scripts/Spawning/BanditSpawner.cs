@@ -32,7 +32,8 @@ public class BanditSpawner : MonoBehaviour
 
         for (int i = 0; i < spawnCount; i++)
         {
-            var e = NpcSpawnApi.SpawnBandit(transform.position, rot, uniformScale);
+            var wc = NpcSpawnApi.WeaponClassForHalfMeleeHalfRangedSplit(i, spawnCount);
+            var e = NpcSpawnApi.SpawnBandit(transform.position, rot, uniformScale, wc);
             if (e == Entity.Null)
             {
                 Debug.LogWarning(

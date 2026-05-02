@@ -12,7 +12,20 @@ namespace Medieval.Npcs
     /// </summary>
     public static class NpcSpawnApi
     {
-        public static Entity SpawnFollower(Vector3 worldPosition, quaternion worldRotation, float uniformScale = 1f)
+        /// <summary>
+        /// Split spawn indices so roughly half the squad is melee-only and half ranged-only (first
+        /// <c>count / 2</c> indices are melee when <paramref name="explicitWeaponClass"/> is left unspecified).
+        /// </summary>
+        public static NpcWeaponClass WeaponClassForHalfMeleeHalfRangedSplit(int spawnIndex, int spawnCount)
+        {
+            if (spawnCount <= 0)
+                return NpcWeaponClass.Melee;
+            int meleeSlots = spawnCount / 2;
+            return spawnIndex < meleeSlots ? NpcWeaponClass.Melee : NpcWeaponClass.Ranged;
+        }
+
+        public static Entity SpawnFollower(Vector3 worldPosition, quaternion worldRotation, float uniformScale = 1f,
+            NpcWeaponClass explicitWeaponClass = NpcWeaponClass.Unspecified)
         {
             World world = World.DefaultGameObjectInjectionWorld;
             if (world == null || !world.IsCreated)
@@ -30,12 +43,13 @@ namespace Medieval.Npcs
 #endif
             em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
             NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
-            NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Follower);
+            NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Follower, explicitWeaponClass);
             EnsureCombatPipelineComponents(em, e, NpcRole.Follower);
             return e;
         }
 
-        public static Entity SpawnBandit(Vector3 worldPosition, quaternion worldRotation, float uniformScale = 1f)
+        public static Entity SpawnBandit(Vector3 worldPosition, quaternion worldRotation, float uniformScale = 1f,
+            NpcWeaponClass explicitWeaponClass = NpcWeaponClass.Unspecified)
         {
             World world = World.DefaultGameObjectInjectionWorld;
             if (world == null || !world.IsCreated)
@@ -53,7 +67,7 @@ namespace Medieval.Npcs
 #endif
             em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
             NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
-            NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Bandit);
+            NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Bandit, explicitWeaponClass);
             EnsureCombatPipelineComponents(em, e, NpcRole.Bandit);
             return e;
         }

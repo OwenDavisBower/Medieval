@@ -44,14 +44,21 @@ namespace Medieval.Npcs
         }
 
         /// <summary>Sets <see cref="NpcProfile.Role"/> from spawn and resolves <see cref="NpcProfile.WeaponClass"/> when <see cref="NpcWeaponClass.Unspecified"/>.</summary>
-        public static void FinalizeSpawnProfile(EntityManager em, Entity npc, NpcRole role)
+        /// <param name="explicitWeaponClass">If <see cref="NpcWeaponClass.Melee"/> or <see cref="NpcWeaponClass.Ranged"/>, that loadout is used (ranged/melee-only at runtime).</param>
+        public static void FinalizeSpawnProfile(EntityManager em, Entity npc, NpcRole role,
+            NpcWeaponClass explicitWeaponClass = NpcWeaponClass.Unspecified)
         {
             if (!em.Exists(npc))
                 return;
 
-            NpcWeaponClass resolved = ResolveWeaponClass(em, npc);
-            if ((role == NpcRole.Follower || role == NpcRole.Bandit) && resolved == NpcWeaponClass.Both)
+            NpcWeaponClass inferred = ResolveWeaponClass(em, npc);
+            NpcWeaponClass resolved;
+            if (explicitWeaponClass == NpcWeaponClass.Melee || explicitWeaponClass == NpcWeaponClass.Ranged)
+                resolved = explicitWeaponClass;
+            else if ((role == NpcRole.Follower || role == NpcRole.Bandit) && inferred == NpcWeaponClass.Both)
                 resolved = UnityEngine.Random.value < 0.5f ? NpcWeaponClass.Melee : NpcWeaponClass.Ranged;
+            else
+                resolved = inferred;
 
             if (!em.HasComponent<NpcProfile>(npc))
             {
@@ -62,7 +69,9 @@ namespace Medieval.Npcs
 
             var profile = em.GetComponentData<NpcProfile>(npc);
             profile.Role = role;
-            if (profile.WeaponClass == NpcWeaponClass.Unspecified)
+            if (explicitWeaponClass == NpcWeaponClass.Melee || explicitWeaponClass == NpcWeaponClass.Ranged)
+                profile.WeaponClass = explicitWeaponClass;
+            else if (profile.WeaponClass == NpcWeaponClass.Unspecified)
                 profile.WeaponClass = resolved;
             else if ((role == NpcRole.Follower || role == NpcRole.Bandit) &&
                      profile.WeaponClass == NpcWeaponClass.Both)

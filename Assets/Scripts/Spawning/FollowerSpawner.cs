@@ -42,7 +42,8 @@ public class FollowerSpawner : MonoBehaviour
             Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * rad;
             Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(leaderWorldPosition + offset);
 
-            var e = NpcSpawnApi.SpawnFollower(pos, quaternion.identity);
+            var wc = NpcSpawnApi.WeaponClassForHalfMeleeHalfRangedSplit(i, followerCount);
+            var e = NpcSpawnApi.SpawnFollower(pos, quaternion.identity, uniformScale: 1f, explicitWeaponClass: wc);
             if (e == Unity.Entities.Entity.Null)
             {
                 Debug.LogWarning(
