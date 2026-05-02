@@ -1,8 +1,8 @@
 ﻿<Solution>
   <Project Path="Unity.ShaderGraph.Editor.csproj" />
   <Project Path="Unity.Entities.Graphics.csproj" />
-  <Project Path="Unity.Entities.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="Unity.Entities.csproj" />
   <Project Path="ProjectDawn.Animatron.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Samples.Runtime.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />

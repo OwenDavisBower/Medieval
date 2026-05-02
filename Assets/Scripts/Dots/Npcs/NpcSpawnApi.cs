@@ -106,6 +106,61 @@ namespace Medieval.Npcs
             return e;
         }
 
+        /// <summary>
+        /// Spawns a villager with chop-wood task components (same tuning as <see cref="NpcChopWoodTaskAuthoring"/> defaults).
+        /// Use when the Villager prefab is not baked as a chopper.
+        /// </summary>
+        public static Entity SpawnWoodChopperVillager(Vector3 worldPosition, quaternion worldRotation,
+            float uniformScale, Vector3 dropOffWorldPosition)
+        {
+            Entity e = SpawnVillager(worldPosition, worldRotation, uniformScale);
+            if (e == Entity.Null)
+                return e;
+
+            World world = World.DefaultGameObjectInjectionWorld;
+            if (world == null || !world.IsCreated)
+                return e;
+
+            EntityManager em = world.EntityManager;
+            if (!em.Exists(e))
+                return e;
+
+            AttachChopWoodTask(em, e, dropOffWorldPosition);
+            return e;
+        }
+
+        static void AttachChopWoodTask(EntityManager em, Entity e, Vector3 dropOffWorld)
+        {
+            float3 drop = new float3(dropOffWorld.x, dropOffWorld.y, dropOffWorld.z);
+
+            if (!em.HasComponent<NpcChopWoodTaskTag>(e))
+                em.AddComponent<NpcChopWoodTaskTag>(e);
+
+            em.AddComponentData(e, new NpcChopWoodConfig
+            {
+                CarryCapacity = 10f,
+                WoodGatherPerSecond = 2f,
+                ChopInteractDistance = 2.5f,
+                DropArriveDistance = 1.75f,
+                DropDurationSeconds = 0.75f
+            });
+
+            em.AddComponentData(e, new NpcResourceDropOff
+            {
+                WorldPosition = drop,
+                HasPosition = 1
+            });
+
+            em.AddComponentData(e, new NpcTaskChopWoodState
+            {
+                Phase = NpcChopWoodPhase.WalkToTree,
+                WoodCarried = 0f,
+                DropTimer = 0f,
+                TargetTreePosition = default,
+                HasTargetTree = 0
+            });
+        }
+
         enum NpcPrefabKind : byte
         {
             Follower = 0,

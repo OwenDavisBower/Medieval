@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Medieval.Npcs
 {
-    /// <summary>Bakes chop-wood task components on NPC roots (e.g. villagers).</summary>
+    /// <summary>Bakes chop-wood task components on NPC roots (optional authoring; runtime spawning uses <see cref="NpcSpawnApi.SpawnWoodChopperVillager"/>).</summary>
     [DisallowMultipleComponent]
     public sealed class NpcChopWoodTaskAuthoring : MonoBehaviour
     {

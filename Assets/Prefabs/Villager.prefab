@@ -45,7 +45,6 @@ GameObject:
   - component: {fileID: 8499884164486643627}
   - component: {fileID: 557766021}
   - component: {fileID: 4629251504635894354}
-  - component: {fileID: 5629251504635894355}
   m_Layer: 7
   m_Name: Villager
   m_TagString: Untagged
@@ -191,24 +190,6 @@ MonoBehaviour:
   GroundSnapLayers:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &5629251504635894355
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8980714304071168946}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f7e8d9c0b1a243658697809abcdfef01, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Medieval.Npcs.NpcChopWoodTaskAuthoring
-  CarryCapacity: 10
-  WoodGatherPerSecond: 2
-  ChopInteractDistance: 2.5
-  DropArriveDistance: 1.75
-  DropDurationSeconds: 0.75
-  DropOffPoint: {fileID: 0}
 --- !u!1001 &3617961533815460576
 PrefabInstance:
   m_ObjectHideFlags: 0
