@@ -292,7 +292,13 @@ public class WorldGenerationCoordinator : MonoBehaviour
                     {
                         BanditCamp camp = spawned.GetComponent<BanditCamp>();
                         if (camp != null)
+                        {
                             camp.SetCampId(i);
+                            camp.ConfigurePathOverlay(
+                                banditCampSpawn.PathRingOutsideFootprint,
+                                banditCampSpawn.PathSegmentStepMeters,
+                                banditCampSpawn.PathWobbleAmplitude);
+                        }
                         _streamingBandits[i] = spawned;
                     }
                 }

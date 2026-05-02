@@ -24,6 +24,14 @@ public class BanditCamp : MonoBehaviour
     [SerializeField] float minSeparation = 4f;
     [SerializeField] int maxAttemptsPerStructure = 120;
 
+    [Header("Camp paths (splat R)")]
+    [Tooltip("Path ring runs this far outside each structure's horizontal bounds (world meters).")]
+    [SerializeField] float pathRingOutsideFootprint = 1.25f;
+    [Tooltip("Approximate spacing between samples along connecting paths.")]
+    [SerializeField] float pathSegmentStepMeters = 1.4f;
+    [Tooltip("Max lateral wobble for organic corridors (world meters).")]
+    [SerializeField] float pathWobbleAmplitude = 1.1f;
+
     [Header("Bandits (DOTS)")]
     [SerializeField] int banditCount = 3;
     [SerializeField] float spawnRadiusMin = 1f;
@@ -33,6 +41,13 @@ public class BanditCamp : MonoBehaviour
     bool _spawnAttempted;
 
     public void SetCampId(int id) => campId = id;
+
+    public void ConfigurePathOverlay(float ringOutsideFootprintMeters, float segmentStepMeters, float wobbleAmplitudeMeters)
+    {
+        pathRingOutsideFootprint = Mathf.Max(0f, ringOutsideFootprintMeters);
+        pathSegmentStepMeters = Mathf.Max(0.05f, segmentStepMeters);
+        pathWobbleAmplitude = Mathf.Max(0f, wobbleAmplitudeMeters);
+    }
 
     void Start()
     {
@@ -129,6 +144,7 @@ public class BanditCamp : MonoBehaviour
 
         float baseH = gen.baseHeight;
         float minSepSq = minSeparation * minSeparation;
+        var structureRoots = new List<GameObject>();
 
         for (int e = 0; e < campStructures.Length; e++)
         {
@@ -155,8 +171,13 @@ public class BanditCamp : MonoBehaviour
                     entry.EffectiveUniformScale);
                 if (structure == null)
                     occupied.RemoveAt(occupied.Count - 1);
+                else
+                    structureRoots.Add(structure);
             }
         }
+
+        if (structureRoots.Count > 0)
+            SettlementPathSplatOverlay.ApplyToTerrain(gen, transform, structureRoots, pathRingOutsideFootprint, pathSegmentStepMeters, pathWobbleAmplitude);
     }
 
     bool TryPlaceStructure(

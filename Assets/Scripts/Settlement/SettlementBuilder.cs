@@ -169,7 +169,7 @@ public class SettlementBuilder : MonoBehaviour
                 structureRoots.Add(structure);
                 if (_placementMask != null)
                 {
-                    var b = CombineRendererBounds(structure);
+                    var b = SettlementPathSplatOverlay.CombineRendererBounds(structure);
                     _placementBurnBounds.Add(b);
                     _placementMask.BurnFromRendererBoundsXZ(b, burnBoundsPadding);
                 }
@@ -183,7 +183,7 @@ public class SettlementBuilder : MonoBehaviour
         }
 
         if (structureRoots.Count > 0)
-            PaintSettlementPathsToSplatmap(gen, structureRoots);
+            SettlementPathSplatOverlay.ApplyToTerrain(gen, transform, structureRoots, pathRingOutsideFootprint, pathSegmentStepMeters, pathWobbleAmplitude);
 
         _built = true;
         if (HasSpawnedVillagersAlready())
@@ -212,131 +212,6 @@ public class SettlementBuilder : MonoBehaviour
                 return true;
         }
         return false;
-    }
-
-    void PaintSettlementPathsToSplatmap(TerrainGenerator gen, List<GameObject> structureRoots)
-    {
-        if (structureRoots.Count == 0)
-            return;
-
-        var ringCenters = new List<Vector2>(structureRoots.Count);
-        var ringRadii = new List<float>(structureRoots.Count);
-        for (int i = 0; i < structureRoots.Count; i++)
-        {
-            var b = CombineRendererBounds(structureRoots[i]);
-            var xz = new Vector2(b.center.x, b.center.z);
-            var halfW = Mathf.Max(b.extents.x, b.extents.z);
-            ringCenters.Add(xz);
-            ringRadii.Add(halfW + pathRingOutsideFootprint);
-        }
-
-        var nodes = new List<Vector2>(1 + structureRoots.Count);
-        nodes.Add(new Vector2(transform.position.x, transform.position.z));
-        for (int i = 0; i < structureRoots.Count; i++)
-            nodes.Add(ringCenters[i]);
-
-        var chains = BuildOrganicPathChains(nodes);
-        gen.ApplySettlementPathSplatOverlay(ringCenters, ringRadii, chains);
-    }
-
-    List<List<Vector2>> BuildOrganicPathChains(IReadOnlyList<Vector2> nodes)
-    {
-        var chains = new List<List<Vector2>>();
-        if (nodes.Count < 2)
-            return chains;
-
-        var mstEdges = PrimMstEdges(nodes);
-        float seed = Random.value * 127.1f;
-        for (int e = 0; e < mstEdges.Count; e++)
-        {
-            var a = nodes[mstEdges[e].from];
-            var b = nodes[mstEdges[e].to];
-            chains.Add(BuildWobblyPolyline(a, b, seed + e * 19.17f));
-        }
-
-        return chains;
-    }
-
-    static List<(int from, int to)> PrimMstEdges(IReadOnlyList<Vector2> nodes)
-    {
-        int n = nodes.Count;
-        var inTree = new bool[n];
-        var minDistSq = new float[n];
-        var nearest = new int[n];
-        for (int i = 0; i < n; i++)
-        {
-            minDistSq[i] = float.PositiveInfinity;
-            nearest[i] = -1;
-        }
-
-        inTree[0] = true;
-        for (int j = 1; j < n; j++)
-        {
-            var d = (nodes[j] - nodes[0]).sqrMagnitude;
-            minDistSq[j] = d;
-            nearest[j] = 0;
-        }
-
-        var edges = new List<(int, int)>(n - 1);
-        for (int iter = 1; iter < n; iter++)
-        {
-            int best = -1;
-            float bestD = float.PositiveInfinity;
-            for (int i = 1; i < n; i++)
-            {
-                if (inTree[i])
-                    continue;
-                if (minDistSq[i] < bestD)
-                {
-                    bestD = minDistSq[i];
-                    best = i;
-                }
-            }
-
-            if (best < 0)
-                break;
-
-            inTree[best] = true;
-            edges.Add((best, nearest[best]));
-
-            for (int j = 1; j < n; j++)
-            {
-                if (inTree[j])
-                    continue;
-                var d = (nodes[j] - nodes[best]).sqrMagnitude;
-                if (d < minDistSq[j])
-                {
-                    minDistSq[j] = d;
-                    nearest[j] = best;
-                }
-            }
-        }
-
-        return edges;
-    }
-
-    List<Vector2> BuildWobblyPolyline(Vector2 a, Vector2 b, float noiseSeed)
-    {
-        float len = Vector2.Distance(a, b);
-        int steps = Mathf.Max(8, Mathf.CeilToInt(len / Mathf.Max(0.35f, pathSegmentStepMeters)));
-        var pts = new List<Vector2>(steps + 1);
-        Vector2 ab = b - a;
-        Vector2 dir = len > 1e-5f ? ab / len : Vector2.right;
-        Vector2 perp = new Vector2(-dir.y, dir.x);
-
-        for (int i = 0; i <= steps; i++)
-        {
-            float t = i / (float)steps;
-            Vector2 basePoint = Vector2.Lerp(a, b, t);
-            float envelope = Mathf.Sin(t * Mathf.PI);
-            float n1 = (Mathf.PerlinNoise(t * 4.2f + noiseSeed, noiseSeed * 0.37f) - 0.5f) * 2f;
-            float n2 = (Mathf.PerlinNoise(noiseSeed * 0.73f, t * 5.8f + noiseSeed * 1.1f) - 0.5f) * 2f;
-            basePoint += perp * (n1 * pathWobbleAmplitude * envelope);
-            basePoint += dir * (n2 * pathWobbleAmplitude * 0.4f * envelope);
-            pts.Add(basePoint);
-        }
-
-        return pts;
     }
 
     bool TryFindFlatCenter(TerrainGenerator gen, out Vector3 centerWorld)
@@ -433,18 +308,6 @@ public class SettlementBuilder : MonoBehaviour
         instance.transform.localScale = ls * uniformScale;
         HierarchyLayers.SetRecursiveByLayerName(instance.transform, "Building");
         return instance;
-    }
-
-    static Bounds CombineRendererBounds(GameObject root)
-    {
-        var rends = root.GetComponentsInChildren<Renderer>();
-        if (rends.Length == 0)
-            return new Bounds(root.transform.position, Vector3.one * 2f);
-
-        Bounds b = rends[0].bounds;
-        for (int i = 1; i < rends.Length; i++)
-            b.Encapsulate(rends[i].bounds);
-        return b;
     }
 
     void SpawnVillagersNearBuilding(Transform anchor, Vector3 worldPos)

@@ -19,6 +19,14 @@ public class BanditCampSpawnConfig : ScriptableObject
     [SerializeField] float occupationFootprintRadius = 10f;
     [SerializeField] float occupationBurnPadding = 1f;
 
+    [Header("Camp paths (splat R)")]
+    [Tooltip("Path ring runs this far outside each structure's horizontal bounds (world meters).")]
+    [SerializeField] float pathRingOutsideFootprint = 1.25f;
+    [Tooltip("Approximate spacing between samples along connecting paths (world meters).")]
+    [SerializeField] float pathSegmentStepMeters = 1.4f;
+    [Tooltip("Max lateral wobble for organic corridors (world meters).")]
+    [SerializeField] float pathWobbleAmplitude = 1.1f;
+
     public BanditCamp BanditCampPrefab => banditCampPrefab;
     public int CampsPerLogicalChunk => campsPerLogicalChunk;
     public float TerrainEdgeMargin => terrainEdgeMargin;
@@ -27,6 +35,10 @@ public class BanditCampSpawnConfig : ScriptableObject
     public int MaxSpawnAttemptsPerCamp => maxSpawnAttemptsPerCamp;
     public float OccupationFootprintRadius => occupationFootprintRadius;
     public float OccupationBurnPadding => occupationBurnPadding;
+
+    public float PathRingOutsideFootprint => pathRingOutsideFootprint > 0f ? pathRingOutsideFootprint : 1.25f;
+    public float PathSegmentStepMeters => pathSegmentStepMeters > 0f ? pathSegmentStepMeters : 1.4f;
+    public float PathWobbleAmplitude => pathWobbleAmplitude >= 0f ? pathWobbleAmplitude : 1.1f;
 
     void OnValidate()
     {
