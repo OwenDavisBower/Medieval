@@ -22,24 +22,24 @@ MonoBehaviour:
     uniformScale: 0
     layer: 1
   - prefab: {fileID: 4024279981392801517, guid: 284265d63fd9f40ca9d4b61e8258310b, type: 3}
-    minCount: 2
-    maxCount: 5
+    minCount: 10
+    maxCount: 20
     placementRadius: 1
     spawnVillagersHere: 1
     applyMinus90XRotation: 0
     uniformScale: 0
     layer: 1
   - prefab: {fileID: 1605580574707200046, guid: bec84f2ea2f704c3c8efddee40e2d657, type: 3}
-    minCount: 0
-    maxCount: 1
+    minCount: 2
+    maxCount: 3
     placementRadius: 2
     spawnVillagersHere: 1
     applyMinus90XRotation: 0
     uniformScale: 0
     layer: 1
   - prefab: {fileID: 2811835333203006354, guid: ceb24a79fb2f141119333ebc23df866d, type: 3}
-    minCount: 1
-    maxCount: 3
+    minCount: 6
+    maxCount: 12
     placementRadius: 3
     spawnVillagersHere: 0
     applyMinus90XRotation: 0
@@ -47,15 +47,15 @@ MonoBehaviour:
     layer: 2
   - prefab: {fileID: 2202178742673270703, guid: cfbe0fd3eca884cf7b8bf5613ce31803, type: 3}
     minCount: 1
-    maxCount: 1
+    maxCount: 3
     placementRadius: 2
     spawnVillagersHere: 0
     applyMinus90XRotation: 0
     uniformScale: 0
     layer: 3
   - prefab: {fileID: 768077572983244432, guid: 81bdeb8f223c04a289af54e1dda4ba69, type: 3}
-    minCount: 2
-    maxCount: 6
+    minCount: 10
+    maxCount: 30
     placementRadius: 1
     spawnVillagersHere: 0
     applyMinus90XRotation: 0
