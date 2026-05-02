@@ -20,6 +20,9 @@ public class VirtualJoystick : MonoBehaviour
     RectTransform _root;
     RectTransform _knobRect;
 
+    Texture2D _circleTexture;
+    Sprite _circleSprite;
+
     Vector2 _pressOriginScreen;
     bool _active;
     bool _usingTouch;
@@ -29,6 +32,10 @@ public class VirtualJoystick : MonoBehaviour
     void OnDestroy()
     {
         Axes = Vector2.zero;
+        if (_circleSprite != null)
+            Destroy(_circleSprite);
+        if (_circleTexture != null)
+            Destroy(_circleTexture);
     }
 
     void Update()
@@ -143,7 +150,7 @@ public class VirtualJoystick : MonoBehaviour
         var bgGo = new GameObject("Background");
         bgGo.transform.SetParent(_root, false);
         var bg = bgGo.AddComponent<Image>();
-        bg.sprite = CreateUiSprite();
+        bg.sprite = EnsureCircleSprite();
         bg.color = new Color(0.15f, 0.15f, 0.2f, 0.45f);
         var bgRt = bgGo.GetComponent<RectTransform>();
         bgRt.anchorMin = bgRt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -152,7 +159,7 @@ public class VirtualJoystick : MonoBehaviour
         var knobGo = new GameObject("Knob");
         knobGo.transform.SetParent(_root, false);
         var kn = knobGo.AddComponent<Image>();
-        kn.sprite = CreateUiSprite();
+        kn.sprite = EnsureCircleSprite();
         kn.color = new Color(0.92f, 0.92f, 0.95f, 0.75f);
         _knobRect = knobGo.GetComponent<RectTransform>();
         _knobRect.anchorMin = _knobRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -161,9 +168,43 @@ public class VirtualJoystick : MonoBehaviour
         _root.gameObject.SetActive(false);
     }
 
-    static Sprite CreateUiSprite()
+    const int CircleTextureResolution = 128;
+
+    Sprite EnsureCircleSprite()
     {
-        var tex = Texture2D.whiteTexture;
-        return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+        if (_circleSprite != null)
+            return _circleSprite;
+
+        var tex = new Texture2D(CircleTextureResolution, CircleTextureResolution, TextureFormat.RGBA32, false);
+        tex.name = "VirtualJoystickCircleTex";
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.anisoLevel = 0;
+
+        float cx = (CircleTextureResolution - 1) * 0.5f;
+        float cy = (CircleTextureResolution - 1) * 0.5f;
+        float radius = CircleTextureResolution * 0.5f - 0.5f;
+        const float edgePx = 1.25f;
+
+        for (int y = 0; y < CircleTextureResolution; y++)
+        {
+            for (int x = 0; x < CircleTextureResolution; x++)
+            {
+                float dx = x + 0.5f - cx;
+                float dy = y + 0.5f - cy;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                float a = Mathf.Clamp01((radius + edgePx - dist) / edgePx);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+
+        tex.Apply(false, false);
+
+        _circleTexture = tex;
+        // Tight mesh traces opaque pixels so the graphic is circular even if UI blending misbehaves.
+        _circleSprite = Sprite.Create(tex, new Rect(0, 0, CircleTextureResolution, CircleTextureResolution),
+            new Vector2(0.5f, 0.5f), 100f, 0u, SpriteMeshType.Tight);
+        _circleSprite.name = "VirtualJoystickCircleSprite";
+        return _circleSprite;
     }
 }
