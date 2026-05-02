@@ -787,24 +787,8 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 330585546}
     - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
-      propertyPath: cliffShelfMixBoost
-      value: 2.24
-      objectReference: {fileID: 0}
-    - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
-      propertyPath: cliffShelfSteepGate
-      value: 0.064
-      objectReference: {fileID: 0}
-    - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
-      propertyPath: cliffShelfStepCount
-      value: 8
-      objectReference: {fileID: 0}
-    - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
-      propertyPath: cliffShelfSteepScale
-      value: 13.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 5991984832860559313, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
-      propertyPath: cliffTerraceSinAmplitude
-      value: 0.1
+      propertyPath: rockSlopeBlendStart
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 8160483859847513919, guid: 563b12bc67a774858aaf5e3f1b9df75d, type: 3}
       propertyPath: m_Name

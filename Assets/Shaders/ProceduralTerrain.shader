@@ -9,7 +9,8 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
         [ToggleUI] _GrassNoiseLinearData("Noise texture is linear data", Float) = 0
         _PathColorA("Path Color A", Color) = (0.45, 0.38, 0.28, 1)
         _PathColorB("Path Color B", Color) = (0.26, 0.21, 0.15, 1)
-        [NoScaleOffset] _RockTex("Rock", 2D) = "white" {}
+        _RockColorA("Rock Color A", Color) = (0.48, 0.45, 0.42, 1)
+        _RockColorB("Rock Color B", Color) = (0.22, 0.20, 0.18, 1)
         [NoScaleOffset] _SplatmapTex("Splat (R=path, G=rock, B=slope mag, linear float)", 2D) = "black" {}
         _GrassTiling("Grass Tiling", Float) = 1
         _PathTiling("Path Tiling", Float) = 1
@@ -63,8 +64,6 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
 
             TEXTURE2D(_GrassNoiseTex);
             SAMPLER(sampler_GrassNoiseTex);
-            TEXTURE2D(_RockTex);
-            SAMPLER(sampler_RockTex);
             TEXTURE2D(_SplatmapTex);
             SAMPLER(sampler_SplatmapTex);
 
@@ -73,6 +72,8 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 half4 _GrassColorB;
                 half4 _PathColorA;
                 half4 _PathColorB;
+                half4 _RockColorA;
+                half4 _RockColorB;
                 half _GrassNoiseLinearData;
                 half _GrassTiling;
                 half _PathTiling;
@@ -306,7 +307,12 @@ Shader "Universal Render Pipeline/ProceduralTerrain"
                 half edgeProximity = saturate(1.0h - pathMargin / edgeW);
                 half darken = edgeProximity * saturate((half)_PathEdgeDarkenIntensity);
                 pathCol *= 1.0h - darken;
-                const half3 rockCol = SampleTextureHex(rockUV, _RockTex, sampler_RockTex);
+                const half3 rockNoise = SampleTextureHex(rockUV, _GrassNoiseTex, sampler_GrassNoiseTex);
+                const half rawRockMix = saturate(dot(rockNoise, half3(0.299h, 0.587h, 0.114h)));
+                const half rockMix = (_GrassNoiseLinearData > 0.5h)
+                    ? rawRockMix
+                    : saturate(GrassNoiseMixFromLinearSample(rawRockMix));
+                const half3 rockCol = lerp(_RockColorA.rgb, _RockColorB.rgb, rockMix);
                 float rockEdgeN = TerrainEdgeNoise(wXZ + float2(31.7, 12.4), (float)_EdgeNoiseScale);
                 // Stochastic blend: P(layer) = mask; path↔grass is softened with noise.
                 float blendNoise = TerrainEdgeNoise(wXZ + float2(91.3, 17.1), (float)_PathGrassBlendNoiseScale);

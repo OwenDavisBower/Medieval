@@ -28,10 +28,6 @@ Material:
         m_Texture: {fileID: 2800000, guid: 40e22b3a218d344298ba7bb973cbe385, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
-    - _RockTex:
-        m_Texture: {fileID: 2800000, guid: a22f74dadcc373b4da1943778db036d4, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
     - _SplatmapTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -53,12 +49,14 @@ Material:
     - _PathGrassBlendNoiseStrength: 0.163
     - _PathGrassBlendWidth: 0.064
     - _PathTiling: 0.11
-    - _RockTiling: 1.05
+    - _RockTiling: 0.25
     m_Colors:
     - _GrassColorA: {r: 0.4398538, g: 0.5283019, b: 0.26664296, a: 1}
     - _GrassColorB: {r: 0, g: 0, b: 0, a: 1}
     - _PathColorA: {r: 0.5647059, g: 0.4776048, b: 0.31764707, a: 1}
     - _PathColorB: {r: 0.21568628, g: 0.16870321, b: 0.08627452, a: 1}
+    - _RockColorA: {r: 0.6603774, g: 0.6603774, b: 0.6603774, a: 1}
+    - _RockColorB: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &3922063015719540400
