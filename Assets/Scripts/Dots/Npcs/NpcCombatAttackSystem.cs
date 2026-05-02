@@ -10,15 +10,14 @@ using UnityEngine;
 namespace Medieval.Npcs
 {
     /// <summary>
-    /// Ranged and melee attacks for DOTS NPCs using baked configs; runs after <see cref="NpcCombatSeekSystem"/>.
+    /// Ranged attacks for DOTS NPCs using baked configs; runs after <see cref="NpcCombatSeekSystem"/>.
+    /// Melee loadouts pathfind via seek only (no DOTS melee strikes here).
     /// </summary>
     [UpdateInGroup(typeof(NpcCombatSeekSystemGroup))]
     [UpdateAfter(typeof(NpcCombatSeekSystem))]
     public partial class NpcCombatAttackSystem : SystemBase
     {
         static readonly FixedString64Bytes k_ShootArrow = "ShootArrow";
-        static readonly FixedString64Bytes k_SwordSlash = "SwordSlash";
-        const float k_MeleeSlashGestureSuppressSeconds = 1.5f;
 
         protected override void OnUpdate()
         {
@@ -63,31 +62,14 @@ namespace Medieval.Npcs
                 float dz = goal.z - selfFeet.z;
                 float flatSq = dx * dx + dz * dz;
 
-                bool hasMelee = em.HasComponent<NpcMeleeCombatConfig>(entity);
                 bool hasRanged = em.HasComponent<NpcRangedCombatConfig>(entity);
-                if (!hasMelee && !hasRanged)
+                if (!hasRanged)
                     continue;
 
-                bool wantMelee = profile.ValueRO.WeaponClass == NpcWeaponClass.Melee ||
-                    profile.ValueRO.WeaponClass == NpcWeaponClass.Both;
                 bool wantRanged = profile.ValueRO.WeaponClass == NpcWeaponClass.Ranged ||
                     profile.ValueRO.WeaponClass == NpcWeaponClass.Both;
 
-                if (hasMelee && wantMelee && em.HasComponent<NpcMeleeAttackState>(entity))
-                {
-                    var meleeCfg = em.GetComponentData<NpcMeleeCombatConfig>(entity);
-                    float r = meleeCfg.MeleeRange;
-                    if (flatSq <= r * r)
-                    {
-                        var meleeState = em.GetComponentData<NpcMeleeAttackState>(entity);
-                        TryMeleeAttack(em, entity, selfFeet, goal, combatTarget.ValueRO, in meleeCfg, ref combat,
-                            ref meleeState, unityTime);
-                        em.SetComponentData(entity, meleeState);
-                        continue;
-                    }
-                }
-
-                if (!hasRanged || !wantRanged || !em.HasComponent<NpcRangedAttackState>(entity))
+                if (!wantRanged || !em.HasComponent<NpcRangedAttackState>(entity))
                     continue;
 
                 var rangedCfg = em.GetComponentData<NpcRangedCombatConfig>(entity);
@@ -188,100 +170,6 @@ namespace Medieval.Npcs
             em.SetComponentData(entity, rangedState);
         }
 
-        static void TryMeleeAttack(
-            EntityManager em,
-            Entity attackerEntity,
-            float3 selfFeet,
-            float3 goalFlat,
-            NpcCombatTarget targetInfo,
-            in NpcMeleeCombatConfig meleeCfg,
-            ref NpcCharacterCombatState combat,
-            ref NpcMeleeAttackState meleeState,
-            float unityTime)
-        {
-            if (unityTime < meleeState.NextAttackAllowedUnityTime)
-                return;
-
-            meleeState.NextAttackAllowedUnityTime = unityTime + meleeCfg.AttackInterval;
-            ExtendMeleeGestureSuppressLocomotion(em, attackerEntity, unityTime);
-            TryPlayAnimOnNpcRoot(em, attackerEntity, k_SwordSlash);
-            if (UnityEngine.Random.value > meleeCfg.HitChance)
-                return;
-
-            float dmg = meleeCfg.Damage * combat.MeleeDamageMultiplier;
-
-            Entity victimNpc = targetInfo.TargetNpcEntity;
-            if (victimNpc != Entity.Null && em.Exists(victimNpc) && em.HasComponent<NpcCharacterCombatState>(victimNpc))
-            {
-                var vState = em.GetComponentData<NpcCharacterCombatState>(victimNpc);
-                if (vState.IsDead != 0 || vState.CurrentHealth <= 0f)
-                    return;
-
-                vState.CurrentHealth -= dmg;
-                if (vState.CurrentHealth <= 0f)
-                {
-                    vState.CurrentHealth = 0f;
-                    vState.IsDead = 1;
-                }
-
-                vState.AttackStunUntilUnityTime =
-                    math.max(vState.AttackStunUntilUnityTime, unityTime + meleeCfg.HitMeleeStunDuration);
-                em.SetComponentData(victimNpc, vState);
-
-                ApplyMeleeKnockback(em, victimNpc, selfFeet, goalFlat, meleeCfg.KnockbackImpulse);
-                return;
-            }
-
-            Transform player = PlayerReference.TryGetTransform();
-            if (player == null)
-                return;
-
-            Vector3 p = player.position;
-            float pdx = p.x - selfFeet.x;
-            float pdz = p.z - selfFeet.z;
-            if (pdx * pdx + pdz * pdz > meleeCfg.MeleeRange * meleeCfg.MeleeRange)
-                return;
-
-            Character ch = PlayerReference.TryGetCharacter();
-            if (ch == null || ch.IsDead)
-                return;
-
-            ch.TakeDamage(dmg);
-            ch.ApplyAttackStun(meleeCfg.HitMeleeStunDuration);
-            Rigidbody prb = PlayerReference.TryGetRigidbody();
-            if (prb != null)
-            {
-                Vector3 d = p - (Vector3)selfFeet;
-                d.y = 0f;
-                if (d.sqrMagnitude > 1e-4f)
-                    d.Normalize();
-                else
-                    d = Vector3.forward;
-                Vector3 deltaV = d * meleeCfg.KnockbackImpulse;
-                Vector3 v = prb.linearVelocity;
-                v.x += deltaV.x;
-                v.z += deltaV.z;
-                prb.linearVelocity = v;
-            }
-        }
-
-        static void ApplyMeleeKnockback(EntityManager em, Entity victim, float3 selfFeet, float3 targetFeet, float impulse)
-        {
-            if (!em.HasComponent<NpcMovementState>(victim))
-                return;
-            float3 d = targetFeet - selfFeet;
-            d.y = 0f;
-            if (math.lengthsq(d) < 1e-6f)
-                d = new float3(0f, 0f, 1f);
-            d = math.normalize(d);
-            var m = em.GetComponentData<NpcMovementState>(victim);
-            float3 add = d * impulse;
-            m.CurrentHorizontalVelocity =
-                new float3(m.CurrentHorizontalVelocity.x + add.x, m.CurrentHorizontalVelocity.y,
-                    m.CurrentHorizontalVelocity.z + add.z);
-            em.SetComponentData(victim, m);
-        }
-
         static void ReleaseRangedShot(
             ref EntityCommandBuffer ecb,
             Entity shooterRoot,
@@ -302,17 +190,6 @@ namespace Medieval.Npcs
             Vector3 velocity = ProjectileBallistics.LobbedLaunchVelocity(origin, aim);
             ProjectileSpawnApi.SpawnFromDotsNpcShooterDeferred(ref ecb, origin, velocity, cfg.ArrowDamage,
                 cfg.ArrowMaxLifetime, shooterRoot, cfg.ArrowHitRadius);
-        }
-
-        static void ExtendMeleeGestureSuppressLocomotion(EntityManager em, Entity npcRoot, float unityTime)
-        {
-            if (!em.HasComponent<NpcMovementState>(npcRoot))
-                return;
-            float until = unityTime + k_MeleeSlashGestureSuppressSeconds;
-            var move = em.GetComponentData<NpcMovementState>(npcRoot);
-            move.ShootGestureSuppressLocomotionUntilUnityTime =
-                math.max(move.ShootGestureSuppressLocomotionUntilUnityTime, until);
-            em.SetComponentData(npcRoot, move);
         }
 
         static void TryPlayShootAnim(EntityManager em, Entity npcRoot)

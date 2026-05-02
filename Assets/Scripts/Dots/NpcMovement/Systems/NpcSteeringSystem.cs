@@ -1,4 +1,3 @@
-using Medieval.Npcs;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -28,14 +27,11 @@ namespace Medieval.NpcMovement
         {
             float dt = SystemAPI.Time.DeltaTime;
             float elapsed = (float)SystemAPI.Time.ElapsedTime;
-            var profiles = SystemAPI.GetComponentLookup<NpcProfile>(true);
-            profiles.Update(ref state);
 
             state.Dependency = new SteeringJob
             {
                 DeltaTime = dt,
-                ElapsedTime = elapsed,
-                Profiles = profiles
+                ElapsedTime = elapsed
             }.ScheduleParallel(state.Dependency);
         }
 
@@ -45,8 +41,6 @@ namespace Medieval.NpcMovement
         {
             public float DeltaTime;
             public float ElapsedTime;
-            [ReadOnly] public ComponentLookup<NpcProfile> Profiles;
-
             public void Execute(
                 in LocalTransform tf,
                 in NpcMovementConfig cfg,
@@ -61,7 +55,7 @@ namespace Medieval.NpcMovement
                 mstate.EffectiveMoveSpeed = cfg.MoveSpeed * cfg.MoveSpeedScale *
                                             NpcMath.WaterSpeedMultiplier(selfPos.y);
 
-                if (mstate.RangedMovementLock != 0 || mstate.MeleeEngageMovementLock != 0)
+                if (mstate.RangedMovementLock != 0)
                 {
                     mstate.CurrentHorizontalVelocity = float3.zero;
                     mstate.HasSmoothTarget = 0;
@@ -136,11 +130,7 @@ namespace Medieval.NpcMovement
                     if (math.lengthsq(mstate.ObstacleDeflectDir) > 1e-4f)
                         desiredDir = math.normalizesafe(desiredDir * 0.35f + mstate.ObstacleDeflectDir * 0.65f, desiredDir);
                     float3 desired = desiredDir * mstate.EffectiveMoveSpeed;
-                    float sepScale = 1f;
-                    if (seek.HasOverride != 0 && Profiles.HasComponent(entity) &&
-                        Profiles[entity].WeaponClass == NpcWeaponClass.Melee)
-                        sepScale = 0.72f;
-                    desired += mstate.SeparationAccum * sepScale;
+                    desired += mstate.SeparationAccum;
                     float maxHoriz = mstate.EffectiveMoveSpeed;
                     if (math.lengthsq(desired) > maxHoriz * maxHoriz)
                         desired = math.normalize(desired) * maxHoriz;
@@ -149,20 +139,7 @@ namespace Medieval.NpcMovement
                     velocity = NpcMath.MoveTowards(velocity, desired, maxDelta);
                 }
                 else
-                {
-                    bool meleeRingHold = seek.HasOverride != 0 && Profiles.HasComponent(entity) &&
-                        Profiles[entity].WeaponClass == NpcWeaponClass.Melee;
-                    if (meleeRingHold && math.lengthsq(mstate.SeparationAccum) > 1e-8f)
-                    {
-                        float3 sepDesired = mstate.SeparationAccum * 0.82f;
-                        float maxSepSpeed = mstate.EffectiveMoveSpeed * 0.48f;
-                        if (math.lengthsq(sepDesired) > maxSepSpeed * maxSepSpeed)
-                            sepDesired = math.normalize(sepDesired) * maxSepSpeed;
-                        velocity = NpcMath.MoveTowards(velocity, sepDesired, cfg.Acceleration * DeltaTime);
-                    }
-                    else
-                        velocity = NpcMath.MoveTowards(velocity, float3.zero, cfg.Acceleration * DeltaTime);
-                }
+                    velocity = NpcMath.MoveTowards(velocity, float3.zero, cfg.Acceleration * DeltaTime);
 
                 mstate.CurrentHorizontalVelocity = velocity;
             }

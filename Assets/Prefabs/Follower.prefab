@@ -211,6 +211,19 @@ MonoBehaviour:
   ObstacleProbeDistance: 1.25
   RepathInterval: 0.35
   RepathGoalShiftDistance: 2
+  CivilianNoCombatSeek: 0
+  BakeFactionId: -1
+  CombatSeekAggroRadius: 50
+  CombatSeekCombatRange: 20
+  CombatSeekRangedStandoffHoldDistance: 0
+  CombatSeekEyeHeight: 1.5
+  CombatSeekTargetAimHeight: 1
+  CombatSeekObstacleLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  CombatSeekMaxDistanceFromLeader: 0
+  FollowerTeleportBackDistance: 80
+  FollowerTeleportBackTargetDistance: 50
   GroundSnapEnabled: 1
   GroundRaycastStartHeight: 1.25
   GroundRaycastMaxDistance: 5

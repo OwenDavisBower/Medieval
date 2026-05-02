@@ -49,14 +49,9 @@ namespace Medieval.NpcMovement
             {
                 if (dodge.HasPending != 0 && ElapsedTime >= dodge.FireTime)
                 {
-                    if (mstate.MeleeEngageMovementLock != 0)
-                        dodge.HasPending = 0;
-                    else
-                    {
-                        ApplyDodge(ref mstate, in cfg, tf.Position, dodge.ReferencePosition);
-                        dodge.HasPending = 0;
-                        mstate.LastDodgeApplyTime = ElapsedTime;
-                    }
+                    ApplyDodge(ref mstate, in cfg, tf.Position, dodge.ReferencePosition);
+                    dodge.HasPending = 0;
+                    mstate.LastDodgeApplyTime = ElapsedTime;
                 }
 
                 float3 hvel = mstate.CurrentHorizontalVelocity;
