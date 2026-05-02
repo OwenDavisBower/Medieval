@@ -11,6 +11,7 @@
 !/[Aa]ssets/**/*.meta
 
 # Unity cache / packages
+[Aa]ssets/SceneDependencyCache/
 [Uu]ser[Ss]ettings/
 [Pp]ackages/packages-lock.json
 
