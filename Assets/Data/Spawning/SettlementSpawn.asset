@@ -44,7 +44,7 @@ MonoBehaviour:
     spawnVillagersHere: 0
     applyMinus90XRotation: 0
     uniformScale: 0
-    layer: 2
+    layer: 3
   - prefab: {fileID: 2811835333203006354, guid: ceb24a79fb2f141119333ebc23df866d, type: 3}
     minCount: 1
     maxCount: 3
@@ -52,7 +52,7 @@ MonoBehaviour:
     spawnVillagersHere: 0
     applyMinus90XRotation: 0
     uniformScale: 0
-    layer: 3
+    layer: 2
   - prefab: {fileID: 2202178742673270703, guid: cfbe0fd3eca884cf7b8bf5613ce31803, type: 3}
     minCount: 1
     maxCount: 1
