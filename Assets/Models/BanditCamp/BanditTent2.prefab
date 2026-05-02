@@ -59,6 +59,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 15317ea6d4b8d4564968a547abe87e40, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1518032954220631540}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 15317ea6d4b8d4564968a547abe87e40, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4516842039015737297}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 15317ea6d4b8d4564968a547abe87e40, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4060224323044842752}
   m_SourcePrefab: {fileID: 100100000, guid: 15317ea6d4b8d4564968a547abe87e40, type: 3}
 --- !u!1 &3666824205312022667 stripped
 GameObject:
@@ -86,3 +92,29 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.15, y: 2.42, z: 1.9796538}
   m_Center: {x: 0.0049533844, y: 0.28, z: 0.9867189}
+--- !u!114 &4516842039015737297
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3666824205312022667}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3b4a5968778695a4b3c2d1e0f1a2b3c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Affiliation
+  faction: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770002, type: 2}
+--- !u!114 &4060224323044842752
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3666824205312022667}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4e5f6a7b8c901234567890abcdef012, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Building
+  maxHealth: 100

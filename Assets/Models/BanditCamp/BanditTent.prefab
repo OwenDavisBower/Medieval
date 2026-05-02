@@ -50,7 +50,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 8e6bcda7b10f6433b9e9528431fbc82f, type: 3}
       propertyPath: m_Name
-      value: BanditTent_500poly
+      value: BanditTent
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -59,6 +59,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8e6bcda7b10f6433b9e9528431fbc82f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 5865460644140183340}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8e6bcda7b10f6433b9e9528431fbc82f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -3798352027702450482}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8e6bcda7b10f6433b9e9528431fbc82f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -5729038443440789364}
   m_SourcePrefab: {fileID: 100100000, guid: 8e6bcda7b10f6433b9e9528431fbc82f, type: 3}
 --- !u!1 &925716560152060476 stripped
 GameObject:
@@ -86,3 +92,29 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 2.28, y: 2.53, z: 2.0085113}
   m_Center: {x: -0.036067367, y: -0.008636772, z: 1.0068878}
+--- !u!114 &-3798352027702450482
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 925716560152060476}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3b4a5968778695a4b3c2d1e0f1a2b3c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Affiliation
+  faction: {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770002, type: 2}
+--- !u!114 &-5729038443440789364
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 925716560152060476}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4e5f6a7b8c901234567890abcdef012, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Building
+  maxHealth: 100
