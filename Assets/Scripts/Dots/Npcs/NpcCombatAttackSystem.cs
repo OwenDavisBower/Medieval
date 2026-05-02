@@ -17,6 +17,8 @@ namespace Medieval.Npcs
     public partial class NpcCombatAttackSystem : SystemBase
     {
         static readonly FixedString64Bytes k_ShootArrow = "ShootArrow";
+        static readonly FixedString64Bytes k_SwordSlash = "SwordSlash";
+        const float k_MeleeSlashGestureSuppressSeconds = 1.5f;
 
         protected override void OnUpdate()
         {
@@ -78,7 +80,7 @@ namespace Medieval.Npcs
                     if (flatSq <= r * r)
                     {
                         var meleeState = em.GetComponentData<NpcMeleeAttackState>(entity);
-                        TryMeleeAttack(em, selfFeet, goal, combatTarget.ValueRO, in meleeCfg, ref combat,
+                        TryMeleeAttack(em, entity, selfFeet, goal, combatTarget.ValueRO, in meleeCfg, ref combat,
                             ref meleeState, unityTime);
                         em.SetComponentData(entity, meleeState);
                         continue;
@@ -188,6 +190,7 @@ namespace Medieval.Npcs
 
         static void TryMeleeAttack(
             EntityManager em,
+            Entity attackerEntity,
             float3 selfFeet,
             float3 goalFlat,
             NpcCombatTarget targetInfo,
@@ -200,6 +203,8 @@ namespace Medieval.Npcs
                 return;
 
             meleeState.NextAttackAllowedUnityTime = unityTime + meleeCfg.AttackInterval;
+            ExtendMeleeGestureSuppressLocomotion(em, attackerEntity, unityTime);
+            TryPlayAnimOnNpcRoot(em, attackerEntity, k_SwordSlash);
             if (UnityEngine.Random.value > meleeCfg.HitChance)
                 return;
 
@@ -299,7 +304,23 @@ namespace Medieval.Npcs
                 cfg.ArrowMaxLifetime, shooterRoot, cfg.ArrowHitRadius);
         }
 
+        static void ExtendMeleeGestureSuppressLocomotion(EntityManager em, Entity npcRoot, float unityTime)
+        {
+            if (!em.HasComponent<NpcMovementState>(npcRoot))
+                return;
+            float until = unityTime + k_MeleeSlashGestureSuppressSeconds;
+            var move = em.GetComponentData<NpcMovementState>(npcRoot);
+            move.ShootGestureSuppressLocomotionUntilUnityTime =
+                math.max(move.ShootGestureSuppressLocomotionUntilUnityTime, until);
+            em.SetComponentData(npcRoot, move);
+        }
+
         static void TryPlayShootAnim(EntityManager em, Entity npcRoot)
+        {
+            TryPlayAnimOnNpcRoot(em, npcRoot, k_ShootArrow);
+        }
+
+        static void TryPlayAnimOnNpcRoot(EntityManager em, Entity npcRoot, FixedString64Bytes clipName)
         {
             if (!em.Exists(npcRoot))
                 return;
@@ -309,35 +330,34 @@ namespace Medieval.Npcs
                 var buf = em.GetBuffer<LinkedEntityGroup>(npcRoot);
                 for (int i = 0; i < buf.Length; i++)
                 {
-                    Entity e = buf[i].Value;
-                    if (TryPlayShootOnEntity(em, e))
+                    if (TryPlayNamedAnimOnEntity(em, buf[i].Value, clipName))
                         return;
                 }
             }
 
-            TryPlayShootOnEntity(em, npcRoot);
+            TryPlayNamedAnimOnEntity(em, npcRoot, clipName);
         }
 
-        static bool TryPlayShootOnEntity(EntityManager em, Entity e)
+        static bool TryPlayNamedAnimOnEntity(EntityManager em, Entity e, FixedString64Bytes clipName)
         {
             if (!em.HasComponent<Animatron>(e) || !em.HasComponent<MotionRef>(e))
                 return false;
 
             MotionRef motionRef = em.GetSharedComponentManaged<MotionRef>(e);
             ref ProjectDawn.Animation.Motion motion = ref motionRef.Value.Value;
-            if (!motion.TryFindAnimationIndex(k_ShootArrow, out AnimationIndex shootIdx))
+            if (!motion.TryFindAnimationIndex(clipName, out AnimationIndex clipIdx))
                 return false;
 
             var anim = em.GetComponentData<Animatron>(e);
             if (em.HasComponent<CrossFader>(e))
             {
                 var cross = em.GetComponentData<CrossFader>(e);
-                cross.CrossFade(shootIdx);
+                cross.CrossFade(clipIdx);
                 em.SetComponentData(e, cross);
             }
             else
             {
-                anim.Play(shootIdx);
+                anim.Play(clipIdx);
                 em.SetComponentData(e, anim);
             }
 

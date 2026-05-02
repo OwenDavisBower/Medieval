@@ -959,7 +959,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 6048110813309676061, guid: 2764a2b90987c4964a29d2b382b918a5, type: 3}
       propertyPath: followerCount
-      value: 100
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 8134341599606891099, guid: 2764a2b90987c4964a29d2b382b918a5, type: 3}
       propertyPath: m_Name

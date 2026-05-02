@@ -40,6 +40,11 @@ ScriptedImporter:
     Speed: 1
     ApplyFootIK: 0
     Events: []
+  - Name: SwordSlash
+    Clip: {fileID: 7400000, guid: d457d548c70e84d5c9a35e06e8ea5ca7, type: 2}
+    Speed: 1
+    ApplyFootIK: 0
+    Events: []
   AnimationNames: 1
   Skins:
   - Enabled: 1
