@@ -273,6 +273,8 @@ MonoBehaviour:
   target: {fileID: 1459529414}
   offset: {x: 0, y: 35, z: -5}
   lookAtHeight: 1
+  pinchSensitivity: 0.025
+  scrollSensitivity: 0.35
 --- !u!114 &330585549
 MonoBehaviour:
   m_ObjectHideFlags: 0
