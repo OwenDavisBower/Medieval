@@ -87,19 +87,22 @@ namespace Medieval.Projectiles
                 var factionLookup = SystemAPI.GetComponentLookup<NpcFactionId>(true);
                 var combatLookup = SystemAPI.GetComponentLookup<NpcCharacterCombatState>(true);
                 var transformLookup = SystemAPI.GetComponentLookup<LocalTransform>(true);
+                var legacyRootLookup = SystemAPI.GetComponentLookup<ProjectileShooterLegacyRootInstanceId>(true);
+                var ownerColliderLookup = SystemAPI.GetComponentLookup<ProjectileOwnerColliderId>(true);
                 factionLookup.Update(ref state);
                 combatLookup.Update(ref state);
                 transformLookup.Update(ref state);
+                legacyRootLookup.Update(ref state);
+                ownerColliderLookup.Update(ref state);
 
                 bool hasRel = SystemAPI.TryGetSingleton(out FactionRelationshipState relState) && relState.MatrixSize > 0;
                 var relBuf = hasRel ? SystemAPI.GetSingletonBuffer<FactionRelationshipCell>() : default;
                 int relSize = hasRel ? relState.MatrixSize : 0;
 
-                foreach (var (tf, motion, hitSphere, damage, shooter, legacyRoot, owner, entity) in SystemAPI
+                foreach (var (tf, motion, hitSphere, damage, shooter, shooterFaction, entity) in SystemAPI
                              .Query<RefRO<LocalTransform>, RefRO<ProjectileMotionState>, RefRO<ProjectileHitSphere>,
-                                 RefRO<ProjectileDamage>, RefRO<ProjectileShooterRoot>,
-                                 RefRO<ProjectileShooterLegacyRootInstanceId>, RefRO<ProjectileOwnerColliderId>>()
-                             .WithAll<ProjectileTag>()
+                                 RefRO<ProjectileDamage>, RefRO<ProjectileShooterRoot>, RefRO<ProjectileShooterFactionId>>()
+                             .WithAll<ProjectileTag, ProjectileShooterLegacyRootInstanceId, ProjectileOwnerColliderId>()
                              .WithEntityAccess())
                 {
                     float3 prev = motion.ValueRO.PreviousPosition;
@@ -112,8 +115,8 @@ namespace Medieval.Projectiles
                     Vector3 dir = disp / dist;
                     float radius = math.max(0.001f, hitSphere.ValueRO.Radius);
                     Entity shooterRoot = shooter.ValueRO.Value;
-                    int legacyRootId = legacyRoot.ValueRO.Value;
-                    int ownerColliderId = owner.ValueRO.ColliderInstanceId;
+                    int legacyRootId = legacyRootLookup[entity].Value;
+                    int ownerColliderId = ownerColliderLookup[entity].ColliderInstanceId;
 
                     bool hasPhys = TryGetClosestPhysicsHit((Vector3)prev, radius, dir, dist, legacyRootId,
                         ownerColliderId, m_StaticEnvLayerMask, out RaycastHit physBestHit, out float physBestDist);
@@ -122,7 +125,7 @@ namespace Medieval.Projectiles
 
                     bool hasDots = NpcProjectileDotsNpc.TryFindClosestAlongSegment(in npcCellMap, cellSize,
                         in factionLookup, in combatLookup, in transformLookup, in relBuf, relSize, prev, cur, radius,
-                        dotsExclude, out Entity dotsVictim, out float dotsDist);
+                        dotsExclude, shooterFaction.ValueRO.Value, out Entity dotsVictim, out float dotsDist);
                     bool preferDots = hasDots && (!hasPhys || dotsDist < physBestDist - 1e-4f);
                     if (preferDots)
                     {
@@ -232,13 +235,10 @@ namespace Medieval.Projectiles
             return true;
         }
 
-        /// <summary>
-        /// Same rule as DOTS NPCs: allied factions within horizontal range do not take ranged damage when bunched.
-        /// </summary>
-        static bool ShouldSuppressDamageCloseAlliedFaction(int legacyShooterRootInstanceId, Collider victimCollider,
-            Transform victimTransform)
+        /// <summary>GameObject archers / towers: do not damage allied <see cref="IDamageableHealth"/> targets.</summary>
+        static bool ShouldSuppressAlliedProjectileDamage(int legacyShooterRootInstanceId, Collider victimCollider)
         {
-            if (legacyShooterRootInstanceId == 0 || victimCollider == null || victimTransform == null)
+            if (legacyShooterRootInstanceId == 0 || victimCollider == null)
                 return false;
 
             var shooterObj = Resources.InstanceIDToObject(legacyShooterRootInstanceId);
@@ -250,14 +250,7 @@ namespace Medieval.Projectiles
                 return false;
 
             FactionManager fm = FactionManager.Instance;
-            if (fm == null || fm.GetRelationship(shooterAff.FactionId, victimAff.FactionId) != Relationship.Allied)
-                return false;
-
-            Transform victimRoot = victimTransform.root;
-            float dx = victimRoot.position.x - shooterTr.position.x;
-            float dz = victimRoot.position.z - shooterTr.position.z;
-            float r = NpcProjectileDotsNpc.CloseGroupedAlliedRangedFriendlyFireHorizMeters;
-            return dx * dx + dz * dz <= r * r;
+            return fm != null && fm.GetRelationship(shooterAff.FactionId, victimAff.FactionId) == Relationship.Allied;
         }
 
         static bool ShouldIgnoreHit(in RaycastHit hit, int legacyShooterRootInstanceId, int ownerColliderInstanceId)
@@ -292,8 +285,7 @@ namespace Medieval.Projectiles
                     return;
                 }
 
-                if (victimMb != null && ShouldSuppressDamageCloseAlliedFaction(legacyShooterRootInstanceId,
-                        hit.collider, victimMb.transform))
+                if (victimMb != null && ShouldSuppressAlliedProjectileDamage(legacyShooterRootInstanceId, hit.collider))
                 {
                     em.DestroyEntity(entity);
                     return;
@@ -342,6 +334,7 @@ namespace Medieval.Projectiles
             if (em.HasComponent<ProjectileShooterRoot>(entity)) em.RemoveComponent<ProjectileShooterRoot>(entity);
             if (em.HasComponent<ProjectileShooterLegacyRootInstanceId>(entity))
                 em.RemoveComponent<ProjectileShooterLegacyRootInstanceId>(entity);
+            if (em.HasComponent<ProjectileShooterFactionId>(entity)) em.RemoveComponent<ProjectileShooterFactionId>(entity);
             if (em.HasComponent<ProjectileOwnerColliderId>(entity)) em.RemoveComponent<ProjectileOwnerColliderId>(entity);
             if (em.HasComponent<ProjectileTag>(entity)) em.RemoveComponent<ProjectileTag>(entity);
         }

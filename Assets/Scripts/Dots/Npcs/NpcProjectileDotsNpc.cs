@@ -11,11 +11,6 @@ namespace Medieval.Npcs
     public static class NpcProjectileDotsNpc
     {
         /// <summary>
-        /// Horizontal distance at or below which allied NPCs do not take ranged damage (clustered friendly fire).
-        /// </summary>
-        public const float CloseGroupedAlliedRangedFriendlyFireHorizMeters = 4f;
-
-        /// <summary>
         /// Uniform XZ cell size for projectile vs NPC broadphase (see <see cref="TryFindClosestAlongSegment"/>).
         /// </summary>
         public const float ProjectileNpcSpatialCellSize = 2.5f;
@@ -35,6 +30,7 @@ namespace Medieval.Npcs
             float3 cur,
             float projectileRadius,
             Entity excludeShooterRoot,
+            int projectileShooterFactionId,
             out Entity victim,
             out float closestHitDistanceFromPrev)
         {
@@ -43,6 +39,12 @@ namespace Medieval.Npcs
             float segLen = math.distance(prev, cur);
             if (segLen < 1e-6f)
                 return false;
+
+            int effShooterFaction = projectileShooterFactionId;
+            if (effShooterFaction < 0 && excludeShooterRoot != Entity.Null && factions.HasComponent(excludeShooterRoot))
+                effShooterFaction = factions[excludeShooterRoot].Value;
+
+            bool filterAllies = effShooterFaction >= 0 && relationshipMatrixSize > 0;
 
             // Expand segment AABB on XZ by NPC horizontal hit radius so feet in neighbor cells are not missed.
             float horizReach = 0.5f + projectileRadius;
@@ -55,18 +57,6 @@ namespace Medieval.Npcs
             int cmaxX = (int)math.floor(maxX / cellSize);
             int cminZ = (int)math.floor(minZ / cellSize);
             int cmaxZ = (int)math.floor(maxZ / cellSize);
-
-            bool hasShooterFaction = excludeShooterRoot != Entity.Null && factions.HasComponent(excludeShooterRoot);
-            int shooterFactionId = -1;
-            float3 shooterFoot = default;
-            if (hasShooterFaction)
-            {
-                shooterFactionId = factions[excludeShooterRoot].Value;
-                shooterFoot = transforms[excludeShooterRoot].Position;
-            }
-
-            float closeFfSq = CloseGroupedAlliedRangedFriendlyFireHorizMeters *
-                CloseGroupedAlliedRangedFriendlyFireHorizMeters;
 
             for (int cx = cminX; cx <= cmaxX; cx++)
             for (int cz = cminZ; cz <= cmaxZ; cz++)
@@ -86,19 +76,13 @@ namespace Medieval.Npcs
                         continue;
 
                     float3 foot = transforms[npcEntity].Position;
-                    if (hasShooterFaction && shooterFactionId >= 0 && factions.HasComponent(npcEntity) &&
-                        relationshipMatrixSize > 0)
+                    if (filterAllies && factions.HasComponent(npcEntity))
                     {
                         int victimFaction = factions[npcEntity].Value;
                         if (victimFaction >= 0 &&
                             FactionRelationshipBufferUtil.IsAllied(in relationshipBuf, relationshipMatrixSize,
-                                shooterFactionId, victimFaction))
-                        {
-                            float dx = foot.x - shooterFoot.x;
-                            float dz = foot.z - shooterFoot.z;
-                            if (dx * dx + dz * dz <= closeFfSq)
-                                continue;
-                        }
+                                effShooterFaction, victimFaction))
+                            continue;
                     }
 
                     float t = MinTOnSegmentInNpcVolume(prev, cur, foot, projectileRadius);

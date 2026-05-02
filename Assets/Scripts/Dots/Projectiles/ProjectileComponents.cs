@@ -38,6 +38,14 @@ namespace Medieval.Projectiles
         public int Value;
     }
 
+    /// <summary>
+    /// Shooter faction index for ECS projectile hit tests (allied targets are skipped). <c>-1</c> if unknown.
+    /// </summary>
+    public struct ProjectileShooterFactionId : IComponentData
+    {
+        public int Value;
+    }
+
     /// <summary>Unity instance ID of the shooter's collider to ignore self-hits.</summary>
     public struct ProjectileOwnerColliderId : IComponentData
     {
