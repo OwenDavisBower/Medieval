@@ -18,6 +18,8 @@ public class SettlementBuilder : MonoBehaviour
     static Transform _cachedPlayer;
 
     [SerializeField] SettlementBuildingSpawnEntry[] buildingEntries;
+    [Tooltip("Annulus per layer when not using runtime config (must cover every layer used by buildingEntries).")]
+    [SerializeField] SettlementLayerAnnulus[] structureLayers;
 
     [Header("Water")]
     [Tooltip("Structures are not placed at or below this world Y (e.g. water surface).")]
@@ -52,6 +54,8 @@ public class SettlementBuilder : MonoBehaviour
     bool _villagersSpawnedForThisInstance;
     int _settlementId = int.MinValue;
     SettlementBuildingSpawnEntry[] _runtimeBuildingEntries;
+    SettlementLayerAnnulus[] _runtimeStructureLayers;
+    bool _hasRuntimeStructureLayers;
     readonly List<Bounds> _placementBurnBounds = new List<Bounds>();
     readonly List<Transform> _villagerSpawnAnchors = new List<Transform>();
     readonly List<Vector3> _villagerSpawnPositions = new List<Vector3>();
@@ -93,7 +97,10 @@ public class SettlementBuilder : MonoBehaviour
     }
 
     /// <summary>Used when prefabs are assigned at runtime (e.g. from <see cref="SettlementSpawning"/>).</summary>
-    public void InitializeAndBuild(IReadOnlyList<SettlementBuildingSpawnEntry> buildings, ProceduralPlacementMask placementMask = null)
+    public void InitializeAndBuild(
+        IReadOnlyList<SettlementBuildingSpawnEntry> buildings,
+        ProceduralPlacementMask placementMask = null,
+        IReadOnlyList<SettlementLayerAnnulus> runtimeStructureLayers = null)
     {
         if (buildings == null || buildings.Count == 0)
             _runtimeBuildingEntries = null;
@@ -102,6 +109,19 @@ public class SettlementBuilder : MonoBehaviour
             _runtimeBuildingEntries = new SettlementBuildingSpawnEntry[buildings.Count];
             for (int i = 0; i < buildings.Count; i++)
                 _runtimeBuildingEntries[i] = buildings[i];
+        }
+
+        if (runtimeStructureLayers != null)
+        {
+            _hasRuntimeStructureLayers = true;
+            _runtimeStructureLayers = new SettlementLayerAnnulus[runtimeStructureLayers.Count];
+            for (int i = 0; i < runtimeStructureLayers.Count; i++)
+                _runtimeStructureLayers[i] = runtimeStructureLayers[i];
+        }
+        else
+        {
+            _hasRuntimeStructureLayers = false;
+            _runtimeStructureLayers = null;
         }
 
         _placementMask = placementMask;
@@ -147,7 +167,8 @@ public class SettlementBuilder : MonoBehaviour
         _villagerSpawnAnchors.Clear();
         _villagerSpawnPositions.Clear();
 
-        SettlementStructureSpawnLayout.PrecomputeLayerAnnulusBounds(entries, _layerAnnulusScratch);
+        IReadOnlyList<SettlementLayerAnnulus> layerSource = ActiveStructureLayers();
+        SettlementStructureSpawnLayout.MergeLayerAnnuliFromAuthoring(layerSource, _layerAnnulusScratch);
         SettlementStructureSpawnLayout.BuildShuffledLayerJobQueue(entries, _placementJobsScratch);
 
         for (int j = 0; j < _placementJobsScratch.Count; j++)
@@ -156,9 +177,7 @@ public class SettlementBuilder : MonoBehaviour
             if (!_layerAnnulusScratch.TryGetValue(entry.EffectiveLayer, out var band))
                 continue;
 
-            SettlementStructureSpawnLayout.GetPlacementAnnulus(entry, band.inner, band.outer, out float rMin, out float rMax);
-
-            if (!TryPlaceStructure(gen, baseH, placed, minSepSq, rMin, rMax, entry.placementRadius, out Vector3 pos))
+            if (!TryPlaceStructure(gen, baseH, placed, minSepSq, band.inner, band.outer, entry.placementRadius, out Vector3 pos))
                 continue;
 
             placed.Add(pos);
@@ -200,6 +219,9 @@ public class SettlementBuilder : MonoBehaviour
     }
 
     SettlementBuildingSpawnEntry[] ActiveBuildingEntries() => _runtimeBuildingEntries ?? buildingEntries;
+
+    IReadOnlyList<SettlementLayerAnnulus> ActiveStructureLayers() =>
+        _hasRuntimeStructureLayers ? _runtimeStructureLayers : structureLayers;
 
     static bool HasAnyPrefab(SettlementBuildingSpawnEntry[] entries)
     {

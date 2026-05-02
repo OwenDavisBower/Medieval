@@ -2,6 +2,20 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
+public struct SettlementLayerAnnulus
+{
+    [Tooltip("Matches SettlementBuildingSpawnEntry.layer.")]
+    [Min(1)]
+    public int layer;
+    [Tooltip("Minimum horizontal distance from the settlement center (XZ).")]
+    public float innerRadius;
+    [Tooltip("Maximum horizontal distance from the settlement center (XZ).")]
+    public float outerRadius;
+
+    public readonly int EffectiveLayer => layer < 1 ? 1 : layer;
+}
+
+[System.Serializable]
 public struct SettlementBuildingSpawnEntry
 {
     [Tooltip("Prefab instantiated for this building type.")]
@@ -10,10 +24,6 @@ public struct SettlementBuildingSpawnEntry
     public int minCount;
     [Min(0)]
     public int maxCount;
-    [Tooltip("Minimum horizontal distance from the settlement center (XZ).")]
-    public float radiusMin;
-    [Tooltip("Maximum horizontal distance from the settlement center (XZ).")]
-    public float radiusMax;
     [Tooltip("Disk radius checked against the procedural placement mask at each candidate site.")]
     public float placementRadius;
     [Tooltip("If true, spawns villagers near each instance (same behavior as former cabin placement).")]
@@ -39,39 +49,26 @@ public struct SettlementBuildingSpawnEntry
 /// </summary>
 public static class SettlementStructureSpawnLayout
 {
-    public static void PrecomputeLayerAnnulusBounds(
-        SettlementBuildingSpawnEntry[] entries,
+    /// <summary>Merges authored layer rings into a lookup (duplicate layer indices widen the annulus).</summary>
+    public static void MergeLayerAnnuliFromAuthoring(
+        IReadOnlyList<SettlementLayerAnnulus> source,
         Dictionary<int, (float inner, float outer)> into)
     {
         into.Clear();
-        if (entries == null || entries.Length == 0)
+        if (source == null || source.Count == 0)
             return;
 
-        for (int i = 0; i < entries.Length; i++)
+        for (int i = 0; i < source.Count; i++)
         {
-            var e = entries[i];
-            if (e.prefab == null)
-                continue;
-
-            int L = e.EffectiveLayer;
-            float a = Mathf.Min(e.radiusMin, e.radiusMax);
-            float b = Mathf.Max(e.radiusMin, e.radiusMax);
+            var s = source[i];
+            int L = s.EffectiveLayer;
+            float a = Mathf.Min(s.innerRadius, s.outerRadius);
+            float b = Mathf.Max(s.innerRadius, s.outerRadius);
 
             if (into.TryGetValue(L, out var prev))
-            {
                 into[L] = (Mathf.Min(prev.inner, a), Mathf.Max(prev.outer, b));
-            }
             else
                 into[L] = (a, b);
-        }
-
-        var layerKeys = new List<int>(into.Keys);
-        for (int k = 0; k < layerKeys.Count; k++)
-        {
-            int id = layerKeys[k];
-            var (inner, outer) = into[id];
-            if (inner > outer)
-                into[id] = (outer, inner);
         }
     }
 
@@ -117,25 +114,6 @@ public static class SettlementStructureSpawnLayout
         }
     }
 
-    /// <summary>Annulus for one placement: intersect entry radii with the layer band; if empty, use the full layer band.</summary>
-    public static void GetPlacementAnnulus(
-        SettlementBuildingSpawnEntry entry,
-        float layerInner,
-        float layerOuter,
-        out float rMin,
-        out float rMax)
-    {
-        float eLo = Mathf.Min(entry.radiusMin, entry.radiusMax);
-        float eHi = Mathf.Max(entry.radiusMin, entry.radiusMax);
-        rMin = Mathf.Max(eLo, layerInner);
-        rMax = Mathf.Min(eHi, layerOuter);
-        if (rMin > rMax)
-        {
-            rMin = Mathf.Min(layerInner, layerOuter);
-            rMax = Mathf.Max(layerInner, layerOuter);
-        }
-    }
-
     static void Shuffle(List<SettlementBuildingSpawnEntry> list)
     {
         for (int i = list.Count - 1; i > 0; i--)
@@ -152,6 +130,8 @@ public static class SettlementStructureSpawnLayout
 public class SettlementSpawnConfig : ScriptableObject
 {
     [SerializeField] SettlementBuildingSpawnEntry[] buildings;
+    [Tooltip("Horizontal annulus (XZ) from settlement center for each layer. Building entries reference layers by index.")]
+    [SerializeField] SettlementLayerAnnulus[] structureLayers;
     [Tooltip("How many settlements to try placing in each logical terrain chunk (see TerrainGenerator.chunkCount). 0 disables settlement planning.")]
     [SerializeField, Min(0)] int settlementsPerLogicalChunk = 1;
     [Tooltip("Inset from procedural terrain edges when picking settlement centers (XZ).")]
@@ -175,6 +155,7 @@ public class SettlementSpawnConfig : ScriptableObject
     [SerializeField] float pathWobbleAmplitude = 1.1f;
 
     public IReadOnlyList<SettlementBuildingSpawnEntry> Buildings => buildings;
+    public IReadOnlyList<SettlementLayerAnnulus> StructureLayers => structureLayers;
     public int SettlementsPerLogicalChunk => settlementsPerLogicalChunk;
     public float TerrainEdgeMargin => terrainEdgeMargin;
     public float MinSettlementSeparation => minSettlementSeparation;

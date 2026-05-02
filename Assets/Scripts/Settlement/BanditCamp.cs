@@ -14,8 +14,10 @@ public class BanditCamp : MonoBehaviour
     static Transform _cachedPlayer;
 
     [Header("Camp structures")]
-    [Tooltip("Prefab entries placed around the camp center (same layout fields as settlements). spawnVillagersHere is ignored.")]
+    [Tooltip("Prefab entries placed around the camp center (counts, layer, placement radius; spawnVillagersHere is ignored).")]
     [SerializeField] SettlementBuildingSpawnEntry[] campStructures;
+    [Tooltip("Annulus from camp center (XZ) for each layer used by campStructures.")]
+    [SerializeField] SettlementLayerAnnulus[] campStructureLayers;
 
     [SerializeField] float minSurfaceY = 0f;
     [SerializeField] float flatHeightTolerance = 0.75f;
@@ -148,7 +150,7 @@ public class BanditCamp : MonoBehaviour
         var layerAnnuli = new Dictionary<int, (float inner, float outer)>();
         var jobs = new List<SettlementBuildingSpawnEntry>();
 
-        SettlementStructureSpawnLayout.PrecomputeLayerAnnulusBounds(campStructures, layerAnnuli);
+        SettlementStructureSpawnLayout.MergeLayerAnnuliFromAuthoring(campStructureLayers, layerAnnuli);
         SettlementStructureSpawnLayout.BuildShuffledLayerJobQueue(campStructures, jobs);
 
         for (int j = 0; j < jobs.Count; j++)
@@ -157,9 +159,7 @@ public class BanditCamp : MonoBehaviour
             if (!layerAnnuli.TryGetValue(entry.EffectiveLayer, out var band))
                 continue;
 
-            SettlementStructureSpawnLayout.GetPlacementAnnulus(entry, band.inner, band.outer, out float rMin, out float rMax);
-
-            if (!TryPlaceStructure(gen, baseH, occupied, minSepSq, rMin, rMax, out Vector3 pos))
+            if (!TryPlaceStructure(gen, baseH, occupied, minSepSq, band.inner, band.outer, out Vector3 pos))
                 continue;
 
             occupied.Add(pos);

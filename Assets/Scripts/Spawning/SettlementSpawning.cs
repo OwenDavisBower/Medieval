@@ -86,7 +86,7 @@ public class SettlementSpawning
         try
         {
             Random.InitState(BuildRngSeed(worldSeed, planIndex));
-            builder.InitializeAndBuild(config.Buildings, placementMask);
+            builder.InitializeAndBuild(config.Buildings, placementMask, config.StructureLayers);
         }
         finally
         {
