@@ -58,14 +58,16 @@ MonoBehaviour:
   rollingHillPersistence: 0.42
   rollingHillLacunarity: 2.04
   rollingValleyFlattenExponent: 1.65
-  domainWarpStrength: 0.81
+  domainWarpStrength: 0.72
   domainWarpChainedGradients: 1
-  cliffTerraceSinAmplitude: 0.21
+  cliffTerraceSinAmplitude: 0.1
   cliffTerraceSinCycles: 4
-  cliffShelfBlend: 0.534
-  cliffShelfStepCount: 4
-  cliffShelfSteepGate: 0.643
-  cliffShelfSteepScale: 6
+  cliffShelfBlend: 0.68
+  cliffShelfStepCount: 8
+  cliffShelfSteepGate: 0.064
+  cliffShelfSteepScale: 13.5
+  cliffShelfSheerness: 0.94
+  cliffShelfMixBoost: 2.24
   chunkCount: 8
   splineSampleCount: 400
   authoringPathSplines: []

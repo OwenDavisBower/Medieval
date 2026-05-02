@@ -120,6 +120,12 @@ public sealed class TerrainGenerator : MonoBehaviour
     [Tooltip("Scales how quickly shelf blend ramps up as gradient magnitude increases.")]
     [Range(0.5f, 32f)]
     public float cliffShelfSteepScale = 6f;
+    [Tooltip("0 = wide, sloped band between shelves; 1 = nearly vertical riser (sheer cliff face).")]
+    [Range(0f, 1f)]
+    public float cliffShelfSheerness = 0f;
+    [Tooltip("Multiplies shelf blend toward the stepped shape; >1 reduces wavy noise on plateaus and cliff zones.")]
+    [Range(1f, 8f)]
+    public float cliffShelfMixBoost = 1f;
 
     /// <summary>Logical chunks along each axis for sampling the heightmap (full world is chunkCount × chunkCount cells).</summary>
     public int chunkCount = 16;
@@ -914,6 +920,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             math.clamp(cliffShelfStepCount, 2, 48),
             math.max(0f, cliffShelfSteepGate),
             math.max(0.01f, cliffShelfSteepScale),
+            math.saturate(cliffShelfSheerness),
+            math.max(1f, cliffShelfMixBoost),
             _heightmap,
             _heightmapSlope);
 
@@ -1459,6 +1467,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             int cliffShelfStepCount,
             float cliffShelfSteepGate,
             float cliffShelfSteepScale,
+            float cliffShelfSheerness,
+            float cliffShelfMixBoost,
             NativeArray<float> heightOut,
             NativeArray<float> slopeOut)
         {
@@ -1491,6 +1501,8 @@ public sealed class TerrainGenerator : MonoBehaviour
                 CliffShelfStepCount = cliffShelfStepCount,
                 CliffShelfSteepGate = cliffShelfSteepGate,
                 CliffShelfSteepScale = cliffShelfSteepScale,
+                CliffShelfSheerness = cliffShelfSheerness,
+                CliffShelfMixBoost = cliffShelfMixBoost,
                 HeightOut = heightOut
             }.Schedule(heightOut.Length, 64);
 
@@ -1533,6 +1545,8 @@ public sealed class TerrainGenerator : MonoBehaviour
             public int CliffShelfStepCount;
             public float CliffShelfSteepGate;
             public float CliffShelfSteepScale;
+            public float CliffShelfSheerness;
+            public float CliffShelfMixBoost;
             public NativeArray<float> HeightOut;
 
             public void Execute(int index)
@@ -1562,7 +1576,9 @@ public sealed class TerrainGenerator : MonoBehaviour
                     CliffShelfBlend,
                     CliffShelfStepCount,
                     CliffShelfSteepGate,
-                    CliffShelfSteepScale);
+                    CliffShelfSteepScale,
+                    CliffShelfSheerness,
+                    CliffShelfMixBoost);
                 var shaped = math.pow(math.max(n01, 1e-5f), RollingValleyExponent);
 
                 var t = (distToAny - FlatRadius) / math.max(1e-4f, FalloffDistance);
@@ -1620,7 +1636,9 @@ public sealed class TerrainGenerator : MonoBehaviour
                 float cliffShelfBlend,
                 int cliffShelfStepCount,
                 float cliffShelfSteepGate,
-                float cliffShelfSteepScale)
+                float cliffShelfSteepScale,
+                float cliffShelfSheerness,
+                float cliffShelfMixBoost)
             {
                 const float gradH = 2e-3f;
                 var world = new float2(wx, wz);
@@ -1675,9 +1693,13 @@ public sealed class TerrainGenerator : MonoBehaviour
                     var band = n01 * f;
                     var qh = math.floor(band) / f;
                     var rf = band - math.floor(band);
-                    var riser = math.smoothstep(0.12f, 0.88f, rf) / f;
+                    var s = math.saturate(cliffShelfSheerness);
+                    var edgeLo = math.lerp(0.12f, 0.465f, s);
+                    var edgeHi = math.lerp(0.88f, 0.535f, s);
+                    var riser = math.smoothstep(edgeLo, edgeHi, rf) / f;
                     var stepped = math.min(qh + riser, 1f);
-                    n01 = math.lerp(n01, stepped, cliffShelfBlend * steep);
+                    var mix = math.saturate(cliffShelfBlend * steep * cliffShelfMixBoost);
+                    n01 = math.lerp(n01, stepped, mix);
                 }
 
                 return math.saturate(n01);
