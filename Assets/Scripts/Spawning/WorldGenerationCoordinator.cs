@@ -260,11 +260,13 @@ public class WorldGenerationCoordinator : MonoBehaviour
             if (_treeIndirectRenderer != null)
                 _treeIndirectRenderer.Initialize(treeSpawn, _streamingTreesScratch);
             _treeColliderPool?.Sync(treeSpawn, _streamingTreesScratch);
+            NpcWorldTreesDotsBridge.SyncStreamingTrees(_streamingTreesScratch);
         }
         else
         {
             _treeIndirectRenderer?.Initialize(null, null);
             _treeColliderPool?.ClearAll();
+            NpcWorldTreesDotsBridge.SyncStreamingTrees(null);
         }
 
         if (banditCampSpawn != null)

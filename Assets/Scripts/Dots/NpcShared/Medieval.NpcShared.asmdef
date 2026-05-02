@@ -3,7 +3,8 @@
     "rootNamespace": "Medieval.Npcs",
     "references": [
         "Unity.Collections",
-        "Unity.Entities"
+        "Unity.Entities",
+        "Unity.Mathematics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

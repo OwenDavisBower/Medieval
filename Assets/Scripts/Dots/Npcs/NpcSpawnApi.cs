@@ -92,6 +92,17 @@ namespace Medieval.Npcs
             NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
             NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Villager);
             EnsureCombatPipelineComponents(em, e, NpcRole.Villager);
+            if (em.HasComponent<NpcResourceDropOff>(e))
+            {
+                var drop = em.GetComponentData<NpcResourceDropOff>(e);
+                if (drop.HasPosition == 0)
+                {
+                    drop.WorldPosition = pos;
+                    drop.HasPosition = 1;
+                    em.SetComponentData(e, drop);
+                }
+            }
+
             return e;
         }
 
