@@ -15,6 +15,8 @@ public class VirtualJoystick : MonoBehaviour
     [SerializeField] float maxRadiusPixels = 72f;
     [SerializeField] float backgroundDiameterPixels = 168f;
     [SerializeField] float knobDiameterPixels = 72f;
+    [SerializeField] Color backgroundColor = new Color(0.15f, 0.15f, 0.2f, 0.45f);
+    [SerializeField] Color knobColor = new Color(0.92f, 0.92f, 0.95f, 0.75f);
 
     RectTransform _canvasRect;
     RectTransform _root;
@@ -151,7 +153,7 @@ public class VirtualJoystick : MonoBehaviour
         bgGo.transform.SetParent(_root, false);
         var bg = bgGo.AddComponent<Image>();
         bg.sprite = EnsureCircleSprite();
-        bg.color = new Color(0.15f, 0.15f, 0.2f, 0.45f);
+        bg.color = backgroundColor;
         var bgRt = bgGo.GetComponent<RectTransform>();
         bgRt.anchorMin = bgRt.anchorMax = new Vector2(0.5f, 0.5f);
         bgRt.sizeDelta = new Vector2(backgroundDiameterPixels, backgroundDiameterPixels);
@@ -160,7 +162,7 @@ public class VirtualJoystick : MonoBehaviour
         knobGo.transform.SetParent(_root, false);
         var kn = knobGo.AddComponent<Image>();
         kn.sprite = EnsureCircleSprite();
-        kn.color = new Color(0.92f, 0.92f, 0.95f, 0.75f);
+        kn.color = knobColor;
         _knobRect = knobGo.GetComponent<RectTransform>();
         _knobRect.anchorMin = _knobRect.anchorMax = new Vector2(0.5f, 0.5f);
         _knobRect.sizeDelta = new Vector2(knobDiameterPixels, knobDiameterPixels);
