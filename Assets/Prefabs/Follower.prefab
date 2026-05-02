@@ -1,5 +1,52 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6850624431637639454
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4909480270121534343}
+  - component: {fileID: 2540572064769385973}
+  m_Layer: 7
+  m_Name: Attachment
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4909480270121534343
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6850624431637639454}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 8347625427447552088}
+  m_Father: {fileID: 8620116209973403166}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2540572064769385973
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6850624431637639454}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c6ae7135622a4a708190bd85a1f75fe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: NpcMovement::Medieval.NpcMovement.Attachment
+  Animatron: {fileID: 4877134191100275498}
+  JointName: RightHand
 --- !u!1 &6962663602501218049
 GameObject:
   m_ObjectHideFlags: 0
@@ -30,6 +77,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2510563502965898670}
+  - {fileID: 4909480270121534343}
   m_Father: {fileID: 6205366422389023887}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8980714304071168946
@@ -302,3 +350,118 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8202178250918679941, guid: 16cdc9c63c53145a0ad8bbec8d137cc4, type: 3}
   m_PrefabInstance: {fileID: 3241274938452678613}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &4877134191100275498 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: -1201232023479862017, guid: 16cdc9c63c53145a0ad8bbec8d137cc4, type: 3}
+  m_PrefabInstance: {fileID: 3241274938452678613}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4438f5ff992eada4b9c7c6942249e3e3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectDawn.Animatron::ProjectDawn.Animation.AnimatronAuthoring
+--- !u!1001 &8381762287055863731
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 4909480270121534343}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.903
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.236
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.246
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071067
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.7071069
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      propertyPath: m_Name
+      value: Sword50Poly
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: -5754084199372789682, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+    - {fileID: -7511558181221131132, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2761380667046451059}
+  m_SourcePrefab: {fileID: 100100000, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+--- !u!4 &8347625427447552088 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+  m_PrefabInstance: {fileID: 8381762287055863731}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &8688404335924069090 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+  m_PrefabInstance: {fileID: 8381762287055863731}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2761380667046451059
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8688404335924069090}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cbeae03ca2e979c4eaa484e0768e61ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectDawn.Animatron::ProjectDawn.Rendering.RenderMeshArrayAuthoring
+  m_Instances:
+  - Material: {fileID: 2100000, guid: bcbb4430a76bc491db15d7b184c4abf4, type: 2}
+    Mesh: {fileID: 7027636043351174211, guid: 320fb19dc88714738878b9aed1c6ab83, type: 3}
+    SubMesh: 0
+  m_Filter:
+    RenderingLayerMask: 1
+    MotionMode: 0
+    ShadowCastingMode: 1
+    ReceiveShadows: 0
+    StaticShadowCaster: 0
+  m_LightProbeUsage: 0
+  m_Bounds:
+    Center:
+      x: 0.016307674
+      y: 0.011959121
+      z: 0.48681572
+    Extents:
+      x: 0.14266449
+      y: 0.48949927
+      z: 0.49736765
