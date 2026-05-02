@@ -62,8 +62,8 @@ MonoBehaviour:
     minCount: 1
     maxCount: 1
     radiusMin: 18
-    radiusMax: 25
-    placementRadius: 3
+    radiusMax: 30
+    placementRadius: 2
     spawnVillagersHere: 0
     applyMinus90XRotation: 0
     uniformScale: 0
