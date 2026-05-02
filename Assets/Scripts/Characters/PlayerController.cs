@@ -157,6 +157,14 @@ public class PlayerController : MonoBehaviour
             }
         }
 
+        Vector2 joy = VirtualJoystick.Axes;
+        if (joy.sqrMagnitude > 0.01f)
+        {
+            h = joy.x;
+            v = joy.y;
+            return;
+        }
+
         var k = Keyboard.current;
         if (k == null)
             return;
