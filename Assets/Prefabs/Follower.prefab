@@ -82,7 +82,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4e5f678901234567890abcdef4512ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RangedCombat
-  arrowDamage: 25
+  arrowDamage: 0
   arrowMaxLifetime: 12
   arrowHitRadius: 0.08
   fireInterval: 1.15
@@ -99,13 +99,13 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8980714304071168946}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a7f3e2d1c0b9a8f7e6d5c4b3a291807f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MeleeCombat
   attackInterval: 0.42
-  meleeRange: 1.12
+  meleeRange: 0.5
   hitChance: 0.88
   damage: 14
   knockbackImpulse: 4.2

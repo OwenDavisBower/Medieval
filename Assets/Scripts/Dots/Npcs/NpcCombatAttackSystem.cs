@@ -10,8 +10,8 @@ using UnityEngine;
 namespace Medieval.Npcs
 {
     /// <summary>
-    /// Ranged attacks for DOTS NPCs using baked configs; runs after <see cref="NpcCombatSeekSystem"/>.
-    /// Melee loadouts pathfind via seek only (no DOTS melee strikes here).
+    /// Combat strikes for DOTS NPCs: ranged projectiles and melee hits vs ECS combat state, after
+    /// <see cref="NpcCombatSeekSystem"/> (seek sets standoff / <see cref="NpcMovementState.MeleeEngageMovementLock"/>).
     /// </summary>
     [UpdateInGroup(typeof(NpcCombatSeekSystemGroup))]
     [UpdateAfter(typeof(NpcCombatSeekSystem))]
@@ -62,12 +62,24 @@ namespace Medieval.Npcs
                 float dz = goal.z - selfFeet.z;
                 float flatSq = dx * dx + dz * dz;
 
+                bool wantRanged = profile.ValueRO.WeaponClass == NpcWeaponClass.Ranged ||
+                    profile.ValueRO.WeaponClass == NpcWeaponClass.Both;
+
+                if (profile.ValueRO.WeaponClass == NpcWeaponClass.Melee &&
+                    em.HasComponent<NpcMeleeCombatConfig>(entity) &&
+                    em.HasComponent<NpcMeleeAttackState>(entity))
+                {
+                    var meleeCfg = em.GetComponentData<NpcMeleeCombatConfig>(entity);
+                    var meleeState = em.GetComponentData<NpcMeleeAttackState>(entity);
+                    TryDotsNpcMeleeStrike(em, ref combat, combatTarget.ValueRO, ref meleeState, in meleeCfg, flatSq,
+                        unityTime);
+                    em.SetComponentData(entity, meleeState);
+                    continue;
+                }
+
                 bool hasRanged = em.HasComponent<NpcRangedCombatConfig>(entity);
                 if (!hasRanged)
                     continue;
-
-                bool wantRanged = profile.ValueRO.WeaponClass == NpcWeaponClass.Ranged ||
-                    profile.ValueRO.WeaponClass == NpcWeaponClass.Both;
 
                 if (!wantRanged || !em.HasComponent<NpcRangedAttackState>(entity))
                     continue;
@@ -122,6 +134,50 @@ namespace Medieval.Npcs
 
             ecb.Playback(EntityManager);
             ecb.Dispose();
+        }
+
+        static void TryDotsNpcMeleeStrike(
+            EntityManager em,
+            ref NpcCharacterCombatState attackerCombat,
+            in NpcCombatTarget combatTarget,
+            ref NpcMeleeAttackState meleeState,
+            in NpcMeleeCombatConfig meleeCfg,
+            float flatSq,
+            float unityTime)
+        {
+            float meleeR = math.max(0.25f, meleeCfg.MeleeRange);
+            if (flatSq > meleeR * meleeR)
+                return;
+
+            if (unityTime < meleeState.NextAttackAllowedUnityTime)
+                return;
+
+            meleeState.NextAttackAllowedUnityTime = unityTime + meleeCfg.AttackInterval;
+
+            if (UnityEngine.Random.value > meleeCfg.HitChance)
+                return;
+
+            Entity tgt = combatTarget.TargetNpcEntity;
+            if (tgt == Entity.Null || !em.Exists(tgt) || !em.HasComponent<NpcCharacterCombatState>(tgt))
+                return;
+
+            var victim = em.GetComponentData<NpcCharacterCombatState>(tgt);
+            if (victim.IsDead != 0 || victim.CurrentHealth <= 0f)
+                return;
+
+            float dmg = meleeCfg.Damage * attackerCombat.MeleeDamageMultiplier;
+            NpcProjectileDotsNpc.ApplyProjectileDamage(em, tgt, dmg);
+
+            victim = em.GetComponentData<NpcCharacterCombatState>(tgt);
+            if (victim.IsDead != 0)
+                return;
+
+            float stunEnd = unityTime + meleeCfg.HitMeleeStunDuration;
+            if (stunEnd > victim.AttackStunUntilUnityTime)
+            {
+                victim.AttackStunUntilUnityTime = stunEnd;
+                em.SetComponentData(tgt, victim);
+            }
         }
 
         /// <summary>

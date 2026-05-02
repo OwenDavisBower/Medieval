@@ -178,6 +178,16 @@ namespace Medieval.Npcs
                 else
                     move.RangedCombatSeparationBoost = 1;
 
+                bool meleeEngaged = false;
+                if (!useRangedHold && em.HasComponent<NpcMeleeCombatConfig>(entity))
+                {
+                    var meleeCfg = em.GetComponentData<NpcMeleeCombatConfig>(entity);
+                    float meleeR = math.max(0.25f, meleeCfg.MeleeRange);
+                    meleeEngaged = flatSq <= meleeR * meleeR;
+                }
+
+                move.MeleeEngageMovementLock = (byte)(meleeEngaged ? 1 : 0);
+
                 seek.Position = bestPos;
                 seek.SeekHoldDistance = holdDist;
                 seek.HasOverride = 1;
@@ -185,10 +195,21 @@ namespace Medieval.Npcs
                 combatTarget.TargetNpcEntity = bestHostileNpc;
                 combatTarget.HasCombatTarget = 1;
 
-                move.MeleeEngageMovementLock = 0;
-
                 bool standoff = useRangedHold && flatSq <= combatRange * combatRange;
                 if (standoff)
+                {
+                    float3 d = bestPos - selfFeet;
+                    d.y = 0f;
+                    if (math.lengthsq(d) > 1e-6f)
+                    {
+                        d = math.normalize(d);
+                        facing.FlatDirection = d;
+                        facing.HasOverride = 1;
+                    }
+                    else
+                        facing = default;
+                }
+                else if (meleeEngaged)
                 {
                     float3 d = bestPos - selfFeet;
                     d.y = 0f;
