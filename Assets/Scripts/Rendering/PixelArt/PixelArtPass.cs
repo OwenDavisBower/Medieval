@@ -1,3 +1,4 @@
+#nullable enable
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -31,7 +32,7 @@ namespace Medieval.Rendering.PixelArt
 
         class PassData
         {
-            internal Material material;
+            internal Material material = null!;
             internal TextureHandle src;
         }
 

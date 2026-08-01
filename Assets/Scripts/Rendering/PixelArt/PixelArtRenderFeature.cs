@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -9,7 +10,7 @@ namespace Medieval.Rendering.PixelArt
     [DisallowMultipleRendererFeature("Pixel Art Post-Opaque Blit")]
     public class PixelArtRenderFeature : ScriptableRendererFeature
     {
-        [SerializeField] Shader m_Shader;
+        [SerializeField] Shader? m_Shader;
         [SerializeField] [Range(8, 512)] int m_PixelWidth = 256;
         [SerializeField] [Range(8, 512)] int m_PixelHeight = 144;
 

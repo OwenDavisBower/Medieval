@@ -14,7 +14,7 @@ using UnityEditor;
 public class WorldGenerationCoordinator : MonoBehaviour
 {
     /// <summary>Fired after settlement (and other world) centers are planned for the current seed/terrain.</summary>
-    public static event System.Action? WorldContentPlanned;
+    public static event System.Action WorldContentPlanned;
     const string DefaultSettlementPath = "Assets/Data/Spawning/MainScene_SettlementSpawn.asset";
     const string DefaultTreePath = "Assets/Data/Spawning/MainScene_TreeSpawn.asset";
     const string DefaultBanditPath = "Assets/Data/Spawning/MainScene_BanditCampSpawn.asset";
