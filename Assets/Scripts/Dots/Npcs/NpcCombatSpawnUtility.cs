@@ -14,7 +14,11 @@ namespace Medieval.Npcs
             if (!em.Exists(npc) || !em.HasComponent<NpcCharacterBakedStats>(npc))
                 return;
             if (em.HasComponent<NpcCharacterCombatState>(npc))
+            {
+                if (!em.HasComponent<NpcExperience>(npc))
+                    em.AddComponentData(npc, NpcExperienceUtility.CreateStarting());
                 return;
+            }
 
             var bake = em.GetComponentData<NpcCharacterBakedStats>(npc);
             uint seed = 1u;
@@ -42,6 +46,9 @@ namespace Medieval.Npcs
                 AttackStunUntilUnityTime = 0f,
                 IsDead = 0
             });
+
+            if (!em.HasComponent<NpcExperience>(npc))
+                em.AddComponentData(npc, NpcExperienceUtility.CreateStarting());
         }
 
         /// <summary>Sets <see cref="NpcProfile.Role"/> from spawn and resolves <see cref="NpcProfile.WeaponClass"/> when <see cref="NpcWeaponClass.Unspecified"/>.</summary>

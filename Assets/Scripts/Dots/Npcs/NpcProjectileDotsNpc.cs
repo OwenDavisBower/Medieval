@@ -187,21 +187,32 @@ namespace Medieval.Npcs
             return p.y >= foot.y - 0.15f && p.y <= foot.y + 2.15f + pr;
         }
 
-        public static void ApplyProjectileDamage(EntityManager em, Entity npc, float damageAmount)
+        /// <returns>Damage actually applied to current health (0 if already dead / missing).</returns>
+        public static float ApplyProjectileDamage(EntityManager em, Entity npc, float damageAmount, out bool killed)
         {
+            killed = false;
             if (!em.Exists(npc) || !em.HasComponent<NpcCharacterCombatState>(npc))
-                return;
+                return 0f;
             var c = em.GetComponentData<NpcCharacterCombatState>(npc);
             if (c.IsDead != 0)
-                return;
+                return 0f;
+
+            float before = c.CurrentHealth;
             c.CurrentHealth -= damageAmount;
             if (c.CurrentHealth <= 0f)
             {
                 c.CurrentHealth = 0f;
                 c.IsDead = 1;
+                killed = true;
             }
 
             em.SetComponentData(npc, c);
+            return math.max(0f, before - c.CurrentHealth);
+        }
+
+        public static float ApplyProjectileDamage(EntityManager em, Entity npc, float damageAmount)
+        {
+            return ApplyProjectileDamage(em, npc, damageAmount, out _);
         }
     }
 }

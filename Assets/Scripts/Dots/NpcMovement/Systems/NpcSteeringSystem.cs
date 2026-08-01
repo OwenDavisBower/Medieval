@@ -1,3 +1,4 @@
+using Medieval.Npcs;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -30,11 +31,14 @@ namespace Medieval.NpcMovement
             float elapsed = (float)SystemAPI.Time.ElapsedTime;
             float worldTime = Time.time;
 
+            var combatLookup = SystemAPI.GetComponentLookup<NpcCharacterCombatState>(true);
+
             state.Dependency = new SteeringJob
             {
                 DeltaTime = dt,
                 ElapsedTime = elapsed,
-                WorldTime = worldTime
+                WorldTime = worldTime,
+                CombatLookup = combatLookup
             }.ScheduleParallel(state.Dependency);
         }
 
@@ -45,6 +49,8 @@ namespace Medieval.NpcMovement
             public float DeltaTime;
             public float ElapsedTime;
             public float WorldTime;
+            [ReadOnly] public ComponentLookup<NpcCharacterCombatState> CombatLookup;
+
             public void Execute(
                 in LocalTransform tf,
                 in NpcMovementConfig cfg,
@@ -56,7 +62,10 @@ namespace Medieval.NpcMovement
                 Entity entity)
             {
                 float3 selfPos = tf.Position;
-                mstate.EffectiveMoveSpeed = cfg.MoveSpeed * cfg.MoveSpeedScale *
+                float speedMult = 1f;
+                if (CombatLookup.HasComponent(entity))
+                    speedMult = math.max(0.05f, CombatLookup[entity].MovementSpeedMultiplier);
+                mstate.EffectiveMoveSpeed = cfg.MoveSpeed * cfg.MoveSpeedScale * speedMult *
                                             NpcMath.WaterSpeedMultiplier(selfPos.y);
 
                 if (mstate.RangedMovementLock != 0 || mstate.MeleeEngageMovementLock != 0 ||

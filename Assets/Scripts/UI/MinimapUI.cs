@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Top-right screen minimap baked from terrain height + splat (paths / rock) with village and player markers.
+/// Top-right screen minimap baked from terrain height + splat (paths / rock / water) with village and player markers.
 /// Follows the same runtime uGUI pattern as <see cref="VirtualJoystick"/>.
 /// Spawns itself at play mode start so scene script GUID wiring is not required.
 /// </summary>
@@ -18,6 +18,8 @@ public class MinimapUI : MonoBehaviour
     [SerializeField] float zoom = 1.5f;
     [SerializeField] float villageMarkerRadiusTexels = 3.5f;
     [SerializeField] float playerMarkerSizePixels = 12f;
+    [Tooltip("Blend to water where height is this far below TerrainGenerator.baseHeight.")]
+    [SerializeField] float waterDepthBlend = 0.35f;
     [SerializeField] Color borderColor = new Color(0.08f, 0.08f, 0.1f, 0.85f);
     [SerializeField] Color panelColor = new Color(0.05f, 0.06f, 0.07f, 0.55f);
     [SerializeField] Color grassLowColor = new Color(0.32f, 0.42f, 0.2f, 1f);
@@ -25,6 +27,7 @@ public class MinimapUI : MonoBehaviour
     [SerializeField] Color pathColor = new Color(0.56f, 0.48f, 0.32f, 1f);
     [SerializeField] Color rockColor = new Color(0.62f, 0.62f, 0.62f, 1f);
     [SerializeField] Color mountainColor = new Color(0.78f, 0.78f, 0.8f, 1f);
+    [SerializeField] Color waterColor = new Color(0.22f, 0.42f, 0.72f, 1f);
     [SerializeField] Color villageColor = new Color(0.92f, 0.72f, 0.22f, 1f);
     [SerializeField] Color playerColor = new Color(0.95f, 0.25f, 0.2f, 1f);
 
@@ -267,6 +270,14 @@ public class MinimapUI : MonoBehaviour
                     float rock = Mathf.Clamp01(splatSample.g);
                     c = Color.Lerp(c, rockColor, rock * 0.85f);
                     c = Color.Lerp(c, pathColor, path);
+
+                    // Rivers / valleys below water surface (TerrainGenerator.baseHeight).
+                    float depth = baseH - h;
+                    if (depth > 0f)
+                    {
+                        float water = Mathf.Clamp01(depth / Mathf.Max(1e-3f, waterDepthBlend));
+                        c = Color.Lerp(c, waterColor, water);
+                    }
 
                     _pixels[y * res + x] = (Color32)c;
                 }

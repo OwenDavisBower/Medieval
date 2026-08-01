@@ -74,8 +74,8 @@ namespace Medieval.Npcs
                 {
                     var meleeCfg = em.GetComponentData<NpcMeleeCombatConfig>(entity);
                     var meleeState = em.GetComponentData<NpcMeleeAttackState>(entity);
-                    TryDotsNpcMeleeStrike(em, entity, ref combat, combatTarget.ValueRO, ref meleeState, in meleeCfg,
-                        flatSq, unityTime);
+                    TryDotsNpcMeleeStrike(em, ref ecb, entity, ref combat, combatTarget.ValueRO, ref meleeState,
+                        in meleeCfg, flatSq, unityTime);
                     em.SetComponentData(entity, meleeState);
                     continue;
                 }
@@ -141,6 +141,7 @@ namespace Medieval.Npcs
 
         static void TryDotsNpcMeleeStrike(
             EntityManager em,
+            ref EntityCommandBuffer ecb,
             Entity attacker,
             ref NpcCharacterCombatState attackerCombat,
             in NpcCombatTarget combatTarget,
@@ -179,7 +180,8 @@ namespace Medieval.Npcs
                 return;
 
             float dmg = meleeCfg.Damage * attackerCombat.MeleeDamageMultiplier;
-            NpcProjectileDotsNpc.ApplyProjectileDamage(em, tgt, dmg);
+            float dealt = NpcProjectileDotsNpc.ApplyProjectileDamage(em, tgt, dmg, out bool killed);
+            NpcExperienceUtility.GrantDamageXp(em, ref ecb, attacker, dealt, killed);
 
             victim = em.GetComponentData<NpcCharacterCombatState>(tgt);
             if (victim.IsDead != 0)

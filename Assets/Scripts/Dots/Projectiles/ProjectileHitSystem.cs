@@ -32,6 +32,7 @@ namespace Medieval.Projectiles
         struct PendingHit
         {
             public Entity Entity;
+            public Entity ShooterRoot;
             public int LegacyShooterRootInstanceId;
             public int OwnerColliderInstanceId;
             public ProjectileDamage Damage;
@@ -129,7 +130,10 @@ namespace Medieval.Projectiles
                     bool preferDots = hasDots && (!hasPhys || dotsDist < physBestDist - 1e-4f);
                     if (preferDots)
                     {
-                        NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim, damage.ValueRO.Amount);
+                        float dealt = NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim,
+                            damage.ValueRO.Amount, out bool killed);
+                        if (shooterRoot != Entity.Null && shooterRoot != dotsVictim)
+                            NpcExperienceUtility.GrantDamageXp(em, ref ecb, shooterRoot, dealt, killed);
                         ecb.DestroyEntity(entity);
                         continue;
                     }
@@ -140,6 +144,7 @@ namespace Medieval.Projectiles
                     pending.Add(new PendingHit
                     {
                         Entity = entity,
+                        ShooterRoot = shooterRoot,
                         LegacyShooterRootInstanceId = legacyRootId,
                         OwnerColliderInstanceId = ownerColliderId,
                         Damage = damage.ValueRO,
@@ -166,8 +171,8 @@ namespace Medieval.Projectiles
                     continue;
                 }
 
-                ApplyHitStickOrDestroy(em, p.Entity, p.LegacyShooterRootInstanceId, p.Damage, p.Hit, p.PreviousPosition,
-                    p.CurrentPosition);
+                ApplyHitStickOrDestroy(em, p.Entity, p.ShooterRoot, p.LegacyShooterRootInstanceId, p.Damage, p.Hit,
+                    p.PreviousPosition, p.CurrentPosition);
             }
         }
 
@@ -268,6 +273,7 @@ namespace Medieval.Projectiles
         static void ApplyHitStickOrDestroy(
             EntityManager em,
             Entity entity,
+            Entity shooterRoot,
             int legacyShooterRootInstanceId,
             ProjectileDamage damage,
             RaycastHit hit,
@@ -291,7 +297,28 @@ namespace Medieval.Projectiles
                     return;
                 }
 
-                victim.TakeDamage(damage.Amount);
+                float before = victim.CurrentHealth;
+                float amount = damage.Amount;
+                float dealt = math.min(amount, math.max(0f, before));
+                bool lethal = before > 0f && before - amount <= 0f;
+
+                if (victim is Building)
+                {
+                    victim.TakeDamage(amount);
+                    if (shooterRoot != Entity.Null && dealt > 0f)
+                        NpcExperienceUtility.GrantBuildingDamageXp(em, shooterRoot, dealt, lethal);
+                }
+                else
+                {
+                    victim.TakeDamage(amount);
+                    if (shooterRoot != Entity.Null)
+                    {
+                        float after = victim.CurrentHealth;
+                        dealt = math.max(0f, before - after);
+                        NpcExperienceUtility.GrantDamageXp(em, shooterRoot, dealt, victim.IsDead);
+                    }
+                }
+
                 em.DestroyEntity(entity);
                 return;
             }
