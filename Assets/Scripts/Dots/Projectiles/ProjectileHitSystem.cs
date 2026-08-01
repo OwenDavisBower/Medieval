@@ -33,8 +33,8 @@ namespace Medieval.Projectiles
         {
             public Entity Entity;
             public Entity ShooterRoot;
-            public int LegacyShooterRootInstanceId;
-            public int OwnerColliderInstanceId;
+            public EntityId LegacyShooterRootEntityId;
+            public EntityId OwnerColliderEntityId;
             public ProjectileDamage Damage;
             public RaycastHit Hit;
             public float3 PreviousPosition;
@@ -116,8 +116,8 @@ namespace Medieval.Projectiles
                     Vector3 dir = disp / dist;
                     float radius = math.max(0.001f, hitSphere.ValueRO.Radius);
                     Entity shooterRoot = shooter.ValueRO.Value;
-                    int legacyRootId = legacyRootLookup[entity].Value;
-                    int ownerColliderId = ownerColliderLookup[entity].ColliderInstanceId;
+                    EntityId legacyRootId = legacyRootLookup[entity].Value;
+                    EntityId ownerColliderId = ownerColliderLookup[entity].ColliderEntityId;
 
                     bool hasPhys = TryGetClosestPhysicsHit((Vector3)prev, radius, dir, dist, legacyRootId,
                         ownerColliderId, m_StaticEnvLayerMask, out RaycastHit physBestHit, out float physBestDist);
@@ -145,8 +145,8 @@ namespace Medieval.Projectiles
                     {
                         Entity = entity,
                         ShooterRoot = shooterRoot,
-                        LegacyShooterRootInstanceId = legacyRootId,
-                        OwnerColliderInstanceId = ownerColliderId,
+                        LegacyShooterRootEntityId = legacyRootId,
+                        OwnerColliderEntityId = ownerColliderId,
                         Damage = damage.ValueRO,
                         Hit = physBestHit,
                         PreviousPosition = prev,
@@ -171,7 +171,7 @@ namespace Medieval.Projectiles
                     continue;
                 }
 
-                ApplyHitStickOrDestroy(em, p.Entity, p.ShooterRoot, p.LegacyShooterRootInstanceId, p.Damage, p.Hit,
+                ApplyHitStickOrDestroy(em, p.Entity, p.ShooterRoot, p.LegacyShooterRootEntityId, p.Damage, p.Hit,
                     p.PreviousPosition, p.CurrentPosition);
             }
         }
@@ -189,7 +189,7 @@ namespace Medieval.Projectiles
         /// <see cref="Physics.SphereCastAll"/> only if the buffer is full (possible truncation).
         /// </summary>
         static bool TryGetClosestPhysicsHit(Vector3 origin, float radius, Vector3 direction, float maxDistance,
-            int legacyShooterRootInstanceId, int ownerColliderInstanceId, int staticEnvironmentLayerMask,
+            EntityId legacyShooterRootEntityId, EntityId ownerColliderEntityId, int staticEnvironmentLayerMask,
             out RaycastHit bestHit, out float bestDist)
         {
             int n = Physics.SphereCastNonAlloc(origin, radius, direction, s_SphereCastHits, maxDistance,
@@ -203,17 +203,17 @@ namespace Medieval.Projectiles
             }
 
             if (n < s_SphereCastHits.Length)
-                return TryPickClosestValidHit(s_SphereCastHits, n, legacyShooterRootInstanceId, ownerColliderInstanceId,
+                return TryPickClosestValidHit(s_SphereCastHits, n, legacyShooterRootEntityId, ownerColliderEntityId,
                     out bestHit, out bestDist);
 
             RaycastHit[] all = Physics.SphereCastAll(origin, radius, direction, maxDistance, staticEnvironmentLayerMask,
                 QueryTriggerInteraction.Ignore);
-            return TryPickClosestValidHit(all, all.Length, legacyShooterRootInstanceId, ownerColliderInstanceId,
+            return TryPickClosestValidHit(all, all.Length, legacyShooterRootEntityId, ownerColliderEntityId,
                 out bestHit, out bestDist);
         }
 
-        static bool TryPickClosestValidHit(RaycastHit[] hits, int count, int legacyShooterRootInstanceId,
-            int ownerColliderInstanceId, out RaycastHit bestHit, out float bestDist)
+        static bool TryPickClosestValidHit(RaycastHit[] hits, int count, EntityId legacyShooterRootEntityId,
+            EntityId ownerColliderEntityId, out RaycastHit bestHit, out float bestDist)
         {
             bestHit = default;
             bestDist = float.MaxValue;
@@ -221,7 +221,7 @@ namespace Medieval.Projectiles
             for (int i = 0; i < count; i++)
             {
                 RaycastHit h = hits[i];
-                if (ShouldIgnoreHit(in h, legacyShooterRootInstanceId, ownerColliderInstanceId))
+                if (ShouldIgnoreHit(in h, legacyShooterRootEntityId, ownerColliderEntityId))
                     continue;
                 if (h.distance < bestDist)
                 {
@@ -241,12 +241,12 @@ namespace Medieval.Projectiles
         }
 
         /// <summary>GameObject archers / towers: do not damage allied <see cref="IDamageableHealth"/> targets.</summary>
-        static bool ShouldSuppressAlliedProjectileDamage(int legacyShooterRootInstanceId, Collider victimCollider)
+        static bool ShouldSuppressAlliedProjectileDamage(EntityId legacyShooterRootEntityId, Collider victimCollider)
         {
-            if (legacyShooterRootInstanceId == 0 || victimCollider == null)
+            if (legacyShooterRootEntityId == EntityId.None || victimCollider == null)
                 return false;
 
-            var shooterObj = Resources.InstanceIDToObject(legacyShooterRootInstanceId);
+            var shooterObj = Resources.EntityIdToObject(legacyShooterRootEntityId);
             if (shooterObj is not Transform shooterTr)
                 return false;
 
@@ -258,14 +258,14 @@ namespace Medieval.Projectiles
             return fm != null && fm.GetRelationship(shooterAff.FactionId, victimAff.FactionId) == Relationship.Allied;
         }
 
-        static bool ShouldIgnoreHit(in RaycastHit hit, int legacyShooterRootInstanceId, int ownerColliderInstanceId)
+        static bool ShouldIgnoreHit(in RaycastHit hit, EntityId legacyShooterRootEntityId, EntityId ownerColliderEntityId)
         {
             if (hit.collider == null || hit.transform == null)
                 return true;
-            if (ownerColliderInstanceId != 0 && hit.collider.GetInstanceID() == ownerColliderInstanceId)
+            if (ownerColliderEntityId != EntityId.None && hit.collider.GetEntityId() == ownerColliderEntityId)
                 return true;
-            if (legacyShooterRootInstanceId != 0 && hit.transform.root != null &&
-                hit.transform.root.GetInstanceID() == legacyShooterRootInstanceId)
+            if (legacyShooterRootEntityId != EntityId.None && hit.transform.root != null &&
+                hit.transform.root.GetEntityId() == legacyShooterRootEntityId)
                 return true;
             return false;
         }
@@ -274,7 +274,7 @@ namespace Medieval.Projectiles
             EntityManager em,
             Entity entity,
             Entity shooterRoot,
-            int legacyShooterRootInstanceId,
+            EntityId legacyShooterRootEntityId,
             ProjectileDamage damage,
             RaycastHit hit,
             float3 prevPos,
@@ -284,14 +284,14 @@ namespace Medieval.Projectiles
             if (victim != null && !victim.IsDead)
             {
                 var victimMb = victim as MonoBehaviour;
-                if (victimMb != null && legacyShooterRootInstanceId != 0 && victimMb.transform.root != null &&
-                    victimMb.transform.root.GetInstanceID() == legacyShooterRootInstanceId)
+                if (victimMb != null && legacyShooterRootEntityId != EntityId.None && victimMb.transform.root != null &&
+                    victimMb.transform.root.GetEntityId() == legacyShooterRootEntityId)
                 {
                     em.DestroyEntity(entity);
                     return;
                 }
 
-                if (victimMb != null && ShouldSuppressAlliedProjectileDamage(legacyShooterRootInstanceId, hit.collider))
+                if (victimMb != null && ShouldSuppressAlliedProjectileDamage(legacyShooterRootEntityId, hit.collider))
                 {
                     em.DestroyEntity(entity);
                     return;

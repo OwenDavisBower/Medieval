@@ -8,7 +8,7 @@ public static class TerrainSpawnUtility
     /// </summary>
     public static Vector3 GetWorldPositionOnTerrain(Vector3 worldPosition, float heightOffset = 0.05f)
     {
-        Terrain terrain = Terrain.activeTerrain != null ? Terrain.activeTerrain : Object.FindFirstObjectByType<Terrain>();
+        Terrain terrain = Terrain.activeTerrain != null ? Terrain.activeTerrain : Object.FindAnyObjectByType<Terrain>();
         if (terrain != null)
         {
             worldPosition.y = terrain.SampleHeight(worldPosition) + heightOffset;

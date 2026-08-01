@@ -1,5 +1,6 @@
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace Medieval.Projectiles
 {
@@ -30,12 +31,12 @@ namespace Medieval.Projectiles
     }
 
     /// <summary>
-    /// When <see cref="ProjectileShooterRoot"/> is <see cref="Unity.Entities.Entity.Null"/>, Unity instance ID of
+    /// When <see cref="ProjectileShooterRoot"/> is <see cref="Unity.Entities.Entity.Null"/>, Unity <see cref="EntityId"/> of
     /// <c>transform.root</c> for physics self-hit filtering (GameObject archers, towers) until those call sites pass an entity.
     /// </summary>
     public struct ProjectileShooterLegacyRootInstanceId : IComponentData
     {
-        public int Value;
+        public EntityId Value;
     }
 
     /// <summary>
@@ -46,10 +47,10 @@ namespace Medieval.Projectiles
         public int Value;
     }
 
-    /// <summary>Unity instance ID of the shooter's collider to ignore self-hits.</summary>
+    /// <summary>Unity <see cref="EntityId"/> of the shooter's collider to ignore self-hits.</summary>
     public struct ProjectileOwnerColliderId : IComponentData
     {
-        public int ColliderInstanceId;
+        public EntityId ColliderEntityId;
     }
 
     public struct ProjectileHitSphere : IComponentData
@@ -80,6 +81,6 @@ namespace Medieval.Projectiles
         public float3 PositionFlat;
         public float3 VelocityFlat;
         public Entity ShooterRoot;
-        public int LegacyShooterRootInstanceId;
+        public EntityId LegacyShooterRootEntityId;
     }
 }

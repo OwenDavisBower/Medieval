@@ -72,7 +72,7 @@ namespace Medieval.Water
 
                 _reflectionTexture = new RenderTexture(textureSize, textureSize, 16, RenderTextureFormat.ARGB32)
                 {
-                    name = $"PlanarReflection_{GetInstanceID()}",
+                    name = $"PlanarReflection_{GetEntityId()}",
                     useMipMap = false,
                     autoGenerateMips = false,
                     wrapMode = TextureWrapMode.Clamp,

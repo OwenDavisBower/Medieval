@@ -387,7 +387,7 @@ public class SettlementBuilder : MonoBehaviour
         if (_cachedPlayer != null)
             return _cachedPlayer;
 
-        var player = FindFirstObjectByType<PlayerController>();
+        var player = FindAnyObjectByType<PlayerController>();
         if (player != null)
             _cachedPlayer = player.transform;
 

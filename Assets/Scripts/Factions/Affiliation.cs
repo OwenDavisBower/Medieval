@@ -8,7 +8,7 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class Affiliation : MonoBehaviour
 {
-    static readonly Dictionary<int, Affiliation> s_colliderInstanceIdToAffiliation = new Dictionary<int, Affiliation>(256);
+    static readonly Dictionary<EntityId, Affiliation> s_colliderEntityIdToAffiliation = new Dictionary<EntityId, Affiliation>(256);
 
     [SerializeField] FactionDefinition faction;
 
@@ -55,7 +55,7 @@ public sealed class Affiliation : MonoBehaviour
             Collider c = _registeredColliders[i];
             if (c == null)
                 continue;
-            s_colliderInstanceIdToAffiliation[c.GetInstanceID()] = this;
+            s_colliderEntityIdToAffiliation[c.GetEntityId()] = this;
         }
     }
 
@@ -66,9 +66,9 @@ public sealed class Affiliation : MonoBehaviour
             Collider c = _registeredColliders[i];
             if (c == null)
                 continue;
-            int id = c.GetInstanceID();
-            if (s_colliderInstanceIdToAffiliation.TryGetValue(id, out Affiliation owner) && owner == this)
-                s_colliderInstanceIdToAffiliation.Remove(id);
+            EntityId id = c.GetEntityId();
+            if (s_colliderEntityIdToAffiliation.TryGetValue(id, out Affiliation owner) && owner == this)
+                s_colliderEntityIdToAffiliation.Remove(id);
         }
 
         _registeredColliders.Clear();
@@ -80,6 +80,6 @@ public sealed class Affiliation : MonoBehaviour
         affiliation = null;
         if (collider == null)
             return false;
-        return s_colliderInstanceIdToAffiliation.TryGetValue(collider.GetInstanceID(), out affiliation);
+        return s_colliderEntityIdToAffiliation.TryGetValue(collider.GetEntityId(), out affiliation);
     }
 }

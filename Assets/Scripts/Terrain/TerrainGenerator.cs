@@ -240,7 +240,7 @@ public sealed class TerrainGenerator : MonoBehaviour
 
     /// <summary>Uses <see cref="Instance"/> when set; otherwise finds one in the scene (e.g. before first <see cref="OnEnable"/>).</summary>
     public static TerrainGenerator? GetActiveOrFind() =>
-        Instance != null ? Instance : UnityEngine.Object.FindFirstObjectByType<TerrainGenerator>();
+        Instance != null ? Instance : UnityEngine.Object.FindAnyObjectByType<TerrainGenerator>();
 
     /// <summary>True after a successful <see cref="RunPipeline"/> run with a valid heightmap.</summary>
     public bool IsTerrainReady => _chunksBuilt && _heightmap.IsCreated;

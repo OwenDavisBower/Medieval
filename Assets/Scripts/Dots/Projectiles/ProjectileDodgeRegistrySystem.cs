@@ -51,7 +51,7 @@ namespace Medieval.Projectiles
                     PositionFlat = new float3(p.x, 0f, p.z),
                     VelocityFlat = new float3(v.x, 0f, v.z),
                     ShooterRoot = shooter.ValueRO.Value,
-                    LegacyShooterRootInstanceId = legacy.ValueRO.Value
+                    LegacyShooterRootEntityId = legacy.ValueRO.Value
                 });
             }
         }

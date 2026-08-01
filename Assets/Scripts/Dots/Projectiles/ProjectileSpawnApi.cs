@@ -54,13 +54,13 @@ namespace Medieval.Projectiles
             em.AddComponentData(e, new ProjectileLifetime { SecondsRemaining = maxLifetimeSeconds });
             em.AddComponentData(e, new ProjectileDamage { Amount = damage });
             em.AddComponentData(e, new ProjectileShooterRoot { Value = shooterCombatRoot });
-            int legacyRootId = 0;
+            EntityId legacyRootId = EntityId.None;
             if (shooterCombatRoot == Entity.Null && shooterRoot != null)
-                legacyRootId = shooterRoot.root.GetInstanceID();
+                legacyRootId = shooterRoot.root.GetEntityId();
             em.AddComponentData(e, new ProjectileShooterLegacyRootInstanceId { Value = legacyRootId });
             em.AddComponentData(e, new ProjectileShooterFactionId { Value = TryLegacyShooterFactionId(shooterRoot) });
-            int ownerColliderId = ownerCollider != null ? ownerCollider.GetInstanceID() : 0;
-            em.AddComponentData(e, new ProjectileOwnerColliderId { ColliderInstanceId = ownerColliderId });
+            EntityId ownerColliderId = ownerCollider != null ? ownerCollider.GetEntityId() : EntityId.None;
+            em.AddComponentData(e, new ProjectileOwnerColliderId { ColliderEntityId = ownerColliderId });
             em.AddComponentData(e, new ProjectileHitSphere { Radius = hitRadius });
             em.AddComponentData(e, new ProjectileMotionState { PreviousPosition = pos });
         }
@@ -102,9 +102,9 @@ namespace Medieval.Projectiles
             em.AddComponentData(e, new ProjectileLifetime { SecondsRemaining = maxLifetimeSeconds });
             em.AddComponentData(e, new ProjectileDamage { Amount = damage });
             em.AddComponentData(e, new ProjectileShooterRoot { Value = shooterNpcRoot });
-            em.AddComponentData(e, new ProjectileShooterLegacyRootInstanceId { Value = 0 });
+            em.AddComponentData(e, new ProjectileShooterLegacyRootInstanceId { Value = EntityId.None });
             em.AddComponentData(e, new ProjectileShooterFactionId { Value = TryDotsNpcRootFactionId(em, shooterNpcRoot) });
-            em.AddComponentData(e, new ProjectileOwnerColliderId { ColliderInstanceId = 0 });
+            em.AddComponentData(e, new ProjectileOwnerColliderId { ColliderEntityId = EntityId.None });
             em.AddComponentData(e, new ProjectileHitSphere { Radius = hitRadius });
             em.AddComponentData(e, new ProjectileMotionState { PreviousPosition = pos });
         }
@@ -145,9 +145,9 @@ namespace Medieval.Projectiles
             ecb.AddComponent(e, new ProjectileLifetime { SecondsRemaining = maxLifetimeSeconds });
             ecb.AddComponent(e, new ProjectileDamage { Amount = damage });
             ecb.AddComponent(e, new ProjectileShooterRoot { Value = shooterNpcRoot });
-            ecb.AddComponent(e, new ProjectileShooterLegacyRootInstanceId { Value = 0 });
+            ecb.AddComponent(e, new ProjectileShooterLegacyRootInstanceId { Value = EntityId.None });
             ecb.AddComponent(e, new ProjectileShooterFactionId { Value = TryDotsNpcRootFactionId(em, shooterNpcRoot) });
-            ecb.AddComponent(e, new ProjectileOwnerColliderId { ColliderInstanceId = 0 });
+            ecb.AddComponent(e, new ProjectileOwnerColliderId { ColliderEntityId = EntityId.None });
             ecb.AddComponent(e, new ProjectileHitSphere { Radius = hitRadius });
             ecb.AddComponent(e, new ProjectileMotionState { PreviousPosition = pos });
         }

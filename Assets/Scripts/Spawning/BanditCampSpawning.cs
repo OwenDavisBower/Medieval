@@ -82,7 +82,7 @@ public class BanditCampSpawning
 
     static List<Vector3> CollectSettlementCenters()
     {
-        var builders = Object.FindObjectsByType<SettlementBuilder>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var builders = Object.FindObjectsByType<SettlementBuilder>(FindObjectsInactive.Exclude);
         var list = new List<Vector3>(builders.Length);
         for (int i = 0; i < builders.Length; i++)
         {
@@ -95,7 +95,7 @@ public class BanditCampSpawning
 
     static void SeedExistingBanditCampPositions(List<Vector3> placedCamps)
     {
-        var existing = Object.FindObjectsByType<BanditCamp>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var existing = Object.FindObjectsByType<BanditCamp>(FindObjectsInactive.Exclude);
         for (int i = 0; i < existing.Length; i++)
             placedCamps.Add(existing[i].transform.position);
     }

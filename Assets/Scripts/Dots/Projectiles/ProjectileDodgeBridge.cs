@@ -34,7 +34,7 @@ namespace Medieval.Projectiles
                 return false;
 
             Transform selfRoot = characterRoot.root;
-            int selfLegacyId = selfRoot != null ? selfRoot.GetInstanceID() : 0;
+            EntityId selfLegacyId = selfRoot != null ? selfRoot.GetEntityId() : EntityId.None;
             Vector3 selfFlat = new Vector3(characterRoot.position.x, 0f, characterRoot.position.z);
 
             float bestAlong = float.MaxValue;
@@ -46,7 +46,7 @@ namespace Medieval.Projectiles
                 ProjectileDodgeSnapshotElement snap = buffer[i];
                 if (selfShooterRoot != Entity.Null && snap.ShooterRoot == selfShooterRoot)
                     continue;
-                if (snap.LegacyShooterRootInstanceId != 0 && snap.LegacyShooterRootInstanceId == selfLegacyId)
+                if (snap.LegacyShooterRootEntityId != EntityId.None && snap.LegacyShooterRootEntityId == selfLegacyId)
                     continue;
 
                 float3 vf = snap.VelocityFlat;
