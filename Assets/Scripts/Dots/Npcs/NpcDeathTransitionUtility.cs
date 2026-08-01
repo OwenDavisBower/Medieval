@@ -3,6 +3,7 @@ using ProjectDawn.Animation;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine;
 
 namespace Medieval.Npcs
@@ -44,7 +45,34 @@ namespace Medieval.Npcs
             if (em.HasComponent<NpcMovementTag>(npcRoot))
                 em.RemoveComponent<NpcMovementTag>(npcRoot);
 
+            TrySpawnGoldDrop(em, npcRoot);
             TryPlayDeathAnim(em, npcRoot);
+        }
+
+        static void TrySpawnGoldDrop(EntityManager em, Entity npcRoot)
+        {
+            if (!IsEnemyNpc(em, npcRoot))
+                return;
+
+            float3 pos = float3.zero;
+            if (em.HasComponent<LocalToWorld>(npcRoot))
+                pos = em.GetComponentData<LocalToWorld>(npcRoot).Position;
+            else if (em.HasComponent<LocalTransform>(npcRoot))
+                pos = em.GetComponentData<LocalTransform>(npcRoot).Position;
+            else
+                return;
+
+            GoldDrop.SpawnRandom(new Vector3(pos.x, pos.y, pos.z));
+        }
+
+        static bool IsEnemyNpc(EntityManager em, Entity npcRoot)
+        {
+            if (em.HasComponent<NpcProfile>(npcRoot) &&
+                em.GetComponentData<NpcProfile>(npcRoot).Role == NpcRole.Bandit)
+                return true;
+
+            return em.HasComponent<NpcFactionId>(npcRoot) &&
+                   em.GetComponentData<NpcFactionId>(npcRoot).Value == WellKnownFactionIds.Bandit;
         }
 
         static void TryPlayDeathAnim(EntityManager em, Entity npcRoot)
