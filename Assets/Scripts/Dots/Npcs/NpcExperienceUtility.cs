@@ -154,13 +154,13 @@ namespace Medieval.Npcs
 
         static void RequestLevelUpFx(EntityManager em, Entity npc, int levelsGained)
         {
-            byte gained = (byte)math.clamp(levelsGained, 1, 255);
+            if (levelsGained <= 0)
+                return;
             if (em.HasComponent<NpcLevelUpFx>(npc))
             {
                 var fx = em.GetComponentData<NpcLevelUpFx>(npc);
                 fx.SecondsRemaining = LevelUpFxSeconds;
                 fx.Spawned = 0;
-                fx.LevelsGained = gained;
                 em.SetComponentData(npc, fx);
                 return;
             }
@@ -168,20 +168,19 @@ namespace Medieval.Npcs
             em.AddComponentData(npc, new NpcLevelUpFx
             {
                 SecondsRemaining = LevelUpFxSeconds,
-                Spawned = 0,
-                LevelsGained = gained
+                Spawned = 0
             });
         }
 
         static void RequestLevelUpFx(EntityManager em, ref EntityCommandBuffer ecb, Entity npc, int levelsGained)
         {
-            byte gained = (byte)math.clamp(levelsGained, 1, 255);
+            if (levelsGained <= 0)
+                return;
             if (em.HasComponent<NpcLevelUpFx>(npc))
             {
                 var fx = em.GetComponentData<NpcLevelUpFx>(npc);
                 fx.SecondsRemaining = LevelUpFxSeconds;
                 fx.Spawned = 0;
-                fx.LevelsGained = gained;
                 em.SetComponentData(npc, fx);
                 return;
             }
@@ -189,8 +188,7 @@ namespace Medieval.Npcs
             ecb.AddComponent(npc, new NpcLevelUpFx
             {
                 SecondsRemaining = LevelUpFxSeconds,
-                Spawned = 0,
-                LevelsGained = gained
+                Spawned = 0
             });
         }
     }

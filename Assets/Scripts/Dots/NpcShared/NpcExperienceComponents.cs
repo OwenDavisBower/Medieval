@@ -10,13 +10,11 @@ namespace Medieval.Npcs
         public float XpToNextLevel;
     }
 
-    /// <summary>Requests short-lived overhead "Level Up!" presentation; removed when the timer expires.</summary>
+    /// <summary>Requests short-lived overhead "Level N" presentation; removed when the timer expires.</summary>
     public struct NpcLevelUpFx : IComponentData
     {
         public float SecondsRemaining;
         /// <summary>0 until a floating label has been spawned for this request.</summary>
         public byte Spawned;
-        /// <summary>How many levels were gained in the grant that created this FX.</summary>
-        public byte LevelsGained;
     }
 }

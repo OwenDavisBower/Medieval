@@ -19,7 +19,7 @@ public sealed class NpcLevelUpFloatingText : MonoBehaviour
     Transform _cam;
     static Font s_font;
 
-    public static void Spawn(Vector3 worldPosition, int levelsGained = 1)
+    public static void Spawn(Vector3 worldPosition, int level)
     {
         var go = new GameObject("LevelUpText");
         go.transform.position = worldPosition + Vector3.up * StartHeightOffset;
@@ -35,7 +35,7 @@ public sealed class NpcLevelUpFloatingText : MonoBehaviour
         var labelGo = new GameObject("Label");
         labelGo.transform.SetParent(go.transform, false);
         var label = labelGo.AddComponent<Text>();
-        label.text = levelsGained > 1 ? $"Level Up x{levelsGained}!" : "Level Up!";
+        label.text = $"Level {level}";
         label.font = BuiltinFont();
         label.fontSize = 42;
         label.fontStyle = FontStyle.Bold;
