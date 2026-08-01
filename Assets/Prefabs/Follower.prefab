@@ -79,6 +79,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: NpcMovement::Medieval.NpcMovement.Attachment
   Animatron: {fileID: 4877134191100275498}
   JointName: LeftHand
+  WeaponVisual: 3
 --- !u!1 &5126394013449044229
 GameObject:
   m_ObjectHideFlags: 0
@@ -158,6 +159,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: NpcMovement::Medieval.NpcMovement.Attachment
   Animatron: {fileID: 4877134191100275498}
   JointName: RightHand
+  WeaponVisual: 2
 --- !u!1 &6962663602501218049
 GameObject:
   m_ObjectHideFlags: 0

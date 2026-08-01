@@ -1,3 +1,4 @@
+using Medieval.Npcs;
 using ProjectDawn.Animation;
 using Unity.Entities;
 using UnityEngine;
@@ -13,6 +14,8 @@ namespace Medieval.NpcMovement
     {
         public AnimatronAuthoring Animatron;
         public string JointName = "";
+        [Tooltip("Melee or Ranged: removed at spawn when the NPC weapon class does not match.")]
+        public NpcWeaponClass WeaponVisual = NpcWeaponClass.Unspecified;
     }
 
     public struct AnimatedJointAttachment : IComponentData
@@ -44,6 +47,12 @@ namespace Medieval.NpcMovement
                 SourceArmatureEntity = anim,
                 JointIndex = jointIndex
             });
+
+            if (authoring.WeaponVisual == NpcWeaponClass.Melee ||
+                authoring.WeaponVisual == NpcWeaponClass.Ranged)
+            {
+                AddComponent(self, new NpcWeaponVisual { Class = authoring.WeaponVisual });
+            }
         }
     }
 }

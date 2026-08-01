@@ -29,6 +29,15 @@ namespace Medieval.Npcs
         public NpcWeaponClass WeaponClass;
     }
 
+    /// <summary>
+    /// Marks a hand-attachment entity as a melee or ranged weapon mesh.
+    /// Stripped at spawn when <see cref="NpcProfile.WeaponClass"/> does not match (archers keep bows only, melee keeps swords only).
+    /// </summary>
+    public struct NpcWeaponVisual : IComponentData
+    {
+        public NpcWeaponClass Class;
+    }
+
     /// <summary>Serialized stat ranges from <see cref="Character"/> for DOTS NPC prefabs.</summary>
     public struct NpcCharacterBakedStats : IComponentData
     {

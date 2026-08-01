@@ -80,6 +80,10 @@ public class BanditCamp : MonoBehaviour
         if (HasCampStructuresConfigured() && (gen == null || !gen.IsTerrainReady))
             return;
 
+        // PrefabSubScene often loads after streaming camps appear; wait before committing.
+        if (banditCount > 0 && !NpcSpawnApi.IsPrefabRegistryReady())
+            return;
+
         SpawnCampContentNow();
     }
 

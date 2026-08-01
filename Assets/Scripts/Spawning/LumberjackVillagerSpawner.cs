@@ -20,7 +20,24 @@ public class LumberjackVillagerSpawner : MonoBehaviour
 
     [SerializeField] float uniformScale = 1f;
 
-    void Start()
+    bool _spawned;
+    bool _pending;
+
+    void Start() => _pending = true;
+
+    void Update()
+    {
+        if (!_pending || _spawned)
+            return;
+        if (!NpcSpawnApi.IsPrefabRegistryReady())
+            return;
+
+        _spawned = true;
+        _pending = false;
+        SpawnNow();
+    }
+
+    void SpawnNow()
     {
         int min = math.min(minCount, maxCount);
         int max = math.max(minCount, maxCount);

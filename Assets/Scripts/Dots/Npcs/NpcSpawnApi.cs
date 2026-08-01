@@ -168,6 +168,20 @@ namespace Medieval.Npcs
             Villager = 2
         }
 
+        /// <summary>
+        /// True once <see cref="NpcPrefabRegistry"/> exists in the default world
+        /// (PrefabSubScene finished loading). Spawn APIs still need the matching prefab assigned.
+        /// </summary>
+        public static bool IsPrefabRegistryReady()
+        {
+            World world = World.DefaultGameObjectInjectionWorld;
+            if (world == null || !world.IsCreated)
+                return false;
+
+            using var q = world.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<NpcPrefabRegistry>());
+            return q.CalculateEntityCount() > 0;
+        }
+
         static bool TryGetPrefab(EntityManager em, NpcPrefabKind kind, out Entity prefab)
         {
             prefab = Entity.Null;

@@ -232,6 +232,9 @@ public sealed class TerrainGenerator : MonoBehaviour
     /// <summary>Fired in play mode after chunk meshes and colliders are built (end of <see cref="RunPipeline"/>).</summary>
     public static event Action<TerrainGenerator>? TerrainGenerated;
 
+    /// <summary>Fired after the splat texture is updated (initial paint or settlement path overlays).</summary>
+    public static event Action<TerrainGenerator>? SplatmapChanged;
+
     /// <summary>Currently enabled terrain generator (last <see cref="OnEnable"/>); null if none.</summary>
     public static TerrainGenerator? Instance { get; private set; }
 
@@ -695,6 +698,8 @@ public sealed class TerrainGenerator : MonoBehaviour
 
         if (terrainMaterial != null && _splatmapTexture != null)
             terrainMaterial.SetTexture("_SplatmapTex", _splatmapTexture);
+
+        SplatmapChanged?.Invoke(this);
     }
 
     static float DistancePointSegmentXz(Vector2 p, Vector2 a, Vector2 b)
@@ -963,6 +968,8 @@ public sealed class TerrainGenerator : MonoBehaviour
         _chunkManager.AssignMaterial(terrainMaterial);
         if (terrainMaterial != null && _splatmapTexture != null)
             terrainMaterial.SetTexture("_SplatmapTex", _splatmapTexture);
+
+        SplatmapChanged?.Invoke(this);
 
         if (cameraTransform != null)
             _lastCameraPos = cameraTransform.position;

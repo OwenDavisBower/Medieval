@@ -97,7 +97,7 @@ namespace ProjectDawn.Animation
         /// This property controls the initial joint capacity at the start of the game.
         /// It’s useful to set this value to either the average or maximum expected capacity to avoid expensive reallocations during gameplay.
         /// </summary>
-        public static int ReserveTotalJoints => Instance?.m_ReserveTotalJoints ?? Activator.CreateInstance<AnimatronSettings>().m_ReserveTotalJoints;
+        public static int ReserveTotalJoints => Instance != null ? Instance.m_ReserveTotalJoints : (2 << 16);
 
         public AnimatronSettings()
         {

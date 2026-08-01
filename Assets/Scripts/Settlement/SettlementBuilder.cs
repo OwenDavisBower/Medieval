@@ -93,6 +93,10 @@ public class SettlementBuilder : MonoBehaviour
         if (delta.sqrMagnitude > PlayerSpawnDistanceSqr)
             return;
 
+        // PrefabSubScene often loads after settlements build; wait before committing.
+        if (!NpcSpawnApi.IsPrefabRegistryReady())
+            return;
+
         SpawnDeferredVillagersNow();
     }
 

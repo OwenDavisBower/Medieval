@@ -13,6 +13,8 @@ using UnityEditor;
 [DefaultExecutionOrder(-100)]
 public class WorldGenerationCoordinator : MonoBehaviour
 {
+    /// <summary>Fired after settlement (and other world) centers are planned for the current seed/terrain.</summary>
+    public static event System.Action? WorldContentPlanned;
     const string DefaultSettlementPath = "Assets/Data/Spawning/MainScene_SettlementSpawn.asset";
     const string DefaultTreePath = "Assets/Data/Spawning/MainScene_TreeSpawn.asset";
     const string DefaultBanditPath = "Assets/Data/Spawning/MainScene_BanditCampSpawn.asset";
@@ -44,6 +46,9 @@ public class WorldGenerationCoordinator : MonoBehaviour
 
     readonly List<Vector3> _plannedSettlementCenters = new List<Vector3>();
     readonly Dictionary<int, GameObject> _streamingSettlements = new Dictionary<int, GameObject>();
+
+    /// <summary>Planned village centers in world space (XZ); populated after each spawn sequence.</summary>
+    public IReadOnlyList<Vector3> PlannedSettlementCenters => _plannedSettlementCenters;
 
     readonly List<TreeInstanceData> _plannedTrees = new List<TreeInstanceData>();
     readonly List<TreeInstanceData> _streamingTreesScratch = new List<TreeInstanceData>();
@@ -427,6 +432,8 @@ public class WorldGenerationCoordinator : MonoBehaviour
 
         _lastStreamAnchor = new Vector3(float.NaN, float.NaN, float.NaN);
         _lastStreamingWindowOrigin = new Vector2Int(int.MinValue, int.MinValue);
+
+        WorldContentPlanned?.Invoke();
     }
 
     void EnsureChunkSpawnsPlannedForWindow(TerrainGenerator gen)

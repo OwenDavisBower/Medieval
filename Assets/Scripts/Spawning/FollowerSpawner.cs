@@ -11,6 +11,8 @@ public class FollowerSpawner : MonoBehaviour
     [SerializeField] float spawnRadiusMax = 4f;
 
     bool _spawned;
+    bool _pending;
+    Vector3 _leaderWorldPosition;
 
     void OnEnable()
     {
@@ -22,9 +24,20 @@ public class FollowerSpawner : MonoBehaviour
         PlayerController.PlayerStartPositionApplied -= OnPlayerStartPositionApplied;
     }
 
-    void OnPlayerStartPositionApplied(Vector3 leaderWorldPosition) => SpawnFollowers(leaderWorldPosition);
+    void Update()
+    {
+        if (_pending)
+            TrySpawnFollowers();
+    }
 
-    void SpawnFollowers(Vector3 leaderWorldPosition)
+    void OnPlayerStartPositionApplied(Vector3 leaderWorldPosition)
+    {
+        _leaderWorldPosition = leaderWorldPosition;
+        _pending = true;
+        TrySpawnFollowers();
+    }
+
+    void TrySpawnFollowers()
     {
         if (_spawned)
             return;
@@ -33,14 +46,20 @@ public class FollowerSpawner : MonoBehaviour
         if (gen == null || !gen.IsTerrainReady)
             return;
 
+        // Terrain regenerates synchronously in WorldGenerationCoordinator.Start; PrefabSubScene
+        // often has not finished loading yet. Wait for the baked registry before committing.
+        if (!NpcSpawnApi.IsPrefabRegistryReady())
+            return;
+
         _spawned = true;
+        _pending = false;
 
         for (int i = 0; i < followerCount; i++)
         {
             float angle = URandom.Range(0f, Mathf.PI * 2f);
             float rad = URandom.Range(spawnRadiusMin, spawnRadiusMax);
             Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * rad;
-            Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(leaderWorldPosition + offset);
+            Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(_leaderWorldPosition + offset);
 
             var wc = NpcSpawnApi.WeaponClassForHalfMeleeHalfRangedSplit(i, followerCount);
             var e = NpcSpawnApi.SpawnFollower(pos, quaternion.identity, uniformScale: 1f, explicitWeaponClass: wc);
@@ -53,7 +72,7 @@ public class FollowerSpawner : MonoBehaviour
 
             var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
             var em = world.EntityManager;
-            NpcMovementApi.SetAnchorPosition(em, e, new float3(leaderWorldPosition.x, leaderWorldPosition.y, leaderWorldPosition.z));
+            NpcMovementApi.SetAnchorPosition(em, e, new float3(_leaderWorldPosition.x, _leaderWorldPosition.y, _leaderWorldPosition.z));
         }
     }
 }

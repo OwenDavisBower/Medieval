@@ -1,4 +1,5 @@
 using Medieval.NpcMovement;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -64,6 +65,7 @@ namespace Medieval.Npcs
             {
                 em.AddComponentData(npc, new NpcProfile { Role = role, WeaponClass = resolved });
                 ApplyFactionForSpawnRole(em, npc, role);
+                ApplyWeaponLoadoutVisuals(em, npc);
                 return;
             }
 
@@ -78,6 +80,74 @@ namespace Medieval.Npcs
                 profile.WeaponClass = UnityEngine.Random.value < 0.5f ? NpcWeaponClass.Melee : NpcWeaponClass.Ranged;
             em.SetComponentData(npc, profile);
             ApplyFactionForSpawnRole(em, npc, role);
+            ApplyWeaponLoadoutVisuals(em, npc);
+        }
+
+        /// <summary>
+        /// Disables baked hand weapons that do not match <see cref="NpcProfile.WeaponClass"/>
+        /// (ranged NPCs keep bows only; melee keep swords only).
+        /// </summary>
+        public static void ApplyWeaponLoadoutVisuals(EntityManager em, Entity npc)
+        {
+            if (!em.Exists(npc) || !em.HasComponent<NpcProfile>(npc))
+                return;
+
+            NpcWeaponClass weaponClass = em.GetComponentData<NpcProfile>(npc).WeaponClass;
+            if (weaponClass == NpcWeaponClass.Both || weaponClass == NpcWeaponClass.Unspecified)
+                return;
+            if (!em.HasBuffer<LinkedEntityGroup>(npc))
+                return;
+
+            var group = em.GetBuffer<LinkedEntityGroup>(npc);
+            var toDisable = new NativeList<Entity>(4, Allocator.Temp);
+            for (int i = 0; i < group.Length; i++)
+            {
+                Entity e = group[i].Value;
+                if (!em.Exists(e) || !em.HasComponent<NpcWeaponVisual>(e))
+                    continue;
+
+                NpcWeaponClass visualClass = em.GetComponentData<NpcWeaponVisual>(e).Class;
+                bool keep = weaponClass switch
+                {
+                    NpcWeaponClass.Melee => visualClass == NpcWeaponClass.Melee,
+                    NpcWeaponClass.Ranged => visualClass == NpcWeaponClass.Ranged,
+                    NpcWeaponClass.None => false,
+                    _ => true
+                };
+                if (!keep)
+                    toDisable.Add(e);
+            }
+
+            for (int i = 0; i < toDisable.Length; i++)
+                DisableEntityHierarchy(em, toDisable[i]);
+            toDisable.Dispose();
+        }
+
+        static void DisableEntityHierarchy(EntityManager em, Entity root)
+        {
+            if (!em.Exists(root))
+                return;
+
+            var stack = new NativeList<Entity>(8, Allocator.Temp);
+            stack.Add(root);
+            while (stack.Length > 0)
+            {
+                Entity e = stack[stack.Length - 1];
+                stack.RemoveAt(stack.Length - 1);
+                if (!em.Exists(e))
+                    continue;
+
+                if (em.HasBuffer<Child>(e))
+                {
+                    var children = em.GetBuffer<Child>(e);
+                    for (int i = 0; i < children.Length; i++)
+                        stack.Add(children[i].Value);
+                }
+
+                em.SetEnabled(e, false);
+            }
+
+            stack.Dispose();
         }
 
         /// <summary>Aligns <see cref="NpcFactionId"/> with spawn kind (matches default faction assets).</summary>
