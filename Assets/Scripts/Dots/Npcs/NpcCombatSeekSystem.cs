@@ -68,16 +68,6 @@ namespace Medieval.Npcs
                     continue;
                 }
 
-                if (em.HasComponent<NpcCharacterBakedStats>(entity))
-                {
-                    var bake = em.GetComponentData<NpcCharacterBakedStats>(entity);
-                    if (NpcCombatStateQueries.ShouldFleeFromCombatThreat(combat, bake))
-                    {
-                        ClearSeek(ref seek, ref facing, ref move, ref combatTarget);
-                        continue;
-                    }
-                }
-
                 int selfFaction = factionLookup.HasComponent(entity) ? factionLookup[entity].Value : -1;
 
                 if (move.Group == NpcSeparationGroup.Followers && cfg.ValueRO.MaxDistanceFromLeader > 0f &&

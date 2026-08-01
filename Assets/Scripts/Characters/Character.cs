@@ -25,10 +25,6 @@ public class Character : MonoBehaviour, IDamageableHealth
     [SerializeField] float maxFocus = 15f;
     [SerializeField] float minBravery = 5f;
     [SerializeField] float maxBravery = 15f;
-    [Tooltip("Flee when health fraction is at or below this when bravery is at its minimum.")]
-    [SerializeField] float fleeHealthFractionAtLowBravery = 0.48f;
-    [Tooltip("Flee when health fraction is at or below this when bravery is at its maximum.")]
-    [SerializeField] float fleeHealthFractionAtHighBravery = 0.06f;
 
     float _current;
     float _rolledMaxHealth;
@@ -65,19 +61,6 @@ public class Character : MonoBehaviour, IDamageableHealth
 
     /// <summary>Higher focus tightens bow aim spread (values &lt; 1 reduce error).</summary>
     public float RangedAimErrorMultiplier => _rangedAimErrorMultiplier;
-
-    /// <summary>True when health is low enough that this character should stop engaging and retreat (NPC combat).</summary>
-    public bool ShouldFleeFromCombatThreat
-    {
-        get
-        {
-            if (_rolledMaxHealth <= 0.01f || IsDead)
-                return false;
-            float t = StatT(_bravery, minBravery, maxBravery);
-            float fleeBelow = Mathf.Lerp(fleeHealthFractionAtLowBravery, fleeHealthFractionAtHighBravery, t);
-            return (_current / _rolledMaxHealth) <= fleeBelow;
-        }
-    }
 
     /// <summary>False while stunned from a recent melee hit; blocks melee and ranged attacks.</summary>
     public bool CanAttack => Time.time >= _attackStunUntil;
@@ -238,9 +221,7 @@ public class Character : MonoBehaviour, IDamageableHealth
                 MinFocus = authoring.minFocus,
                 MaxFocus = authoring.maxFocus,
                 MinBravery = authoring.minBravery,
-                MaxBravery = authoring.maxBravery,
-                FleeFracLowBravery = authoring.fleeHealthFractionAtLowBravery,
-                FleeFracHighBravery = authoring.fleeHealthFractionAtHighBravery
+                MaxBravery = authoring.maxBravery
             });
         }
     }

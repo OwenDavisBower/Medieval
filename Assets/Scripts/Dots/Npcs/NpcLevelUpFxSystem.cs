@@ -17,14 +17,14 @@ namespace Medieval.Npcs
             var em = EntityManager;
             var toRemove = new NativeList<Entity>(8, Allocator.Temp);
 
-            foreach (var (fxRw, tf, entity) in SystemAPI
-                         .Query<RefRW<NpcLevelUpFx>, RefRO<LocalTransform>>()
+            foreach (var (fxRw, ltw, entity) in SystemAPI
+                         .Query<RefRW<NpcLevelUpFx>, RefRO<LocalToWorld>>()
                          .WithEntityAccess())
             {
                 ref NpcLevelUpFx fx = ref fxRw.ValueRW;
                 if (fx.Spawned == 0)
                 {
-                    var p = tf.ValueRO.Position;
+                    var p = ltw.ValueRO.Position;
                     Vector3 world = new Vector3(p.x, p.y + HeightOffset, p.z);
                     NpcLevelUpFloatingText.Spawn(world, fx.LevelsGained);
                     fx.Spawned = 1;

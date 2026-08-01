@@ -51,8 +51,6 @@ namespace Medieval.Npcs
         public float MaxFocus;
         public float MinBravery;
         public float MaxBravery;
-        public float FleeFracLowBravery;
-        public float FleeFracHighBravery;
     }
 
     /// <summary>Runtime combat state rolled at spawn for baked NPCs.</summary>

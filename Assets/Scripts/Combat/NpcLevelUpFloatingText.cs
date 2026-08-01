@@ -1,47 +1,72 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>Short-lived billboard label spawned above an NPC when they level up.</summary>
 public sealed class NpcLevelUpFloatingText : MonoBehaviour
 {
     const float DefaultLifetime = 1.65f;
     const float RiseSpeed = 0.85f;
-    const float StartScale = 0.12f;
+    const float WorldScale = 0.014f;
+    const string HealthBarLayerName = "HealthBar";
 
     float _life;
     float _age;
-    TextMesh _text;
+    Text _label;
     Color _color;
     Transform _cam;
+    static Font s_font;
 
     public static void Spawn(Vector3 worldPosition, int levelsGained = 1)
     {
         var go = new GameObject("LevelUpText");
         go.transform.position = worldPosition;
 
-        var tm = go.AddComponent<TextMesh>();
-        tm.text = levelsGained > 1 ? $"Level Up x{levelsGained}!" : "Level Up!";
-        tm.fontSize = 48;
-        tm.characterSize = 0.065f;
-        tm.anchor = TextAnchor.MiddleCenter;
-        tm.alignment = TextAlignment.Center;
-        tm.color = new Color(1f, 0.92f, 0.35f, 1f);
-        tm.fontStyle = FontStyle.Bold;
+        var canvas = go.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.sortingOrder = 250;
 
-        // Prefer built-in font so TMP is not required.
-        tm.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (tm.font == null)
-            tm.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        var rect = go.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(220f, 48f);
+        go.transform.localScale = Vector3.one * WorldScale;
+
+        var labelGo = new GameObject("Label");
+        labelGo.transform.SetParent(go.transform, false);
+        var label = labelGo.AddComponent<Text>();
+        label.text = levelsGained > 1 ? $"Level Up x{levelsGained}!" : "Level Up!";
+        label.font = BuiltinFont();
+        label.fontSize = 42;
+        label.fontStyle = FontStyle.Bold;
+        label.alignment = TextAnchor.MiddleCenter;
+        label.horizontalOverflow = HorizontalWrapMode.Overflow;
+        label.verticalOverflow = VerticalWrapMode.Overflow;
+        label.color = new Color(1f, 0.92f, 0.35f, 1f);
+        label.raycastTarget = false;
+
+        var labelRect = label.GetComponent<RectTransform>();
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
 
         var fx = go.AddComponent<NpcLevelUpFloatingText>();
-        fx._text = tm;
-        fx._color = tm.color;
+        fx._label = label;
+        fx._color = label.color;
         fx._life = DefaultLifetime;
         fx._age = 0f;
-        go.transform.localScale = Vector3.one * StartScale;
 
-        int hb = LayerMask.NameToLayer("HealthBar");
+        int hb = LayerMask.NameToLayer(HealthBarLayerName);
         if (hb >= 0)
-            go.layer = hb;
+            HierarchyLayers.SetRecursive(go.transform, hb);
+    }
+
+    static Font BuiltinFont()
+    {
+        if (s_font != null)
+            return s_font;
+        s_font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (s_font == null)
+            s_font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        return s_font;
     }
 
     void LateUpdate()
@@ -66,15 +91,15 @@ public sealed class NpcLevelUpFloatingText : MonoBehaviour
 
         float t = Mathf.Clamp01(_age / _life);
         float fade = t < 0.55f ? 1f : 1f - ((t - 0.55f) / 0.45f);
-        if (_text != null)
+        if (_label != null)
         {
             Color c = _color;
             c.a = fade;
-            _text.color = c;
+            _label.color = c;
         }
 
         float pop = 1f + 0.18f * Mathf.Sin(Mathf.Clamp01(t * 3.2f) * Mathf.PI);
-        transform.localScale = Vector3.one * (StartScale * pop);
+        transform.localScale = Vector3.one * (WorldScale * pop);
 
         if (_age >= _life)
             Destroy(gameObject);
