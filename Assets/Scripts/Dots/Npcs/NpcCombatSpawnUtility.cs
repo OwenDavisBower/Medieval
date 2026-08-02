@@ -16,6 +16,7 @@ namespace Medieval.Npcs
             {
                 if (!em.HasComponent<NpcExperience>(npc))
                     em.AddComponentData(npc, NpcExperienceUtility.CreateStarting());
+                EnsureDisplayName(em, npc);
                 return;
             }
 
@@ -48,6 +49,24 @@ namespace Medieval.Npcs
 
             if (!em.HasComponent<NpcExperience>(npc))
                 em.AddComponentData(npc, NpcExperienceUtility.CreateStarting());
+
+            if (!em.HasComponent<NpcDisplayName>(npc))
+                em.AddComponentData(npc, new NpcDisplayName { Value = NpcMedievalNameUtility.Generate(ref rng) });
+        }
+
+        static void EnsureDisplayName(EntityManager em, Entity npc)
+        {
+            if (em.HasComponent<NpcDisplayName>(npc))
+                return;
+
+            uint seed = math.max(1u, (uint)npc.Index ^ 0xC2B2AE35u);
+            if (em.HasComponent<LocalTransform>(npc))
+            {
+                float3 p = em.GetComponentData<LocalTransform>(npc).Position;
+                seed = math.max(1u, math.hash(p) ^ (uint)npc.Index ^ 0xC2B2AE35u);
+            }
+
+            em.AddComponentData(npc, new NpcDisplayName { Value = NpcMedievalNameUtility.Generate(seed) });
         }
 
         /// <summary>Sets <see cref="NpcProfile.Role"/> from spawn and resolves <see cref="NpcProfile.WeaponClass"/> when <see cref="NpcWeaponClass.Unspecified"/>.</summary>

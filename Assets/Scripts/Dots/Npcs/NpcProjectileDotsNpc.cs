@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Medieval.Npcs
 {
@@ -207,7 +208,23 @@ namespace Medieval.Npcs
             }
 
             em.SetComponentData(npc, c);
-            return math.max(0f, before - c.CurrentHealth);
+            float dealt = math.max(0f, before - c.CurrentHealth);
+            if (dealt > 0f)
+                TryEnqueueHitBlood(em, npc);
+            return dealt;
+        }
+
+        static void TryEnqueueHitBlood(EntityManager em, Entity npc)
+        {
+            float3 pos;
+            if (em.HasComponent<LocalToWorld>(npc))
+                pos = em.GetComponentData<LocalToWorld>(npc).Position;
+            else if (em.HasComponent<LocalTransform>(npc))
+                pos = em.GetComponentData<LocalTransform>(npc).Position;
+            else
+                return;
+
+            CartoonBloodHitFx.SpawnAtNpc(new Vector3(pos.x, pos.y, pos.z));
         }
 
         public static float ApplyProjectileDamage(EntityManager em, Entity npc, float damageAmount)

@@ -118,6 +118,43 @@ public sealed class PartyManager : MonoBehaviour
         return count;
     }
 
+    /// <summary>Fills <paramref name="into"/> with living party followers (excludes escort NPCs).</summary>
+    public void CopyLivingFollowers(List<Entity> into)
+    {
+        into.Clear();
+        World world = World.DefaultGameObjectInjectionWorld;
+        if (world == null || !world.IsCreated)
+            return;
+
+        EntityManager em = world.EntityManager;
+        using var q = em.CreateEntityQuery(
+            ComponentType.ReadOnly<NpcProfile>(),
+            ComponentType.ReadOnly<LocalTransform>(),
+            ComponentType.Exclude<NpcDeadTag>());
+
+        using var entities = q.ToEntityArray(Unity.Collections.Allocator.Temp);
+        for (int i = 0; i < entities.Length; i++)
+        {
+            Entity e = entities[i];
+            if (em.HasComponent<EscortNpcTag>(e))
+                continue;
+            if (em.GetComponentData<NpcProfile>(e).Role == NpcRole.Follower)
+                into.Add(e);
+        }
+    }
+
+    public static string GetDisplayName(EntityManager em, Entity npc)
+    {
+        if (em.Exists(npc) && em.HasComponent<NpcDisplayName>(npc))
+        {
+            var name = em.GetComponentData<NpcDisplayName>(npc).Value;
+            if (name.Length > 0)
+                return name.ToString();
+        }
+
+        return "Unknown";
+    }
+
     public bool CanRecruit(SettlementRecord settlement, out string failReason)
     {
         failReason = null;
@@ -191,7 +228,8 @@ public sealed class PartyManager : MonoBehaviour
         if (settlement != null && SettlementService.Instance != null)
             SettlementService.Instance.AddReputation(settlement.Id, 1);
 
-        GameplayEvents.RaiseToast($"Recruited a fighter (−{cost}g)");
+        string recruitName = GetDisplayName(world.EntityManager, e);
+        GameplayEvents.RaiseToast($"Recruited {recruitName} (−{cost}g)");
         Changed?.Invoke();
         return true;
     }
@@ -204,10 +242,11 @@ public sealed class PartyManager : MonoBehaviour
             return false;
         }
 
+        string dismissedName = GetDisplayName(em, follower);
         NpcEntityDestroyUtility.DestroyNpcWithLinked(em, follower);
         var wallet = PlayerWallet.Instance;
         wallet?.Add(DisbandRefund);
-        GameplayEvents.RaiseToast($"Dismissed a follower (+{DisbandRefund}g)");
+        GameplayEvents.RaiseToast($"Dismissed {dismissedName} (+{DisbandRefund}g)");
         Changed?.Invoke();
         return true;
     }

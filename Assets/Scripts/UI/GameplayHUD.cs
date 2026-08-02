@@ -1,13 +1,20 @@
 using System.Collections.Generic;
+using Medieval.Npcs;
+using Unity.Entities;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Gameplay HUD: resources, party, quest tracker, village action panel, toasts.
+/// Gameplay HUD: resources, party roster, quest tracker, village action panel, toasts.
 /// Complements <see cref="GoldHUD"/> / <see cref="MinimapUI"/>.
 /// </summary>
 public sealed class GameplayHUD : MonoBehaviour
 {
+    const float PartyRowHeight = 78f;
+    const float PartyPanelWidth = 340f;
+    const float PartyPanelMaxHeight = 520f;
+
     static Font s_font;
 
     Text _resourcesLabel;
@@ -16,10 +23,15 @@ public sealed class GameplayHUD : MonoBehaviour
     Text _questTitle;
     Text _questBody;
     Text _toastLabel;
+    Text _partyEmptyLabel;
     RectTransform _villagePanel;
+    RectTransform _partyRosterPanel;
+    RectTransform _partyContent;
     Text _villageTitle;
     readonly List<Button> _actionButtons = new List<Button>();
     readonly List<Text> _actionLabels = new List<Text>();
+    readonly List<PartyRowUi> _partyRows = new List<PartyRowUi>(PartyManager.MaxPartySize);
+    readonly List<Entity> _partyScratch = new List<Entity>(PartyManager.MaxPartySize);
 
     float _toastLife;
     SettlementRecord _boundSettlement;
@@ -28,6 +40,16 @@ public sealed class GameplayHUD : MonoBehaviour
     PartyManager _party;
     QuestService _quests;
     VillageInteractionController _village;
+
+    sealed class PartyRowUi
+    {
+        public GameObject Root;
+        public Text NameLevel;
+        public Image XpFill;
+        public Text XpLabel;
+        public Image HpFill;
+        public Text HpLabel;
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Bootstrap()
@@ -134,6 +156,96 @@ public sealed class GameplayHUD : MonoBehaviour
             return;
         int count = PartyManager.Instance != null ? PartyManager.Instance.CountLivingFollowers() : 0;
         _partyLabel.text = $"Party {count}/{PartyManager.MaxPartySize}";
+
+        if (_partyRosterPanel == null || !_partyRosterPanel.gameObject.activeSelf)
+            return;
+
+        RefreshPartyRoster(count);
+    }
+
+    void RefreshPartyRoster(int count)
+    {
+        if (_partyEmptyLabel != null)
+            _partyEmptyLabel.gameObject.SetActive(count == 0);
+
+        if (PartyManager.Instance == null)
+        {
+            for (int i = 0; i < _partyRows.Count; i++)
+                _partyRows[i].Root.SetActive(false);
+            return;
+        }
+
+        PartyManager.Instance.CopyLivingFollowers(_partyScratch);
+        World world = World.DefaultGameObjectInjectionWorld;
+        if (world == null || !world.IsCreated)
+            return;
+
+        EntityManager em = world.EntityManager;
+        EnsurePartyRowCount(_partyScratch.Count);
+
+        float contentHeight = Mathf.Max(40f, _partyScratch.Count * PartyRowHeight + 8f);
+        if (_partyContent != null)
+            _partyContent.sizeDelta = new Vector2(0f, contentHeight);
+
+        for (int i = 0; i < _partyRows.Count; i++)
+        {
+            PartyRowUi row = _partyRows[i];
+            if (i >= _partyScratch.Count)
+            {
+                row.Root.SetActive(false);
+                continue;
+            }
+
+            row.Root.SetActive(true);
+            Entity e = _partyScratch[i];
+            string name = PartyManager.GetDisplayName(em, e);
+            int level = 1;
+            float xpFill = 0f;
+            float xpCur = 0f;
+            float xpNext = 1f;
+            float hpFill = 1f;
+            float hpCur = 0f;
+            float hpMax = 1f;
+
+            if (em.HasComponent<NpcExperience>(e))
+            {
+                var xp = em.GetComponentData<NpcExperience>(e);
+                level = xp.Level;
+                xpCur = xp.CurrentXp;
+                xpNext = Mathf.Max(0.01f, xp.XpToNextLevel);
+                xpFill = Mathf.Clamp01(xp.CurrentXp / xpNext);
+            }
+
+            if (em.HasComponent<NpcCharacterCombatState>(e))
+            {
+                var combat = em.GetComponentData<NpcCharacterCombatState>(e);
+                hpCur = combat.CurrentHealth;
+                hpMax = Mathf.Max(0.01f, combat.MaxHealth);
+                hpFill = Mathf.Clamp01(combat.CurrentHealth / hpMax);
+            }
+
+            row.NameLevel.text = $"{name}  ·  Lv {level}";
+            row.XpFill.fillAmount = xpFill;
+            row.XpLabel.text = $"XP  {Mathf.FloorToInt(xpCur)}/{Mathf.CeilToInt(xpNext)}";
+            row.HpFill.fillAmount = hpFill;
+            row.HpLabel.text = $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}";
+        }
+    }
+
+    void EnsurePartyRowCount(int needed)
+    {
+        while (_partyRows.Count < needed)
+            _partyRows.Add(CreatePartyRow(_partyContent, _partyRows.Count));
+    }
+
+    void TogglePartyRoster()
+    {
+        if (_partyRosterPanel == null)
+            return;
+        bool open = !_partyRosterPanel.gameObject.activeSelf;
+        _partyRosterPanel.gameObject.SetActive(open);
+        if (open)
+            RefreshParty();
     }
 
     void RefreshQuest()
@@ -263,9 +375,8 @@ public sealed class GameplayHUD : MonoBehaviour
             new Vector2(18f, -18f), new Vector2(420f, 36f), 22, TextAnchor.MiddleLeft,
             new Color(0.95f, 0.92f, 0.82f, 1f));
 
-        _partyLabel = MakeLabel(canvasRect, "Party", new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(18f, -54f), new Vector2(280f, 30f), 20, TextAnchor.MiddleLeft,
-            new Color(0.78f, 0.88f, 1f, 1f));
+        CreatePartyToggle(canvasRect);
+        BuildPartyRosterPanel(canvasRect);
 
         // Quest panel top-left under party
         var questPanel = MakePanel(canvasRect, "QuestPanel", new Vector2(0f, 1f), new Vector2(0f, 1f),
@@ -337,6 +448,199 @@ public sealed class GameplayHUD : MonoBehaviour
         RefreshResources();
         RefreshParty();
         RefreshQuest();
+    }
+
+    void CreatePartyToggle(RectTransform canvasRect)
+    {
+        var go = new GameObject("PartyToggle");
+        go.transform.SetParent(canvasRect, false);
+        var image = go.AddComponent<Image>();
+        image.color = new Color(0.12f, 0.16f, 0.22f, 0.72f);
+        var btn = go.AddComponent<Button>();
+        var colors = btn.colors;
+        colors.highlightedColor = new Color(0.22f, 0.3f, 0.4f, 0.9f);
+        colors.pressedColor = new Color(0.3f, 0.4f, 0.52f, 1f);
+        btn.colors = colors;
+        btn.onClick.AddListener(TogglePartyRoster);
+
+        var rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(18f, -54f);
+        rect.sizeDelta = new Vector2(280f, 30f);
+
+        var textGo = new GameObject("Label");
+        textGo.transform.SetParent(go.transform, false);
+        _partyLabel = textGo.AddComponent<Text>();
+        _partyLabel.font = BuiltinFont();
+        _partyLabel.fontSize = 20;
+        _partyLabel.fontStyle = FontStyle.Bold;
+        _partyLabel.alignment = TextAnchor.MiddleLeft;
+        _partyLabel.color = new Color(0.78f, 0.88f, 1f, 1f);
+        _partyLabel.raycastTarget = false;
+        _partyLabel.text = "Party 0/14";
+        var tr = _partyLabel.GetComponent<RectTransform>();
+        StretchFull(tr);
+        tr.offsetMin = new Vector2(10f, 0f);
+        tr.offsetMax = new Vector2(-10f, 0f);
+    }
+
+    void BuildPartyRosterPanel(RectTransform canvasRect)
+    {
+        _partyRosterPanel = MakePanel(canvasRect, "PartyRosterPanel", new Vector2(0f, 1f), new Vector2(0f, 1f),
+            new Vector2(18f, -90f), new Vector2(PartyPanelWidth, PartyPanelMaxHeight),
+            new Color(0.04f, 0.05f, 0.07f, 0.88f));
+        _partyRosterPanel.gameObject.SetActive(false);
+
+        var title = MakeLabel(_partyRosterPanel, "Title", new Vector2(0f, 1f), new Vector2(1f, 1f),
+            Vector2.zero, new Vector2(0f, 34f), 20, TextAnchor.MiddleLeft,
+            new Color(0.85f, 0.92f, 1f, 1f));
+        title.text = "Party Members";
+        var titleRect = title.GetComponent<RectTransform>();
+        titleRect.offsetMin = new Vector2(12f, -38f);
+        titleRect.offsetMax = new Vector2(-48f, -6f);
+
+        var closeBtn = CreateTextButton(_partyRosterPanel, "CloseBtn", "✕",
+            new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-8f, -6f), new Vector2(34f, 28f),
+            TogglePartyRoster);
+        var closeRect = closeBtn.GetComponent<RectTransform>();
+        closeRect.pivot = new Vector2(1f, 1f);
+        closeRect.anchorMin = new Vector2(1f, 1f);
+        closeRect.anchorMax = new Vector2(1f, 1f);
+        closeRect.anchoredPosition = new Vector2(-8f, -6f);
+        closeRect.sizeDelta = new Vector2(34f, 28f);
+        var closeLabel = closeBtn.GetComponentInChildren<Text>();
+        closeLabel.alignment = TextAnchor.MiddleCenter;
+        closeLabel.fontSize = 18;
+
+        var scrollGo = new GameObject("Scroll");
+        scrollGo.transform.SetParent(_partyRosterPanel, false);
+        var scrollRect = scrollGo.AddComponent<ScrollRect>();
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+        scrollRect.scrollSensitivity = 28f;
+        var scrollImage = scrollGo.AddComponent<Image>();
+        scrollImage.color = new Color(0f, 0f, 0f, 0.15f);
+        var scrollRt = scrollGo.GetComponent<RectTransform>();
+        scrollRt.anchorMin = new Vector2(0f, 0f);
+        scrollRt.anchorMax = new Vector2(1f, 1f);
+        scrollRt.offsetMin = new Vector2(8f, 8f);
+        scrollRt.offsetMax = new Vector2(-8f, -42f);
+
+        var viewportGo = new GameObject("Viewport");
+        viewportGo.transform.SetParent(scrollGo.transform, false);
+        var viewport = viewportGo.AddComponent<RectTransform>();
+        StretchFull(viewport);
+        viewportGo.AddComponent<RectMask2D>();
+        var viewportImage = viewportGo.AddComponent<Image>();
+        viewportImage.color = new Color(1f, 1f, 1f, 0.01f);
+
+        var contentGo = new GameObject("Content");
+        contentGo.transform.SetParent(viewportGo.transform, false);
+        _partyContent = contentGo.AddComponent<RectTransform>();
+        _partyContent.anchorMin = new Vector2(0f, 1f);
+        _partyContent.anchorMax = new Vector2(1f, 1f);
+        _partyContent.pivot = new Vector2(0.5f, 1f);
+        _partyContent.anchoredPosition = Vector2.zero;
+        _partyContent.sizeDelta = new Vector2(0f, 40f);
+
+        scrollRect.viewport = viewport;
+        scrollRect.content = _partyContent;
+
+        _partyEmptyLabel = MakeLabel(_partyContent, "Empty", new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(0f, -8f), new Vector2(0f, 36f), 16, TextAnchor.MiddleCenter,
+            new Color(0.7f, 0.72f, 0.75f, 1f));
+        _partyEmptyLabel.text = "No followers yet.\nRecruit at a village.";
+        _partyEmptyLabel.fontStyle = FontStyle.Normal;
+        _partyEmptyLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+        var emptyRect = _partyEmptyLabel.GetComponent<RectTransform>();
+        emptyRect.offsetMin = new Vector2(8f, -56f);
+        emptyRect.offsetMax = new Vector2(-8f, -8f);
+    }
+
+    PartyRowUi CreatePartyRow(RectTransform parent, int index)
+    {
+        float y = -index * PartyRowHeight;
+        var go = new GameObject($"Member{index}");
+        go.transform.SetParent(parent, false);
+        var bg = go.AddComponent<Image>();
+        bg.color = new Color(0.1f, 0.12f, 0.15f, 0.75f);
+        var rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = new Vector2(0f, y);
+        rect.sizeDelta = new Vector2(-8f, PartyRowHeight - 6f);
+
+        var name = MakeLabel(go.transform, "Name", new Vector2(0f, 1f), new Vector2(1f, 1f),
+            Vector2.zero, new Vector2(0f, 24f), 15, TextAnchor.MiddleLeft,
+            new Color(0.95f, 0.93f, 0.86f, 1f));
+        name.fontStyle = FontStyle.Bold;
+        var nr = name.GetComponent<RectTransform>();
+        nr.offsetMin = new Vector2(10f, -28f);
+        nr.offsetMax = new Vector2(-10f, -4f);
+
+        MakeBar(go.transform, "XpBar", new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(10f, -34f), new Vector2(-10f, -52f),
+            new Color(0.18f, 0.18f, 0.22f, 0.9f), new Color(0.35f, 0.65f, 1f, 1f),
+            out Image xpFill, out Text xpLabel);
+
+        MakeBar(go.transform, "HpBar", new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(10f, -56f), new Vector2(-10f, -74f),
+            new Color(0.18f, 0.18f, 0.22f, 0.9f), new Color(0.75f, 0.25f, 0.22f, 1f),
+            out Image hpFill, out Text hpLabel);
+
+        return new PartyRowUi
+        {
+            Root = go,
+            NameLevel = name,
+            XpFill = xpFill,
+            XpLabel = xpLabel,
+            HpFill = hpFill,
+            HpLabel = hpLabel
+        };
+    }
+
+    static void MakeBar(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax,
+        Vector2 offsetMin, Vector2 offsetMax, Color trackColor, Color fillColor,
+        out Image fill, out Text label)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var track = go.AddComponent<Image>();
+        track.color = trackColor;
+        var rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = offsetMin;
+        rect.offsetMax = offsetMax;
+
+        var fillGo = new GameObject("Fill");
+        fillGo.transform.SetParent(go.transform, false);
+        fill = fillGo.AddComponent<Image>();
+        fill.color = fillColor;
+        fill.type = Image.Type.Filled;
+        fill.fillMethod = Image.FillMethod.Horizontal;
+        fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        fill.fillAmount = 1f;
+        fill.raycastTarget = false;
+        StretchFull(fillGo.GetComponent<RectTransform>());
+
+        var labelGo = new GameObject("Label");
+        labelGo.transform.SetParent(go.transform, false);
+        label = labelGo.AddComponent<Text>();
+        label.font = BuiltinFont();
+        label.fontSize = 12;
+        label.alignment = TextAnchor.MiddleLeft;
+        label.color = new Color(0.95f, 0.95f, 0.92f, 1f);
+        label.raycastTarget = false;
+        label.text = "";
+        StretchFull(label.GetComponent<RectTransform>());
+        var lr = label.GetComponent<RectTransform>();
+        lr.offsetMin = new Vector2(6f, 0f);
+        lr.offsetMax = new Vector2(-4f, 0f);
     }
 
     void Start()
@@ -435,11 +739,11 @@ public sealed class GameplayHUD : MonoBehaviour
 
     static void EnsureEventSystem()
     {
-        if (FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() != null)
+        if (FindAnyObjectByType<EventSystem>() != null)
             return;
 
         var go = new GameObject("EventSystem");
-        go.AddComponent<UnityEngine.EventSystems.EventSystem>();
+        go.AddComponent<EventSystem>();
         var module = go.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
         module.ActivateModule();
     }

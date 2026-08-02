@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
@@ -49,11 +50,15 @@ public class VirtualJoystick : MonoBehaviour
         {
             if (touch != null && touch.primaryTouch.press.wasPressedThisFrame)
             {
+                if (IsPointerOverUi())
+                    return;
                 _usingTouch = true;
                 Begin(touch.primaryTouch.position.ReadValue());
             }
             else if (mouse != null && mouse.leftButton.wasPressedThisFrame)
             {
+                if (IsPointerOverUi())
+                    return;
                 _usingTouch = false;
                 Begin(mouse.position.ReadValue());
             }
@@ -106,6 +111,19 @@ public class VirtualJoystick : MonoBehaviour
         _active = false;
         _root.gameObject.SetActive(false);
         Axes = Vector2.zero;
+    }
+
+    static bool IsPointerOverUi()
+    {
+        var es = EventSystem.current;
+        if (es == null)
+            return false;
+
+        var touch = Touchscreen.current;
+        if (touch != null && touch.primaryTouch.press.isPressed)
+            return es.IsPointerOverGameObject(touch.primaryTouch.touchId.ReadValue());
+
+        return es.IsPointerOverGameObject();
     }
 
     static void ApplyAxes(Vector2 normalized)
