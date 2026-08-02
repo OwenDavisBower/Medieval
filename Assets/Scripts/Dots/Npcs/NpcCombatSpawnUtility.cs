@@ -16,6 +16,8 @@ namespace Medieval.Npcs
             {
                 if (!em.HasComponent<NpcExperience>(npc))
                     em.AddComponentData(npc, NpcExperienceUtility.CreateStarting());
+                if (!em.HasComponent<NpcWallet>(npc))
+                    em.AddComponentData(npc, new NpcWallet { Gold = 0 });
                 EnsureDisplayName(em, npc);
                 return;
             }
@@ -44,11 +46,16 @@ namespace Medieval.Npcs
                 RangedAimErrorMultiplier = StatMultiplier(focus, bake.MinFocus, bake.MaxFocus, 1.28f, 0.62f),
                 Bravery = bravery,
                 AttackStunUntilUnityTime = 0f,
-                IsDead = 0
+                IsDead = 0,
+                KillCreditPlayerSide = 0,
+                KillCreditKiller = Entity.Null
             });
 
             if (!em.HasComponent<NpcExperience>(npc))
                 em.AddComponentData(npc, NpcExperienceUtility.CreateStarting());
+
+            if (!em.HasComponent<NpcWallet>(npc))
+                em.AddComponentData(npc, new NpcWallet { Gold = 0 });
 
             if (!em.HasComponent<NpcDisplayName>(npc))
                 em.AddComponentData(npc, new NpcDisplayName { Value = NpcMedievalNameUtility.Generate(ref rng) });
@@ -206,6 +213,10 @@ namespace Medieval.Npcs
                 em.AddComponentData(npc, new NpcFactionId { Value = id });
             else
                 em.SetComponentData(npc, new NpcFactionId { Value = id });
+
+            // Villager/soldier body meshes use clothing-mask albedo; tint from faction clothing color.
+            if (id >= 0)
+                NpcFactionClothingUtility.ApplyClothingColorForFaction(em, npc, id);
         }
 
         /// <summary>Uses combat config presence on this entity (baked root). For configs on child entities, set <see cref="NpcProfile.WeaponClass"/> in authoring.</summary>

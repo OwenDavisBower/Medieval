@@ -8,6 +8,7 @@ using Medieval.Projectiles;
 public class RangedCombat : MonoBehaviour
 {
     static readonly int ShootArrowHash = Animator.StringToHash("ShootArrow");
+    static readonly int IdleHash = Animator.StringToHash("Idle");
 
     [SerializeField] float arrowDamage = 25f;
     [SerializeField] float arrowMaxLifetime = 12f;
@@ -19,7 +20,7 @@ public class RangedCombat : MonoBehaviour
     [SerializeField] float verticalAimError = 0.35f;
     [Tooltip("Seconds after the shoot animation trigger before the arrow is spawned. Aim is recomputed at release.")]
     [SerializeField] float fireAnimationLeadSeconds = 0.12f;
-    [Tooltip("No horizontal movement from steering while drawing/releasing (approx. shoot animation length).")]
+    [Tooltip("While standing still after firing, hold position for this long (approx. shoot animation length). Move input cancels.")]
     [SerializeField] float movementLockDuration = 0.85f;
 
     Collider _ownerCollider;
@@ -31,12 +32,31 @@ public class RangedCombat : MonoBehaviour
 
     public bool IsMovementLocked => Time.time < _movementLockUntilTime;
 
-    public void CancelMovementLock() => _movementLockUntilTime = 0f;
+    public float TargetAimHeight => targetAimHeight;
+
+    /// <summary>Aborts an in-progress draw/release (no arrow), clears the movement lock, and leaves the shoot clip.</summary>
+    public void CancelShot()
+    {
+        if (!_shotInProgress && !IsMovementLocked)
+            return;
+
+        StopAllCoroutines();
+        _shotInProgress = false;
+        _movementLockUntilTime = 0f;
+
+        _animator ??= AnimatorUtil.ResolvePreferredAnimator(this);
+        if (_animator == null)
+            return;
+
+        _animator.ResetTrigger(ShootArrowHash);
+        _animator.CrossFade(IdleHash, 0.1f, 0);
+    }
 
     void OnDisable()
     {
         StopAllCoroutines();
         _shotInProgress = false;
+        _movementLockUntilTime = 0f;
     }
 
     void Awake()
@@ -54,6 +74,15 @@ public class RangedCombat : MonoBehaviour
         var targetHealth = target.GetComponentInParent<IDamageableHealth>();
         if (targetHealth != null && targetHealth.IsDead)
             return false;
+
+        return BeginShot(target, target.position);
+    }
+
+    /// <summary>Fire at a world feet position (e.g. DOTS NPC with no GameObject transform).</summary>
+    public bool TryFireAtWorldFeet(Vector3 feetWorld) => BeginShot(null, feetWorld);
+
+    bool BeginShot(Transform liveTarget, Vector3 aimFeetFallback)
+    {
         if (_selfCharacter != null && !_selfCharacter.CanAttack)
             return false;
         if (Time.time < _nextFireTime)
@@ -77,33 +106,44 @@ public class RangedCombat : MonoBehaviour
 
         if (lead <= 0f)
         {
-            TrySpawnArrow(target, aimScale);
+            TrySpawnArrow(ResolveAimFeet(liveTarget, aimFeetFallback), aimScale);
             _shotInProgress = false;
         }
         else
-            StartCoroutine(SpawnArrowAfterLead(target, aimScale, lead));
+            StartCoroutine(SpawnArrowAfterLead(liveTarget, aimFeetFallback, aimScale, lead));
 
         return true;
     }
 
-    IEnumerator SpawnArrowAfterLead(Transform target, float aimScale, float lead)
+    IEnumerator SpawnArrowAfterLead(Transform liveTarget, Vector3 aimFeetFallback, float aimScale, float lead)
     {
         yield return new WaitForSeconds(lead);
-        if (target != null && (_selfCharacter == null || _selfCharacter.CanAttack))
+        if (_selfCharacter == null || _selfCharacter.CanAttack)
         {
-            var h = target.GetComponentInParent<IDamageableHealth>();
-            if (h == null || !h.IsDead)
-                TrySpawnArrow(target, aimScale);
+            if (liveTarget != null)
+            {
+                var h = liveTarget.GetComponentInParent<IDamageableHealth>();
+                if (h != null && h.IsDead)
+                {
+                    _shotInProgress = false;
+                    yield break;
+                }
+            }
+
+            TrySpawnArrow(ResolveAimFeet(liveTarget, aimFeetFallback), aimScale);
         }
         _shotInProgress = false;
     }
 
-    void TrySpawnArrow(Transform target, float aimScale)
+    static Vector3 ResolveAimFeet(Transform liveTarget, Vector3 aimFeetFallback) =>
+        liveTarget != null ? liveTarget.position : aimFeetFallback;
+
+    void TrySpawnArrow(Vector3 aimFeetWorld, float aimScale)
     {
         Vector3 origin = transform.position + Vector3.up * launchHeight;
-        Vector3 aim = target.position + Vector3.up * targetAimHeight;
-        Vector2 xz = Random.insideUnitCircle * (horizontalAimError * aimScale);
-        aim += new Vector3(xz.x, Random.Range(-verticalAimError, verticalAimError) * aimScale, xz.y);
+        Vector3 aim = aimFeetWorld + Vector3.up * targetAimHeight;
+        Vector2 xz = UnityEngine.Random.insideUnitCircle * (horizontalAimError * aimScale);
+        aim += new Vector3(xz.x, UnityEngine.Random.Range(-verticalAimError, verticalAimError) * aimScale, xz.y);
 
         Vector3 velocity = ProjectileBallistics.LobbedLaunchVelocity(origin, aim);
 

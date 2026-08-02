@@ -18,6 +18,8 @@ namespace Medieval.Npcs
             "DeathRight",
         };
 
+        static readonly Color FollowerGoldLabelColor = new Color(1f, 0.88f, 0.28f, 1f);
+
         public static void TryApply(EntityManager em, Entity npcRoot)
         {
             if (!em.Exists(npcRoot) || !em.HasComponent<NpcCharacterCombatState>(npcRoot))
@@ -46,6 +48,7 @@ namespace Medieval.Npcs
                 em.RemoveComponent<NpcMovementTag>(npcRoot);
 
             TrySpawnLootAndSignal(em, npcRoot);
+            TryDropFollowerCarriedGold(em, npcRoot);
             TryPlayDeathAnim(em, npcRoot);
         }
 
@@ -54,16 +57,13 @@ namespace Medieval.Npcs
             if (!IsEnemyNpc(em, npcRoot))
                 return;
 
-            float3 pos = float3.zero;
-            if (em.HasComponent<LocalToWorld>(npcRoot))
-                pos = em.GetComponentData<LocalToWorld>(npcRoot).Position;
-            else if (em.HasComponent<LocalTransform>(npcRoot))
-                pos = em.GetComponentData<LocalTransform>(npcRoot).Position;
-            else
+            if (!TryGetWorldPosition(em, npcRoot, out Vector3 worldPos))
                 return;
 
-            var worldPos = new Vector3(pos.x, pos.y, pos.z);
-            GoldDrop.SpawnRandom(worldPos, GoldDrop.DefaultMinAmount, GoldDrop.DefaultMaxAmountInclusive + 2);
+            var combat = em.GetComponentData<NpcCharacterCombatState>(npcRoot);
+            int amount = GoldDrop.RollAmount(GoldDrop.DefaultMinAmount, GoldDrop.DefaultMaxAmountInclusive + 2);
+            if (!TryPayKillGoldToFollower(em, combat.KillCreditKiller, amount, worldPos))
+                GoldDrop.Spawn(worldPos, amount);
 
             // Occasional food ration from bandit packs.
             if (UnityEngine.Random.value < 0.28f && PlayerInventory.Instance != null)
@@ -75,7 +75,71 @@ namespace Medieval.Npcs
                     new Color(0.55f, 0.95f, 0.45f, 1f));
             }
 
-            GameplayEvents.RaiseEnemyKilled(worldPos, WellKnownFactionIds.Bandit);
+            bool byPlayerOrFollower = combat.KillCreditPlayerSide != 0;
+            GameplayEvents.RaiseEnemyKilled(worldPos, WellKnownFactionIds.Bandit, byPlayerOrFollower);
+        }
+
+        /// <summary>Follower kills credit gold to their wallet instead of a world pickup.</summary>
+        static bool TryPayKillGoldToFollower(EntityManager em, Entity killer, int amount, Vector3 corpsePos)
+        {
+            if (amount <= 0 || !NpcKillCreditUtility.IsFollower(em, killer) ||
+                !em.HasComponent<NpcWallet>(killer))
+                return false;
+
+            if (em.HasComponent<NpcCharacterCombatState>(killer))
+            {
+                var killerCombat = em.GetComponentData<NpcCharacterCombatState>(killer);
+                if (killerCombat.IsDead != 0)
+                    return false;
+            }
+
+            var wallet = em.GetComponentData<NpcWallet>(killer);
+            wallet.Gold += amount;
+            em.SetComponentData(killer, wallet);
+
+            Vector3 labelPos = corpsePos + Vector3.up * 1.9f;
+            if (TryGetWorldPosition(em, killer, out Vector3 killerPos))
+                labelPos = killerPos + Vector3.up * 1.9f;
+
+            FloatingWorldText.Spawn(labelPos, $"+{amount} Gold", FollowerGoldLabelColor);
+            return true;
+        }
+
+        static void TryDropFollowerCarriedGold(EntityManager em, Entity npcRoot)
+        {
+            if (!NpcKillCreditUtility.IsFollower(em, npcRoot) || !em.HasComponent<NpcWallet>(npcRoot))
+                return;
+
+            var wallet = em.GetComponentData<NpcWallet>(npcRoot);
+            if (wallet.Gold <= 0)
+                return;
+
+            if (!TryGetWorldPosition(em, npcRoot, out Vector3 worldPos))
+                return;
+
+            GoldDrop.Spawn(worldPos, wallet.Gold);
+            wallet.Gold = 0;
+            em.SetComponentData(npcRoot, wallet);
+        }
+
+        static bool TryGetWorldPosition(EntityManager em, Entity npcRoot, out Vector3 worldPos)
+        {
+            worldPos = default;
+            if (em.HasComponent<LocalToWorld>(npcRoot))
+            {
+                float3 pos = em.GetComponentData<LocalToWorld>(npcRoot).Position;
+                worldPos = new Vector3(pos.x, pos.y, pos.z);
+                return true;
+            }
+
+            if (em.HasComponent<LocalTransform>(npcRoot))
+            {
+                float3 pos = em.GetComponentData<LocalTransform>(npcRoot).Position;
+                worldPos = new Vector3(pos.x, pos.y, pos.z);
+                return true;
+            }
+
+            return false;
         }
 
         static bool IsEnemyNpc(EntityManager em, Entity npcRoot)

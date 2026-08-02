@@ -9,12 +9,17 @@ public class FactionDefinition : ScriptableObject
 {
     [SerializeField] int factionID;
     [SerializeField] string factionName = "Faction";
+    [Tooltip("Multiplied onto neutral NPC clothing (albedo alpha mask on tintable materials).")]
+    [SerializeField] Color clothingColor = Color.white;
 
     /// <summary>Stable numeric id used for O(1) relationship lookups.</summary>
     public int FactionID => factionID;
 
     /// <summary>Display name for UI, debugging, and tools.</summary>
     public string FactionName => factionName;
+
+    /// <summary>Tint applied to masked clothing regions on tintable NPC materials.</summary>
+    public Color ClothingColor => clothingColor;
 
 #if UNITY_EDITOR
     void OnValidate()

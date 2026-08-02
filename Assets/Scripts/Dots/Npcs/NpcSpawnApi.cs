@@ -250,6 +250,9 @@ namespace Medieval.Npcs
 
             if (em.HasComponent<NpcMeleeCombatConfig>(npc) && !em.HasComponent<NpcMeleeAttackState>(npc))
                 em.AddComponentData(npc, new NpcMeleeAttackState());
+
+            if (!em.HasComponent<NpcWallet>(npc))
+                em.AddComponentData(npc, new NpcWallet { Gold = 0 });
         }
     }
 }

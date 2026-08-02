@@ -368,8 +368,11 @@ public sealed class QuestService : MonoBehaviour
         }
     }
 
-    void OnEnemyKilled(Vector3 worldPosition, int _)
+    void OnEnemyKilled(Vector3 worldPosition, int _, bool byPlayerOrFollower)
     {
+        if (!byPlayerOrFollower)
+            return;
+
         bool any = false;
         for (int i = 0; i < _active.Count; i++)
         {

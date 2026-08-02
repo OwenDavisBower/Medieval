@@ -9,17 +9,17 @@ using UnityEngine;
 namespace Medieval.Npcs
 {
     /// <summary>
-    /// Main-thread helper for GameObject systems (e.g. watchtowers) to acquire hostile DOTS NPC targets.
+    /// Main-thread helper for GameObject systems (player bow, watchtowers) to acquire hostile DOTS NPC targets.
     /// </summary>
-    public static class NpcWatchTowerBanditQuery
+    public static class NpcHostileTargetQuery
     {
         static World? s_CachedWorld;
         static EntityQuery s_CachedQuery;
 
-        /// <param name="towerFactionId"><see cref="Affiliation.FactionId"/> for the tower; if &lt; 0, only entities with <see cref="WellKnownFactionIds.Bandit"/> are considered.</param>
-        public static bool TryFindNearestHostileDotsNpcForTower(
-            int towerFactionId,
-            Vector3 towerFeetWorld,
+        /// <param name="observerFactionId"><see cref="Affiliation.FactionId"/> for the observer; if &lt; 0, only entities with <see cref="WellKnownFactionIds.Bandit"/> are considered.</param>
+        public static bool TryFindNearestHostileDotsNpc(
+            int observerFactionId,
+            Vector3 observerFeetWorld,
             float maxRange,
             float eyeHeight,
             float targetAimHeight,
@@ -49,9 +49,9 @@ namespace Medieval.Npcs
             for (int i = 0; i < entities.Length; i++)
             {
                 int npcFaction = factions[i].Value;
-                if (towerFactionId >= 0)
+                if (observerFactionId >= 0)
                 {
-                    if (fm == null || fm.GetRelationship(towerFactionId, npcFaction) != Relationship.Enemy)
+                    if (fm == null || fm.GetRelationship(observerFactionId, npcFaction) != Relationship.Enemy)
                         continue;
                 }
                 else if (npcFaction != WellKnownFactionIds.Bandit)
@@ -62,13 +62,13 @@ namespace Medieval.Npcs
                     continue;
 
                 float3 p = transforms[i].Position;
-                float sq = NpcMath.DistanceSqXZ(towerFeetWorld.x, towerFeetWorld.z, p.x, p.z);
+                float sq = NpcMath.DistanceSqXZ(observerFeetWorld.x, observerFeetWorld.z, p.x, p.z);
                 if (sq > rangeSq || sq >= bestSq)
                     continue;
 
                 var targetFeet = new Vector3(p.x, p.y, p.z);
                 if (!LineOfSightUtility.HasClearLineOfSightWorldPoints(
-                        towerFeetWorld,
+                        observerFeetWorld,
                         targetFeet,
                         eyeHeight,
                         targetAimHeight,

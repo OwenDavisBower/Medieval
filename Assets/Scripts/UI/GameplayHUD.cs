@@ -33,6 +33,7 @@ public sealed class GameplayHUD : MonoBehaviour
     RectTransform _questPanel;
     RectTransform _partyContent;
     Text _villageTitle;
+    Text _healLabel;
     readonly List<Button> _actionButtons = new List<Button>();
     readonly List<Text> _actionLabels = new List<Text>();
     readonly List<PartyRowUi> _partyRows = new List<PartyRowUi>(PartyManager.MaxPartySize);
@@ -213,6 +214,7 @@ public sealed class GameplayHUD : MonoBehaviour
             float hpFill = 1f;
             float hpCur = 0f;
             float hpMax = 1f;
+            int gold = 0;
 
             if (em.HasComponent<NpcExperience>(e))
             {
@@ -231,12 +233,17 @@ public sealed class GameplayHUD : MonoBehaviour
                 hpFill = Mathf.Clamp01(combat.CurrentHealth / hpMax);
             }
 
+            if (em.HasComponent<NpcWallet>(e))
+                gold = em.GetComponentData<NpcWallet>(e).Gold;
+
             ApplyWeaponClassIcon(row, em, e);
             row.NameLevel.text = $"{name}  ·  Lv {level}";
             row.XpFill.fillAmount = xpFill;
             row.XpLabel.text = $"XP  {Mathf.FloorToInt(xpCur)}/{Mathf.CeilToInt(xpNext)}";
             row.HpFill.fillAmount = hpFill;
-            row.HpLabel.text = $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}";
+            row.HpLabel.text = gold > 0
+                ? $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}  ·  {gold}g"
+                : $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}";
         }
     }
 
@@ -364,6 +371,21 @@ public sealed class GameplayHUD : MonoBehaviour
             ? "8  Already owned"
             : $"8  Claim village ({SettlementService.ClaimGoldCost}g)";
         SetAction(7, claimLabel, () => VillageInteractionController.Instance?.Claim());
+
+        if (_healLabel != null)
+        {
+            int healCost = SettlementService.Instance != null
+                ? SettlementService.Instance.GetHealCost(nearby)
+                : 0;
+            bool followersNeed = SettlementService.Instance != null &&
+                                 SettlementService.Instance.FollowersNeedHeal();
+            if (healCost > 0)
+                _healLabel.text = $"H  Heal party ({healCost}g)";
+            else if (followersNeed)
+                _healLabel.text = "H  Heal party";
+            else
+                _healLabel.text = "H  Heal party (full)";
+        }
     }
 
     static string OfferLabel(List<QuestOffer> offers, int index, string key)
@@ -484,6 +506,14 @@ public sealed class GameplayHUD : MonoBehaviour
             CreateActionButton(_villagePanel, i, y);
         }
 
+        var healBtn = CreateTextButton(_villagePanel, "HealBtn", $"H  Heal party ({SettlementService.HealFullCost}g)",
+            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 8f), new Vector2(0f, 32f),
+            () => VillageInteractionController.Instance?.Heal());
+        var hb = healBtn.GetComponent<RectTransform>();
+        hb.offsetMin = new Vector2(10f, 72f);
+        hb.offsetMax = new Vector2(-10f, 104f);
+        _healLabel = healBtn.GetComponentInChildren<Text>();
+
         var dismiss = CreateTextButton(_villagePanel, "DismissBtn", "X  Dismiss follower",
             new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 8f), new Vector2(0f, 32f),
             () => VillageInteractionController.Instance?.Disband());
@@ -498,8 +528,8 @@ public sealed class GameplayHUD : MonoBehaviour
         sf.offsetMin = new Vector2(10f, 8f);
         sf.offsetMax = new Vector2(-10f, 40f);
 
-        // Taller panel to fit sell-food row
-        _villagePanel.sizeDelta = new Vector2(420f, 400f);
+        // Tall enough for 8 actions + heal / dismiss / sell-food rows
+        _villagePanel.sizeDelta = new Vector2(420f, 450f);
 
         _villagePanel.gameObject.SetActive(false);
         RefreshResources();

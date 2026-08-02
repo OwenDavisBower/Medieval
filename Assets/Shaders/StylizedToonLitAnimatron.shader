@@ -49,16 +49,29 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
 
         #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
-        #ifndef UNITY_DOTS_INSTANCING_START
-            #define UNITY_DOTS_INSTANCING_START(name) UNITY_INSTANCING_BUFFER_START(name)
-            #define UNITY_DOTS_INSTANCING_END(name)   UNITY_INSTANCING_BUFFER_END(name)
-            #define UNITY_DOTS_INSTANCED_PROP(type, var) UNITY_DEFINE_INSTANCED_PROP(type, var)
-            #define UNITY_ACCESS_DOTS_INSTANCED_PROP(type, var) UNITY_ACCESS_INSTANCED_PROP(MaterialPropertyMetadata, var)
-        #endif
+        // Match URP LitInput: only declare DOTS props when DOTS_INSTANCING_ON is active.
+        // A fallback that remaps to UNITY_INSTANCING_BUFFER redeclares _BaseColor and breaks Metal.
+        #ifdef UNITY_DOTS_INSTANCING_ENABLED
+            UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
+                UNITY_DOTS_INSTANCED_PROP(float, _SkinMatrixIndex)
+                UNITY_DOTS_INSTANCED_PROP(float4, _BaseColor)
+            UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
 
-        UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
-            UNITY_DOTS_INSTANCED_PROP(float, _SkinMatrixIndex)
-        UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
+            static float4 unity_DOTS_Sampled_BaseColor;
+
+            void SetupDOTSStylizedToonMaterialPropertyCaches()
+            {
+                unity_DOTS_Sampled_BaseColor = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _BaseColor);
+            }
+
+            #undef UNITY_SETUP_DOTS_MATERIAL_PROPERTY_CACHES
+            #define UNITY_SETUP_DOTS_MATERIAL_PROPERTY_CACHES() SetupDOTSStylizedToonMaterialPropertyCaches()
+            #define _BaseColor unity_DOTS_Sampled_BaseColor
+        #else
+            // Non-DOTS variants still compile; Animatron skinning is DOTS-only at runtime.
+            #undef UNITY_ACCESS_DOTS_INSTANCED_PROP
+            #define UNITY_ACCESS_DOTS_INSTANCED_PROP(type, var) (0)
+        #endif
     ENDHLSL
 
     SubShader
@@ -294,9 +307,12 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
                 LODFadeCrossFade(input.positionCS);
             #endif
 
-                half4 albedoA = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv) * _BaseColor;
-                half3 albedo = albedoA.rgb;
-                half alpha = albedoA.a;
+                // Albedo alpha is a clothing tint mask (neutral gray clothing * clothingColor). Opaque alpha forced to 1.
+                half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv);
+                half clothingMask = tex.a;
+                half4 clothingColor = _BaseColor;
+                half3 albedo = lerp(tex.rgb, tex.rgb * clothingColor.rgb, clothingMask);
+                half alpha = 1.0h;
 
                 half3 normalWS = NormalizeNormalPerPixel(input.normalWS);
                 half3 viewDirWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
