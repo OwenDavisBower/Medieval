@@ -18,6 +18,8 @@ public sealed class GameplayHUD : MonoBehaviour
 
     static Font s_font;
     static Sprite s_whiteSprite;
+    static Sprite s_swordSprite;
+    static Sprite s_bowSprite;
 
     Text _resourcesLabel;
     Text _partyLabel;
@@ -47,6 +49,7 @@ public sealed class GameplayHUD : MonoBehaviour
     sealed class PartyRowUi
     {
         public GameObject Root;
+        public Image ClassIcon;
         public Text NameLevel;
         public Image XpFill;
         public Text XpLabel;
@@ -227,11 +230,39 @@ public sealed class GameplayHUD : MonoBehaviour
                 hpFill = Mathf.Clamp01(combat.CurrentHealth / hpMax);
             }
 
+            ApplyWeaponClassIcon(row, em, e);
             row.NameLevel.text = $"{name}  ·  Lv {level}";
             row.XpFill.fillAmount = xpFill;
             row.XpLabel.text = $"XP  {Mathf.FloorToInt(xpCur)}/{Mathf.CeilToInt(xpNext)}";
             row.HpFill.fillAmount = hpFill;
             row.HpLabel.text = $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}";
+        }
+    }
+
+    static void ApplyWeaponClassIcon(PartyRowUi row, EntityManager em, Entity e)
+    {
+        if (row.ClassIcon == null)
+            return;
+
+        NpcWeaponClass weaponClass = NpcWeaponClass.Unspecified;
+        if (em.HasComponent<NpcProfile>(e))
+            weaponClass = em.GetComponentData<NpcProfile>(e).WeaponClass;
+
+        switch (weaponClass)
+        {
+            case NpcWeaponClass.Melee:
+                row.ClassIcon.sprite = SwordSprite();
+                row.ClassIcon.color = new Color(0.92f, 0.88f, 0.72f, 1f);
+                row.ClassIcon.enabled = true;
+                break;
+            case NpcWeaponClass.Ranged:
+                row.ClassIcon.sprite = BowSprite();
+                row.ClassIcon.color = new Color(0.72f, 0.88f, 0.62f, 1f);
+                row.ClassIcon.enabled = true;
+                break;
+            default:
+                row.ClassIcon.enabled = false;
+                break;
         }
     }
 
@@ -580,12 +611,14 @@ public sealed class GameplayHUD : MonoBehaviour
         rect.anchoredPosition = new Vector2(0f, y);
         rect.sizeDelta = new Vector2(-8f, PartyRowHeight - 6f);
 
+        var classIcon = MakeClassIcon(go.transform);
+
         var name = MakeLabel(go.transform, "Name", new Vector2(0f, 1f), new Vector2(1f, 1f),
             Vector2.zero, new Vector2(0f, 24f), 15, TextAnchor.MiddleLeft,
             new Color(0.95f, 0.93f, 0.86f, 1f));
         name.fontStyle = FontStyle.Bold;
         var nr = name.GetComponent<RectTransform>();
-        nr.offsetMin = new Vector2(10f, -28f);
+        nr.offsetMin = new Vector2(34f, -28f);
         nr.offsetMax = new Vector2(-10f, -4f);
 
         // Top-anchored: offsetMin.y is more negative than offsetMax.y. Keep both bars inside the row.
@@ -602,12 +635,31 @@ public sealed class GameplayHUD : MonoBehaviour
         return new PartyRowUi
         {
             Root = go,
+            ClassIcon = classIcon,
             NameLevel = name,
             XpFill = xpFill,
             XpLabel = xpLabel,
             HpFill = hpFill,
             HpLabel = hpLabel
         };
+    }
+
+    static Image MakeClassIcon(Transform parent)
+    {
+        var go = new GameObject("ClassIcon");
+        go.transform.SetParent(parent, false);
+        var image = go.AddComponent<Image>();
+        image.sprite = SwordSprite();
+        image.color = new Color(0.92f, 0.88f, 0.72f, 1f);
+        image.raycastTarget = false;
+        image.preserveAspect = true;
+        var rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(8f, -6f);
+        rect.sizeDelta = new Vector2(20f, 20f);
+        return image;
     }
 
     static void MakeBar(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax,
@@ -659,6 +711,113 @@ public sealed class GameplayHUD : MonoBehaviour
         var tex = Texture2D.whiteTexture;
         s_whiteSprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
         return s_whiteSprite;
+    }
+
+    static Sprite SwordSprite()
+    {
+        if (s_swordSprite != null)
+            return s_swordSprite;
+
+        const int res = 64;
+        var tex = new Texture2D(res, res, TextureFormat.RGBA32, false)
+        {
+            name = "PartySwordIconTex",
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp
+        };
+
+        // Tip-up sword: blade, crossguard, grip, pommel.
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float u = (x + 0.5f) / res;
+                float v = (y + 0.5f) / res;
+                float a = 0f;
+
+                // Blade (tapers toward tip).
+                if (v > 0.34f && v < 0.94f)
+                {
+                    float t = Mathf.InverseLerp(0.34f, 0.94f, v);
+                    float halfW = Mathf.Lerp(0.09f, 0.035f, t);
+                    float dist = halfW - Mathf.Abs(u - 0.5f);
+                    a = Mathf.Max(a, Mathf.Clamp01(dist * res * 0.55f));
+                }
+
+                // Crossguard.
+                if (v > 0.28f && v < 0.36f && Mathf.Abs(u - 0.5f) < 0.28f)
+                    a = Mathf.Max(a, 1f);
+
+                // Grip.
+                if (v > 0.12f && v < 0.30f && Mathf.Abs(u - 0.5f) < 0.055f)
+                    a = Mathf.Max(a, 1f);
+
+                // Pommel.
+                float pommel = 1f - Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.09f)) / 0.07f;
+                a = Mathf.Max(a, Mathf.Clamp01(pommel));
+
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+
+        tex.Apply(false, false);
+        s_swordSprite = Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), 100f);
+        s_swordSprite.name = "PartySwordIconSprite";
+        return s_swordSprite;
+    }
+
+    static Sprite BowSprite()
+    {
+        if (s_bowSprite != null)
+            return s_bowSprite;
+
+        const int res = 64;
+        var tex = new Texture2D(res, res, TextureFormat.RGBA32, false)
+        {
+            name = "PartyBowIconTex",
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp
+        };
+
+        // Side-facing bow with string and a short arrow.
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float u = (x + 0.5f) / res;
+                float v = (y + 0.5f) / res;
+                float a = 0f;
+
+                // Bow limb: vertical ellipse arc on the left.
+                float dx = (u - 0.34f) / 0.22f;
+                float dy = (v - 0.5f) / 0.42f;
+                float ellipse = dx * dx + dy * dy;
+                if (ellipse > 0.72f && ellipse < 1.08f && u < 0.52f)
+                    a = Mathf.Max(a, Mathf.Clamp01((1.08f - Mathf.Abs(ellipse - 0.9f) * 8f)));
+
+                // Bowstring.
+                if (u > 0.48f && u < 0.54f && v > 0.12f && v < 0.88f)
+                    a = Mathf.Max(a, 0.95f);
+
+                // Arrow shaft.
+                if (v > 0.47f && v < 0.53f && u > 0.22f && u < 0.88f)
+                    a = Mathf.Max(a, 1f);
+
+                // Arrowhead.
+                if (u > 0.78f && u < 0.94f)
+                {
+                    float tip = 1f - Mathf.Abs(v - 0.5f) / Mathf.Max(0.01f, (0.94f - u) * 1.1f);
+                    a = Mathf.Max(a, Mathf.Clamp01(tip));
+                }
+
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+
+        tex.Apply(false, false);
+        s_bowSprite = Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), 100f);
+        s_bowSprite.name = "PartyBowIconSprite";
+        return s_bowSprite;
     }
 
     void Start()
