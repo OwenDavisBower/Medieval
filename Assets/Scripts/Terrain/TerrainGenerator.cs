@@ -349,6 +349,42 @@ public sealed class TerrainGenerator : MonoBehaviour
         return true;
     }
 
+    /// <summary>Half-width used for surface ford colliders (channel + part of the carve blend).</summary>
+    public float RiverFordHalfWidth => riverChannelHalfWidth + riverCarveBlendDistance * 0.35f;
+
+    /// <summary>
+    /// World-XZ river polylines (list + worm + authoring), same sampling as distance fields / bridge crossings.
+    /// </summary>
+    public void CollectRiverPolylinesWorldXz(List<List<Vector2>> results)
+    {
+        results.Clear();
+        if (!IsTerrainReady)
+            return;
+
+        foreach (var riverControls in _mergedRiversForBuild)
+        {
+            if (riverControls == null || riverControls.Count < 2)
+                continue;
+            var riverPoly = new List<Vector2>(splineSampleCount);
+            SamplePolylineWorldXz(riverControls, riverPoly);
+            if (riverPoly.Count >= 2)
+                results.Add(riverPoly);
+        }
+
+        if (authoringRiverSplines == null)
+            return;
+
+        foreach (var c in authoringRiverSplines)
+        {
+            if (c == null)
+                continue;
+            var riverPoly = new List<Vector2>(splineSampleCount);
+            SampleAuthoringContainerWorldXz(c, riverPoly);
+            if (riverPoly.Count >= 2)
+                results.Add(riverPoly);
+        }
+    }
+
     /// <summary>
     /// Finds intersections between path and river splines (list + worm + optional authoring containers; same sampling as distance fields).
     /// </summary>

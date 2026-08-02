@@ -48,7 +48,12 @@ namespace Medieval.NpcMovement
         {
             public NavMeshQuery NavQuery;
 
-            public void Execute(ref LocalTransform tf, in NpcMovementConfig cfg, ref NpcMovementState mstate)
+            public void Execute(
+                ref LocalTransform tf,
+                in NpcMovementConfig cfg,
+                ref NpcMovementState mstate,
+                in NpcPathState pathState,
+                DynamicBuffer<NpcPathCorner> corners)
             {
                 if (cfg.UseNavMeshWhenAvailable == 0)
                     return;
@@ -57,9 +62,11 @@ namespace Medieval.NpcMovement
                 if (!math.all(math.isfinite(p)))
                     return;
 
+                bool preferWade = ShouldPreferWade(p, pathState, corners);
                 if (NpcNavMeshSampling.TryMapNearHeight(
                         NavQuery, p, cfg.NavMeshSampleMaxDistance,
-                        NpcNavMeshSampling.MaxVerticalDrop, NpcNavMeshSampling.MaxVerticalClimb, out var loc))
+                        NpcNavMeshSampling.MaxVerticalDrop, NpcNavMeshSampling.MaxVerticalClimb, preferWade,
+                        out var loc))
                 {
                     Vector3 mp = loc.position;
                     tf.Position = new float3(mp.x, mp.y, mp.z);
@@ -70,6 +77,29 @@ namespace Medieval.NpcMovement
                 float3 v = mstate.CurrentHorizontalVelocity;
                 v.y = 0f;
                 mstate.CurrentHorizontalVelocity = v * 0.85f;
+            }
+
+            /// <summary>
+            /// True when any remaining path corner is underwater or well below the agent. Shoreline string-pull
+            /// corners often sit at bank height, so we look ahead — otherwise clamp never allows a ford.
+            /// </summary>
+            static bool ShouldPreferWade(
+                float3 selfPos, in NpcPathState pathState, DynamicBuffer<NpcPathCorner> corners)
+            {
+                if (pathState.PathValid == 0 || corners.Length == 0)
+                    return false;
+
+                int start = math.clamp(pathState.CurrentCorner, 0, corners.Length - 1);
+                for (int i = start; i < corners.Length; i++)
+                {
+                    float3 cornerPos = corners[i].Value;
+                    if (cornerPos.y < NpcMath.WaterSurfaceY)
+                        return true;
+                    if ((selfPos.y - cornerPos.y) > NpcNavMeshSampling.MaxVerticalDrop)
+                        return true;
+                }
+
+                return false;
             }
         }
     }

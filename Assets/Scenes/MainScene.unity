@@ -133,6 +133,7 @@ GameObject:
   - component: {fileID: 330585547}
   - component: {fileID: 330585548}
   - component: {fileID: 330585549}
+  - component: {fileID: 330585550}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -289,6 +290,43 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HealthBarOverlayRig
   _healthBarLayer: HealthBar
   _syncProjectionEachFrame: 1
+--- !u!114 &330585550
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7b3c9d1e5f204863758291a3b4c5d6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DayNightCycle
+  cycleDurationSeconds: 150
+  startCycle01: 0.4
+  sun: {fileID: 410087040}
+  dayIntensity: 2
+  nightIntensity: 0.28
+  dayColorTemperature: 5000
+  nightColorTemperature: 2800
+  maxElevationDegrees: 55
+  dayBlendSunDownDot: -0.15
+  dayBlendSunUpDot: 0.55
+  nightThreshold: 0.35
+  dayAmbientSky: {r: 0.55, g: 0.62, b: 0.75, a: 1}
+  nightAmbientSky: {r: 0.05, g: 0.07, b: 0.14, a: 1}
+  dayAmbientEquator: {r: 0.35, g: 0.38, b: 0.42, a: 1}
+  nightAmbientEquator: {r: 0.04, g: 0.05, b: 0.08, a: 1}
+  dayAmbientGround: {r: 0.18, g: 0.16, b: 0.12, a: 1}
+  nightAmbientGround: {r: 0.02, g: 0.02, b: 0.03, a: 1}
+  dayAmbientIntensity: 1
+  nightAmbientIntensity: 0.35
+  driveFog: 1
+  dayFogColor: {r: 0.72, g: 0.78, b: 0.85, a: 1}
+  nightFogColor: {r: 0.04, g: 0.05, b: 0.09, a: 1}
+  dayFogDensity: 0.004
+  nightFogDensity: 0.014
+  announcePhaseChanges: 1
 --- !u!1 &405064906
 GameObject:
   m_ObjectHideFlags: 0
@@ -319,7 +357,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldGenerationCoordinator
   terrainGenerator: {fileID: 2037707253}
-  seed: 999999
+  seed: 1235
   settlementSpawn: {fileID: 11400000, guid: a1b2c3d4e5f60718293a4b5c6d7e8f90, type: 2}
   treeSpawn: {fileID: 11400000, guid: b2c3d4e5f60718293a4b5c6d7e8f901a, type: 2}
   banditCampSpawn: {fileID: 11400000, guid: c3d4e5f60718293a4b5c6d7e8f901a2b, type: 2}
@@ -355,7 +393,6 @@ GameObject:
   - component: {fileID: 410087041}
   - component: {fileID: 410087040}
   - component: {fileID: 410087042}
-  - component: {fileID: 410087043}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -472,25 +509,6 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
---- !u!114 &410087043
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 410087039}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a7b3c9d1e5f204863758291a3b4c5d6e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DayNightCycle
-  cycleDurationSeconds: 60
-  dayIntensity: 2
-  nightIntensity: 2
-  dayColorTemperature: 5000
-  nightColorTemperature: 3200
-  dayBlendSunDownDot: -0.15
-  dayBlendSunUpDot: 0.55
 --- !u!1001 &532493341
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1005,6 +1023,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770001, type: 2}
   - {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770002, type: 2}
   - {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770003, type: 2}
+  - {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770005, type: 2}
+  - {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770006, type: 2}
   dontDestroyOnLoad: 1
 --- !u!1001 &5994030622068698507
 PrefabInstance:

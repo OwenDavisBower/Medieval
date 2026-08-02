@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using Medieval.NpcMovement;
 using Medieval.Npcs;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 
 /// <summary>
@@ -46,6 +48,7 @@ public sealed class SettlementService : MonoBehaviour
     readonly Dictionary<int, SettlementRecord> _byId = new Dictionary<int, SettlementRecord>();
     readonly Dictionary<int, CampRecord> _campById = new Dictionary<int, CampRecord>();
     readonly List<Entity> _healFollowersScratch = new List<Entity>(PartyManager.MaxPartySize);
+    readonly List<string> _nameScratch = new List<string>(32);
 
     public IReadOnlyList<SettlementRecord> Settlements => _settlements;
     public IReadOnlyList<CampRecord> Camps => _camps;
@@ -155,16 +158,27 @@ public sealed class SettlementService : MonoBehaviour
 
         if (settlementCenters != null)
         {
+            int worldSeed = 42;
+            var coordinator = FindAnyObjectByType<WorldGenerationCoordinator>();
+            if (coordinator != null)
+                worldSeed = coordinator.Seed;
+
+            SettlementMedievalNameUtility.GenerateUnique(worldSeed, settlementCenters.Count, _nameScratch);
+
             for (int i = 0; i < settlementCenters.Count; i++)
             {
+                int ownerFaction = AssignSettlementOwnerFaction(worldSeed, i, settlementCenters.Count);
                 var rec = new SettlementRecord
                 {
                     Id = i,
+                    Name = _nameScratch[i],
                     PlannedCenter = settlementCenters[i],
                     WorldCenter = settlementCenters[i],
                     IsBuilt = false,
                     BuildFailed = false,
                     Reputation = 0,
+                    OwnedByPlayer = false,
+                    OwnerFactionId = ownerFaction,
                     WoodStock = 35 + (i * 3) % 20,
                     FoodStock = 20 + (i * 2) % 15
                 };
@@ -584,6 +598,7 @@ public sealed class SettlementService : MonoBehaviour
             return false;
 
         settlement.OwnedByPlayer = true;
+        settlement.OwnerFactionId = WellKnownFactionIds.Player;
         settlement.Reputation = Mathf.Max(settlement.Reputation, 50);
         GameplayEvents.RaiseSettlementClaimed(settlement.Id);
         GameplayEvents.RaiseToast($"Claimed {settlement.DisplayName}!");
@@ -750,6 +765,28 @@ public sealed class SettlementService : MonoBehaviour
         if (bestRep != null && bestRep.Reputation >= 0)
             return bestRep;
         return FindNearestSettlement(fromPos);
+    }
+
+    /// <summary>
+    /// Deterministic ownership: ~2/3 of villages belong to a neutral kingdom, rest stay independent.
+    /// </summary>
+    static int AssignSettlementOwnerFaction(int worldSeed, int settlementIndex, int settlementCount)
+    {
+        if (settlementCount <= 0)
+            return WellKnownFactionIds.Villager;
+
+        uint seed = math.asuint(worldSeed) ^ ((uint)(settlementIndex + 1) * 2246822519u);
+        var rng = new Unity.Mathematics.Random(math.max(1u, seed));
+
+        // Keep at least one independent village when there are several.
+        if (settlementCount >= 3 && settlementIndex == 0)
+            return WellKnownFactionIds.Villager;
+
+        if (rng.NextFloat() > 0.68f)
+            return WellKnownFactionIds.Villager;
+
+        int[] kingdoms = WellKnownFactionIds.NeutralKingdomIds;
+        return kingdoms[rng.NextInt(0, kingdoms.Length)];
     }
 
     static float HorizontalDistanceSq(Vector3 a, Vector3 b)

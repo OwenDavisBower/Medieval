@@ -18,11 +18,18 @@ namespace Medieval.NpcMovement
         /// <summary>Refuse snaps that drop more than this (bridge deck → river underfoot).</summary>
         public const float MaxVerticalDrop = 0.85f;
 
+        /// <summary>
+        /// Bank → riverbed wading may drop farther than <see cref="MaxVerticalDrop"/>; must cover
+        /// <c>TerrainGenerator</c> riverBedDepth (~6) plus a little margin.
+        /// </summary>
+        public const float MaxWadeVerticalDrop = 7f;
+
         /// <summary>Allow climbing onto nearby mesh (spawns, ramps, bank→deck).</summary>
         public const float MaxVerticalClimb = 2.25f;
 
         const int AreaMaskAll = -1;
         const int AreaMaskExcludeWater = ~(1 << WaterAreaIndex);
+        const int AreaMaskWaterOnly = 1 << WaterAreaIndex;
 
         public static Vector3 SampleExtents(float navMeshSampleMaxDistance)
         {
@@ -67,42 +74,96 @@ namespace Medieval.NpcMovement
             float maxVerticalClimb,
             out NavMeshLocation location)
         {
+            return TryMapNearHeight(query, worldPos, navMeshSampleMaxDistance, maxVerticalDrop, maxVerticalClimb,
+                preferWade: false, out location);
+        }
+
+        /// <param name="preferWade">
+        /// When true (path corner is in/below water), try Water before a wide land search so the clamp
+        /// does not pull agents back onto the bank while fording. When false, wide Walkable is preferred
+        /// so bridge traffic is not dropped onto the river.
+        /// </param>
+        public static bool TryMapNearHeight(
+            NavMeshQuery query,
+            float3 worldPos,
+            float navMeshSampleMaxDistance,
+            float maxVerticalDrop,
+            float maxVerticalClimb,
+            bool preferWade,
+            out NavMeshLocation location)
+        {
             int mask = AreaMaskForHeight(worldPos.y);
             float halfXZ = math.max(1e-2f, navMeshSampleMaxDistance);
             float tightY = math.min(0.75f, halfXZ * 0.35f);
+            float wideXZ = math.max(halfXZ * 2.5f, 6f);
 
+            // Fording: try local Water first so clamp does not keep snapping XZ back onto the bank poly.
+            // Tight extents only — wide search here would yank agents sideways into the river from the bank.
+            if (preferWade && mask != AreaMaskAll &&
+                TryMapWaterWadeLocal(query, worldPos, halfXZ, tightY, maxVerticalClimb, out location))
+                return true;
+
+            // Local elevated / dry surface (bridge deck, bank underfoot).
             if (TryMapAccept(query, worldPos, SampleExtentsXZ(halfXZ, tightY), mask, maxVerticalDrop,
                     maxVerticalClimb, out location))
                 return true;
 
-            // Wider XZ, still tight Y — covers brief off-edge dips without dropping onto lower mesh.
-            float wideXZ = math.max(halfXZ * 2.5f, 6f);
-            if (TryMapAccept(query, worldPos, SampleExtentsXZ(wideXZ, tightY), mask, maxVerticalDrop,
-                    maxVerticalClimb, out location))
-                return true;
-
-            // Last resort: cubic extents, still refuse large vertical drops.
             if (TryMapAccept(query, worldPos, SampleExtents(halfXZ), mask, maxVerticalDrop, maxVerticalClimb,
                     out location))
+                return true;
+
+            // Wider XZ — brief off-edge dips on bridges / platforms without dropping onto river mesh.
+            if (TryMapAccept(query, worldPos, SampleExtentsXZ(wideXZ, tightY), mask, maxVerticalDrop,
+                    maxVerticalClimb, out location))
                 return true;
 
             if (TryMapAccept(query, worldPos, SampleExtents(wideXZ), mask, maxVerticalDrop, maxVerticalClimb,
                     out location))
                 return true;
 
-            // Above water with no elevated hit: allow Water only as a final fallback (wading).
-            if (mask != AreaMaskAll)
-            {
-                if (TryMapAccept(query, worldPos, SampleExtentsXZ(halfXZ, tightY), AreaMaskAll, maxVerticalDrop,
-                        maxVerticalClimb, out location))
-                    return true;
-                if (TryMapAccept(query, worldPos, SampleExtents(wideXZ), AreaMaskAll, maxVerticalDrop,
-                        maxVerticalClimb, out location))
-                    return true;
-            }
+            // No elevated hit: Water-only fallback (wading / fording without a bridge).
+            if (mask != AreaMaskAll &&
+                TryMapWaterWade(query, worldPos, halfXZ, wideXZ, tightY, maxVerticalClimb, out location))
+                return true;
 
             location = default;
             return false;
+        }
+
+        static bool TryMapWaterWadeLocal(
+            NavMeshQuery query,
+            float3 worldPos,
+            float halfXZ,
+            float tightY,
+            float maxVerticalClimb,
+            out NavMeshLocation location)
+        {
+            float wadeClimb = math.max(maxVerticalClimb, MaxWadeVerticalDrop);
+            if (TryMapAccept(query, worldPos, SampleExtentsXZ(halfXZ, tightY), AreaMaskWaterOnly,
+                    MaxWadeVerticalDrop, wadeClimb, out location))
+                return true;
+            return TryMapAccept(query, worldPos, SampleExtents(halfXZ), AreaMaskWaterOnly,
+                MaxWadeVerticalDrop, wadeClimb, out location);
+        }
+
+        static bool TryMapWaterWade(
+            NavMeshQuery query,
+            float3 worldPos,
+            float halfXZ,
+            float wideXZ,
+            float tightY,
+            float maxVerticalClimb,
+            out NavMeshLocation location)
+        {
+            if (TryMapWaterWadeLocal(query, worldPos, halfXZ, tightY, maxVerticalClimb, out location))
+                return true;
+
+            float wadeClimb = math.max(maxVerticalClimb, MaxWadeVerticalDrop);
+            if (TryMapAccept(query, worldPos, SampleExtentsXZ(wideXZ, tightY), AreaMaskWaterOnly,
+                    MaxWadeVerticalDrop, wadeClimb, out location))
+                return true;
+            return TryMapAccept(query, worldPos, SampleExtents(wideXZ), AreaMaskWaterOnly,
+                MaxWadeVerticalDrop, wadeClimb, out location);
         }
 
         /// <summary>If the goal maps to the navmesh, returns the snapped position; otherwise returns <paramref name="goal"/>.</summary>

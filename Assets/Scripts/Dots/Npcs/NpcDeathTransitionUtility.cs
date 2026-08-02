@@ -74,16 +74,6 @@ namespace Medieval.Npcs
                 TryPayKillBounty(em, combat.KillCreditKiller, bounty, worldPos);
             }
 
-            // Occasional food ration from bandit packs.
-            if (UnityEngine.Random.value < 0.28f && PlayerInventory.Instance != null)
-            {
-                PlayerInventory.Instance.AddFood(1);
-                FloatingWorldText.Spawn(
-                    worldPos + Vector3.up * 1.9f,
-                    "+1 Food",
-                    new Color(0.55f, 0.95f, 0.45f, 1f));
-            }
-
             bool byPlayerOrFollower = combat.KillCreditPlayerSide != 0;
             GameplayEvents.RaiseEnemyKilled(worldPos, WellKnownFactionIds.Bandit, byPlayerOrFollower);
         }
@@ -96,7 +86,7 @@ namespace Medieval.Npcs
             if (amount <= 0)
                 return;
 
-            if (TryPayKillGoldToFollower(em, killer, amount, corpsePos))
+            if (TryPayKillGoldToFollower(em, killer, amount))
                 return;
 
             PlayerWallet.Instance?.Add(amount);
@@ -104,7 +94,7 @@ namespace Medieval.Npcs
         }
 
         /// <summary>Follower kills credit gold to their wallet.</summary>
-        static bool TryPayKillGoldToFollower(EntityManager em, Entity killer, int amount, Vector3 corpsePos)
+        static bool TryPayKillGoldToFollower(EntityManager em, Entity killer, int amount)
         {
             if (amount <= 0 || !NpcKillCreditUtility.IsFollower(em, killer) ||
                 !em.HasComponent<NpcWallet>(killer))
@@ -120,12 +110,6 @@ namespace Medieval.Npcs
             var wallet = em.GetComponentData<NpcWallet>(killer);
             wallet.Gold += amount;
             em.SetComponentData(killer, wallet);
-
-            Vector3 labelPos = corpsePos + Vector3.up * 1.9f;
-            if (TryGetWorldPosition(em, killer, out Vector3 killerPos))
-                labelPos = killerPos + Vector3.up * 1.9f;
-
-            FloatingWorldText.Spawn(labelPos, $"+{amount} Gold", KillGoldLabelColor);
             return true;
         }
 

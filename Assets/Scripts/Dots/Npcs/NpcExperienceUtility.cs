@@ -10,14 +10,15 @@ namespace Medieval.Npcs
         public const float KillBonusXp = 85f;
         public const float BuildingDestroyBonusXp = 120f;
         public const float BaseXpToNextLevel = 50f;
+        public const int MaxLevel = 99;
 
-        const float HealthGainPerLevel = 12f;
-        const float HealthRestoreFractionOnLevelUp = 0.5f;
-        const float MeleeDamageMultPerLevel = 1.06f;
-        const float MoveSpeedMultPerLevel = 1.035f;
-        const float AimErrorMultPerLevel = 0.94f;
-        const float BraveryGainPerLevel = 0.4f;
-        const float RangedDamageMultPerLevel = 1.05f;
+        public const float HealthGainPerLevel = 12f;
+        public const float HealthRestoreFractionOnLevelUp = 0.5f;
+        public const float MeleeDamageMultPerLevel = 1.06f;
+        public const float MoveSpeedMultPerLevel = 1.035f;
+        public const float AimErrorMultPerLevel = 0.94f;
+        public const float BraveryGainPerLevel = 0.4f;
+        public const float RangedDamageMultPerLevel = 1.05f;
         const float LevelUpFxSeconds = 1.65f;
 
         public static void GrantDamageXp(EntityManager em, Entity attacker, float damageDealt, bool killed)
@@ -122,7 +123,7 @@ namespace Medieval.Npcs
             var xp = em.GetComponentData<NpcExperience>(npc);
             xp.CurrentXp += amount;
 
-            while (xp.Level < 99 && xp.XpToNextLevel > 0.01f && xp.CurrentXp >= xp.XpToNextLevel)
+            while (xp.Level < MaxLevel && xp.XpToNextLevel > 0.01f && xp.CurrentXp >= xp.XpToNextLevel)
             {
                 xp.CurrentXp -= xp.XpToNextLevel;
                 xp.Level++;
@@ -131,7 +132,7 @@ namespace Medieval.Npcs
                 ApplyLevelBonuses(em, npc);
             }
 
-            if (xp.Level >= 99)
+            if (xp.Level >= MaxLevel)
                 xp.CurrentXp = 0f;
 
             em.SetComponentData(npc, xp);

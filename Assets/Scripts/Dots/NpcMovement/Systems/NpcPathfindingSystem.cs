@@ -32,11 +32,13 @@ namespace Medieval.NpcMovement
 
             var navQuery = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob,
                 NpcNavMeshPath.DefaultNodePoolSize);
-            // Length 32 is required by NavMeshQuery; raise Water so river crossings prefer bridges.
+            // Length 32 is required by NavMeshQuery. Water cost ≈ 1/speed so fording is allowed, but a
+            // bridge detour wins whenever it is actually faster (plus a small dry-path bias).
             var areaCosts = new NativeArray<float>(32, Allocator.TempJob);
             for (int i = 0; i < areaCosts.Length; i++)
                 areaCosts[i] = 1f;
-            areaCosts[NpcNavMeshSampling.WaterAreaIndex] = 12f;
+            areaCosts[NpcNavMeshSampling.WaterAreaIndex] =
+                (1f / NpcMath.InWaterSpeedMultiplier) * 1.25f;
 
             var workHandle = new PathfindingJob
             {

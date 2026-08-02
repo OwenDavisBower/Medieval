@@ -19,7 +19,9 @@ public sealed class RoadAmbushService : MonoBehaviour
     const float EscortRouteTriggerFraction = 0.4f;
     const float OpenCooldownSeconds = 45f;
     const float OpenMinTravelMeters = 40f;
-    const float OpenAmbushChance = 0.7f;
+    const float DayOpenAmbushChance = 0.4f;
+    const float NightOpenAmbushChance = 0.9f;
+    const float NightCooldownScale = 0.65f;
     const float MinMoveSpeedForOpen = 2f;
     const float SettlementExclusionRadius = 35f;
     const float CampExclusionRadius = 60f;
@@ -135,7 +137,9 @@ public sealed class RoadAmbushService : MonoBehaviour
 
     void TryTriggerOpenAmbush(Vector3 playerPos)
     {
-        if (Time.time - _lastAmbushTime < OpenCooldownSeconds)
+        float night = DayNightCycle.NightFactor;
+        float cooldown = Mathf.Lerp(OpenCooldownSeconds, OpenCooldownSeconds * NightCooldownScale, night);
+        if (Time.time - _lastAmbushTime < cooldown)
             return;
         if (_travelSinceOpenCheck < OpenMinTravelMeters)
             return;
@@ -149,14 +153,15 @@ public sealed class RoadAmbushService : MonoBehaviour
         }
 
         _travelSinceOpenCheck = 0f;
-        if (UnityEngine.Random.value > OpenAmbushChance)
+        float chance = Mathf.Lerp(DayOpenAmbushChance, NightOpenAmbushChance, night);
+        if (UnityEngine.Random.value > chance)
             return;
 
         if (!SpawnAmbush(playerPos, _travelForward))
             return;
 
         _lastAmbushTime = Time.time;
-        GameplayEvents.RaiseToast("Ambush!");
+        GameplayEvents.RaiseToast(night >= 0.5f ? "Night ambush!" : "Ambush!");
     }
 
     static bool HasReachedEscortAmbushPoint(QuestInstance quest, QuestObjective step, Vector3 playerPos)
@@ -202,7 +207,15 @@ public sealed class RoadAmbushService : MonoBehaviour
         if (world == null || !world.IsCreated)
             return false;
 
-        int banditCount = UnityEngine.Random.Range(MinBanditsPerAmbush, MaxBanditsPerAmbush + 1);
+        int minBandits = MinBanditsPerAmbush;
+        int maxBandits = MaxBanditsPerAmbush;
+        if (DayNightCycle.NightFactor >= 0.5f)
+        {
+            minBandits = Mathf.Max(minBandits, 2);
+            maxBandits = Mathf.Max(maxBandits + 1, minBandits);
+        }
+
+        int banditCount = UnityEngine.Random.Range(minBandits, maxBandits + 1);
         EntityManager em = world.EntityManager;
         int spawned = 0;
         var usedTrees = new float3[banditCount];

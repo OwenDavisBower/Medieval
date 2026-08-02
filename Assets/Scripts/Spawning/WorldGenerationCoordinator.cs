@@ -47,6 +47,9 @@ public class WorldGenerationCoordinator : MonoBehaviour
     readonly List<Vector3> _plannedSettlementCenters = new List<Vector3>();
     readonly Dictionary<int, GameObject> _streamingSettlements = new Dictionary<int, GameObject>();
 
+    /// <summary>Deterministic world seed used for terrain noise and spawn RNG.</summary>
+    public int Seed => seed;
+
     /// <summary>Planned village centers in world space (XZ); populated after each spawn sequence.</summary>
     public IReadOnlyList<Vector3> PlannedSettlementCenters => _plannedSettlementCenters;
 

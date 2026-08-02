@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using Unity.AI.Navigation;
 using Unity.Mathematics;
 using UnityEngine;
@@ -18,9 +19,12 @@ using UnityEditor;
 public sealed class TerrainNavMeshBuilder : MonoBehaviour
 {
     const string NavMeshWaterLevelVolumeObjectName = "NavMeshWaterLevelVolume";
+    const string NavMeshRiverFordRootName = "NavMeshRiverFords";
     const string NavMeshBakeExcludeLayerName = "Character";
+    const float RiverFordSegmentLength = 6f;
+    const float RiverFordColliderThickness = 0.35f;
 
-    /// <summary>Must match Project Settings &gt; AI Navigation &gt; Areas (e.g. cost 3 for water).</summary>
+    /// <summary>Must match Project Settings &gt; AI Navigation &gt; Areas (Water; path cost set at runtime too).</summary>
     public const string DefaultNavMeshWaterAreaName = "Water";
 
     [SerializeField] TerrainGenerator? terrainGenerator;
@@ -48,6 +52,8 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
     Vector2 _lastNavMeshFocusXz = new(float.NaN, float.NaN);
     bool _warnedMissingWaterNavMeshArea;
     NavMeshModifierVolume? _navMeshWaterLevelVolume;
+    Transform? _riverFordRoot;
+    readonly List<List<Vector2>> _riverFordPolylines = new();
 
     AsyncOperation? _navMeshUpdateOp;
     bool _navMeshRebuildQueuedAfterAsync;
@@ -197,6 +203,89 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
         _navMeshWaterLevelVolume.center = new Vector3(0f, cY, 0f);
     }
 
+    /// <summary>
+    /// Flat Water-area colliders along rivers at sea level so banks connect for fording (deep carved
+    /// riverbeds alone are often disconnected from Walkable by slope/climb limits).
+    /// </summary>
+    void EnsureNavMeshRiverFordColliders()
+    {
+        var terrain = terrainGenerator;
+        if (terrain == null || !terrain.IsTerrainReady)
+            return;
+
+        int water = NavMesh.GetAreaFromName(DefaultNavMeshWaterAreaName);
+        if (water < 0)
+            return;
+
+        if (_riverFordRoot == null)
+        {
+            var existing = transform.Find(NavMeshRiverFordRootName);
+            _riverFordRoot = existing != null
+                ? existing
+                : new GameObject(NavMeshRiverFordRootName).transform;
+            _riverFordRoot.SetParent(transform, false);
+        }
+
+        // Immediate destroy so the same-frame NavMesh bake does not see stale ford colliders.
+        for (int i = _riverFordRoot.childCount - 1; i >= 0; i--)
+            DestroyImmediate(_riverFordRoot.GetChild(i).gameObject);
+
+        terrain.CollectRiverPolylinesWorldXz(_riverFordPolylines);
+        if (_riverFordPolylines.Count == 0)
+            return;
+
+        float halfWidth = math.max(1.5f, terrain.RiverFordHalfWidth);
+        float y = navMeshWaterLevelY;
+        int segmentIndex = 0;
+        float minSpacingSq = RiverFordSegmentLength * RiverFordSegmentLength;
+
+        foreach (var poly in _riverFordPolylines)
+        {
+            if (poly == null || poly.Count < 2)
+                continue;
+
+            Vector2 anchor = poly[0];
+            for (int i = 1; i < poly.Count; i++)
+            {
+                Vector2 cur = poly[i];
+                Vector2 delta = cur - anchor;
+                float lenSq = delta.sqrMagnitude;
+                bool isLast = i == poly.Count - 1;
+                if (lenSq < minSpacingSq && !isLast)
+                    continue;
+                if (lenSq < 0.25f)
+                {
+                    anchor = cur;
+                    continue;
+                }
+
+                float len = math.sqrt(lenSq);
+                Vector2 dir = delta / len;
+                Vector2 mid = anchor + dir * (len * 0.5f);
+                CreateRiverFordSegment(mid, dir, len, halfWidth, y, water, segmentIndex++);
+                anchor = cur;
+            }
+        }
+    }
+
+    void CreateRiverFordSegment(
+        Vector2 midXz, Vector2 dirXz, float length, float halfWidth, float worldY, int waterArea, int index)
+    {
+        var go = new GameObject($"Ford_{index}");
+        go.transform.SetParent(_riverFordRoot, false);
+        go.transform.position = new Vector3(midXz.x, worldY, midXz.y);
+        float yaw = math.atan2(dirXz.x, dirXz.y) * Mathf.Rad2Deg;
+        go.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+
+        var box = go.AddComponent<BoxCollider>();
+        box.center = Vector3.zero;
+        box.size = new Vector3(halfWidth * 2f, RiverFordColliderThickness, length);
+
+        var modifier = go.AddComponent<NavMeshModifier>();
+        modifier.overrideArea = true;
+        modifier.area = waterArea;
+    }
+
     void EnsureNavMeshSurface()
     {
         if (navMeshSurface == null)
@@ -253,6 +342,7 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
             return;
 
         EnsureNavMeshWaterLevelAreaVolume();
+        EnsureNavMeshRiverFordColliders();
         EnsureNavMeshSurface();
         ApplyNavMeshCameraVolume();
         var surface = navMeshSurface!;

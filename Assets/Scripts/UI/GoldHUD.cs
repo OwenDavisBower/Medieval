@@ -2,19 +2,23 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Top-center gold readout. Follows the runtime uGUI pattern of <see cref="MinimapUI"/>.
+/// Top-center gold + player level/XP readout. Follows the runtime uGUI pattern of <see cref="MinimapUI"/>.
 /// </summary>
 public sealed class GoldHUD : MonoBehaviour
 {
     [SerializeField] float marginPixels = 18f;
-    [SerializeField] float panelWidth = 200f;
-    [SerializeField] float panelHeight = 44f;
+    [SerializeField] float panelWidth = 260f;
+    [SerializeField] float panelHeight = 64f;
     [SerializeField] Color panelColor = new Color(0.06f, 0.05f, 0.04f, 0.62f);
     [SerializeField] Color accentColor = new Color(0.95f, 0.78f, 0.22f, 1f);
     [SerializeField] Color textColor = new Color(1f, 0.94f, 0.72f, 1f);
+    [SerializeField] Color xpFillColor = new Color(0.35f, 0.65f, 1f, 1f);
 
-    Text _label;
+    Text _goldLabel;
+    Text _levelLabel;
+    Image _xpFill;
     PlayerWallet _boundWallet;
+    PlayerExperience _boundXp;
     static Font s_font;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -31,15 +35,24 @@ public sealed class GoldHUD : MonoBehaviour
 
     void Awake() => BuildUi();
 
-    void OnDisable() => UnbindWallet();
+    void OnDisable()
+    {
+        UnbindWallet();
+        UnbindXp();
+    }
 
-    void OnDestroy() => UnbindWallet();
+    void OnDestroy()
+    {
+        UnbindWallet();
+        UnbindXp();
+    }
 
     void LateUpdate()
     {
-        if (_boundWallet != null)
-            return;
-        TryBindWallet();
+        if (_boundWallet == null)
+            TryBindWallet();
+        if (_boundXp == null)
+            TryBindXp();
     }
 
     void TryBindWallet()
@@ -51,7 +64,7 @@ public sealed class GoldHUD : MonoBehaviour
         UnbindWallet();
         _boundWallet = wallet;
         _boundWallet.Changed += OnGoldChanged;
-        Refresh(_boundWallet.Gold);
+        RefreshGold(_boundWallet.Gold);
     }
 
     void UnbindWallet()
@@ -62,12 +75,42 @@ public sealed class GoldHUD : MonoBehaviour
         _boundWallet = null;
     }
 
-    void OnGoldChanged(int gold) => Refresh(gold);
-
-    void Refresh(int gold)
+    void TryBindXp()
     {
-        if (_label != null)
-            _label.text = $"Gold  {gold}";
+        var xp = PlayerReference.TryGetExperience();
+        if (xp == null || xp == _boundXp)
+            return;
+
+        UnbindXp();
+        _boundXp = xp;
+        _boundXp.Changed += RefreshXp;
+        RefreshXp();
+    }
+
+    void UnbindXp()
+    {
+        if (_boundXp == null)
+            return;
+        _boundXp.Changed -= RefreshXp;
+        _boundXp = null;
+    }
+
+    void OnGoldChanged(int gold) => RefreshGold(gold);
+
+    void RefreshGold(int gold)
+    {
+        if (_goldLabel != null)
+            _goldLabel.text = $"Gold  {gold}";
+    }
+
+    void RefreshXp()
+    {
+        if (_boundXp == null)
+            return;
+        if (_levelLabel != null)
+            _levelLabel.text = $"Lv {_boundXp.Level}";
+        if (_xpFill != null)
+            _xpFill.fillAmount = _boundXp.XpFill01;
     }
 
     void BuildUi()
@@ -110,25 +153,82 @@ public sealed class GoldHUD : MonoBehaviour
         accentRect.sizeDelta = new Vector2(6f, 0f);
         accentRect.anchoredPosition = Vector2.zero;
 
-        var labelGo = new GameObject("Label");
-        labelGo.transform.SetParent(panelRect, false);
-        _label = labelGo.AddComponent<Text>();
-        _label.font = BuiltinFont();
-        _label.fontSize = 26;
-        _label.fontStyle = FontStyle.Bold;
-        _label.alignment = TextAnchor.MiddleCenter;
-        _label.color = textColor;
-        _label.raycastTarget = false;
-        _label.horizontalOverflow = HorizontalWrapMode.Overflow;
-        _label.verticalOverflow = VerticalWrapMode.Overflow;
-        var labelRect = labelGo.GetComponent<RectTransform>();
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = new Vector2(12f, 4f);
-        labelRect.offsetMax = new Vector2(-8f, -4f);
+        var goldGo = new GameObject("GoldLabel");
+        goldGo.transform.SetParent(panelRect, false);
+        _goldLabel = goldGo.AddComponent<Text>();
+        _goldLabel.font = BuiltinFont();
+        _goldLabel.fontSize = 24;
+        _goldLabel.fontStyle = FontStyle.Bold;
+        _goldLabel.alignment = TextAnchor.MiddleLeft;
+        _goldLabel.color = textColor;
+        _goldLabel.raycastTarget = false;
+        _goldLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+        _goldLabel.verticalOverflow = VerticalWrapMode.Overflow;
+        var goldRect = goldGo.GetComponent<RectTransform>();
+        goldRect.anchorMin = new Vector2(0f, 0.45f);
+        goldRect.anchorMax = new Vector2(0.62f, 1f);
+        goldRect.offsetMin = new Vector2(14f, 0f);
+        goldRect.offsetMax = new Vector2(-4f, -2f);
 
-        Refresh(PlayerWallet.Instance != null ? PlayerWallet.Instance.Gold : 0);
+        var levelGo = new GameObject("LevelLabel");
+        levelGo.transform.SetParent(panelRect, false);
+        _levelLabel = levelGo.AddComponent<Text>();
+        _levelLabel.font = BuiltinFont();
+        _levelLabel.fontSize = 22;
+        _levelLabel.fontStyle = FontStyle.Bold;
+        _levelLabel.alignment = TextAnchor.MiddleRight;
+        _levelLabel.color = new Color(0.85f, 0.9f, 1f, 1f);
+        _levelLabel.raycastTarget = false;
+        _levelLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+        var levelRect = levelGo.GetComponent<RectTransform>();
+        levelRect.anchorMin = new Vector2(0.55f, 0.45f);
+        levelRect.anchorMax = new Vector2(1f, 1f);
+        levelRect.offsetMin = new Vector2(0f, 0f);
+        levelRect.offsetMax = new Vector2(-10f, -2f);
+
+        var xpTrackGo = new GameObject("XpTrack");
+        xpTrackGo.transform.SetParent(panelRect, false);
+        var xpTrack = xpTrackGo.AddComponent<Image>();
+        xpTrack.sprite = WhiteSprite();
+        xpTrack.color = new Color(0.18f, 0.18f, 0.22f, 0.9f);
+        var xpTrackRect = xpTrackGo.GetComponent<RectTransform>();
+        xpTrackRect.anchorMin = new Vector2(0f, 0f);
+        xpTrackRect.anchorMax = new Vector2(1f, 0f);
+        xpTrackRect.pivot = new Vector2(0.5f, 0f);
+        xpTrackRect.sizeDelta = new Vector2(-20f, 10f);
+        xpTrackRect.anchoredPosition = new Vector2(4f, 8f);
+
+        var xpFillGo = new GameObject("XpFill");
+        xpFillGo.transform.SetParent(xpTrackGo.transform, false);
+        _xpFill = xpFillGo.AddComponent<Image>();
+        _xpFill.sprite = WhiteSprite();
+        _xpFill.color = xpFillColor;
+        _xpFill.type = Image.Type.Filled;
+        _xpFill.fillMethod = Image.FillMethod.Horizontal;
+        _xpFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        _xpFill.fillAmount = 0f;
+        _xpFill.raycastTarget = false;
+        var xpFillRect = xpFillGo.GetComponent<RectTransform>();
+        xpFillRect.anchorMin = Vector2.zero;
+        xpFillRect.anchorMax = Vector2.one;
+        xpFillRect.offsetMin = Vector2.zero;
+        xpFillRect.offsetMax = Vector2.zero;
+
+        RefreshGold(PlayerWallet.Instance != null ? PlayerWallet.Instance.Gold : 0);
+        RefreshXp();
         TryBindWallet();
+        TryBindXp();
+    }
+
+    static Sprite s_whiteSprite;
+
+    static Sprite WhiteSprite()
+    {
+        if (s_whiteSprite != null)
+            return s_whiteSprite;
+        var tex = Texture2D.whiteTexture;
+        s_whiteSprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+        return s_whiteSprite;
     }
 
     static Font BuiltinFont()

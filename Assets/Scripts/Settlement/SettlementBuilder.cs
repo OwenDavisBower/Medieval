@@ -425,6 +425,17 @@ public class SettlementBuilder : MonoBehaviour
 
     void SpawnVillagersNearBuilding(Transform anchor, Vector3 worldPos)
     {
+        int ownerFaction = WellKnownFactionIds.Villager;
+        if (_settlementId != int.MinValue &&
+            SettlementService.Instance != null &&
+            SettlementService.Instance.TryGetSettlement(_settlementId, out SettlementRecord settlement) &&
+            settlement != null)
+        {
+            ownerFaction = settlement.OwnedByPlayer
+                ? WellKnownFactionIds.Villager
+                : settlement.OwnerFactionId;
+        }
+
         int count = Random.Range(2, 4);
         for (int v = 0; v < count; v++)
         {
@@ -446,6 +457,8 @@ public class SettlementBuilder : MonoBehaviour
             var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
             var em = world.EntityManager;
             NpcMovementApi.SetAnchorPosition(em, e, new float3(anchor.position.x, anchor.position.y, anchor.position.z));
+            if (ownerFaction != WellKnownFactionIds.Villager)
+                NpcCombatSpawnUtility.ApplyFactionId(em, e, ownerFaction);
         }
     }
 

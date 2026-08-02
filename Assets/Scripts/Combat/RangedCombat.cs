@@ -34,6 +34,16 @@ public class RangedCombat : MonoBehaviour
 
     public float TargetAimHeight => targetAimHeight;
 
+    public float ArrowDamage => arrowDamage;
+
+    /// <summary>Multiplies arrow damage (used by player/NPC level-ups).</summary>
+    public void ScaleArrowDamage(float multiplier)
+    {
+        if (multiplier <= 0f)
+            return;
+        arrowDamage *= multiplier;
+    }
+
     /// <summary>Aborts an in-progress draw/release (no arrow), clears the movement lock, and leaves the shoot clip.</summary>
     public void CancelShot()
     {

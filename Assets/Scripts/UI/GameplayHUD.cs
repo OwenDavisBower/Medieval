@@ -36,9 +36,10 @@ public sealed class GameplayHUD : MonoBehaviour
     Text _healLabel;
     readonly List<Button> _actionButtons = new List<Button>();
     readonly List<Text> _actionLabels = new List<Text>();
-    readonly List<PartyRowUi> _partyRows = new List<PartyRowUi>(PartyManager.MaxPartySize);
+    readonly List<PartyRowUi> _partyRows = new List<PartyRowUi>(PartyManager.MaxPartySize + 1);
     readonly List<Entity> _partyScratch = new List<Entity>(PartyManager.MaxPartySize);
     readonly List<QuestOffer> _questOfferScratch = new List<QuestOffer>(4);
+    PartyRowUi _playerRow;
 
     float _toastLife;
     SettlementRecord _boundSettlement;
@@ -168,32 +169,45 @@ public sealed class GameplayHUD : MonoBehaviour
         if (_partyRosterPanel == null || !_partyRosterPanel.gameObject.activeSelf)
             return;
 
-        RefreshPartyRoster(count);
+        RefreshPartyRoster();
     }
 
-    void RefreshPartyRoster(int count)
+    void RefreshPartyRoster()
     {
         if (_partyEmptyLabel != null)
-            _partyEmptyLabel.gameObject.SetActive(count == 0);
-
-        if (PartyManager.Instance == null)
         {
-            for (int i = 0; i < _partyRows.Count; i++)
-                _partyRows[i].Root.SetActive(false);
-            return;
+            bool noFollowers = LivingFollowerCount() == 0;
+            _partyEmptyLabel.gameObject.SetActive(noFollowers);
+            if (noFollowers)
+            {
+                var emptyRect = _partyEmptyLabel.GetComponent<RectTransform>();
+                emptyRect.offsetMin = new Vector2(8f, -PartyRowHeight - 56f);
+                emptyRect.offsetMax = new Vector2(-8f, -PartyRowHeight - 8f);
+            }
         }
 
-        PartyManager.Instance.CopyLivingFollowers(_partyScratch);
         World world = World.DefaultGameObjectInjectionWorld;
         if (world == null || !world.IsCreated)
             return;
 
         EntityManager em = world.EntityManager;
+        if (PartyManager.Instance != null)
+            PartyManager.Instance.CopyLivingFollowers(_partyScratch);
+        else
+            _partyScratch.Clear();
+
+        EnsurePlayerPartyRow();
         EnsurePartyRowCount(_partyScratch.Count);
 
-        float contentHeight = Mathf.Max(40f, _partyScratch.Count * PartyRowHeight + 8f);
+        // Row 0 = player; followers start at index 1.
+        int totalRows = 1 + _partyScratch.Count;
+        float contentHeight = Mathf.Max(PartyRowHeight + 40f, totalRows * PartyRowHeight + 8f);
+        if (_partyScratch.Count == 0)
+            contentHeight = Mathf.Max(contentHeight, PartyRowHeight + 56f);
         if (_partyContent != null)
             _partyContent.sizeDelta = new Vector2(0f, contentHeight);
+
+        RefreshPlayerPartyRow();
 
         for (int i = 0; i < _partyRows.Count; i++)
         {
@@ -205,6 +219,10 @@ public sealed class GameplayHUD : MonoBehaviour
             }
 
             row.Root.SetActive(true);
+            // Offset below the player row.
+            var rect = row.Root.GetComponent<RectTransform>();
+            rect.anchoredPosition = new Vector2(0f, -(i + 1) * PartyRowHeight);
+
             Entity e = _partyScratch[i];
             string name = PartyManager.GetDisplayName(em, e);
             int level = 1;
@@ -245,6 +263,50 @@ public sealed class GameplayHUD : MonoBehaviour
                 ? $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}  ·  {gold}g"
                 : $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}";
         }
+    }
+
+    static int LivingFollowerCount() =>
+        PartyManager.Instance != null ? PartyManager.Instance.CountLivingFollowers() : 0;
+
+    void EnsurePlayerPartyRow()
+    {
+        if (_playerRow != null || _partyContent == null)
+            return;
+        _playerRow = CreatePartyRow(_partyContent, 0);
+        _playerRow.Root.name = "Player";
+    }
+
+    void RefreshPlayerPartyRow()
+    {
+        if (_playerRow == null)
+            return;
+
+        _playerRow.Root.SetActive(true);
+        var rect = _playerRow.Root.GetComponent<RectTransform>();
+        rect.anchoredPosition = Vector2.zero;
+
+        Character character = PlayerReference.TryGetCharacter();
+        PlayerExperience xp = PlayerReference.TryGetExperience();
+        int level = xp != null ? xp.Level : 1;
+        float xpCur = xp != null ? xp.CurrentXp : 0f;
+        float xpNext = xp != null ? Mathf.Max(0.01f, xp.XpToNextLevel) : 1f;
+        float xpFill = xp != null ? xp.XpFill01 : 0f;
+        float hpCur = character != null ? character.CurrentHealth : 0f;
+        float hpMax = character != null ? Mathf.Max(0.01f, character.MaxHealth) : 1f;
+        float hpFill = Mathf.Clamp01(hpCur / hpMax);
+
+        if (_playerRow.ClassIcon != null)
+        {
+            _playerRow.ClassIcon.sprite = BowSprite();
+            _playerRow.ClassIcon.color = new Color(0.72f, 0.88f, 0.62f, 1f);
+            _playerRow.ClassIcon.enabled = true;
+        }
+
+        _playerRow.NameLevel.text = $"You  ·  Lv {level}";
+        _playerRow.XpFill.fillAmount = xpFill;
+        _playerRow.XpLabel.text = $"XP  {Mathf.FloorToInt(xpCur)}/{Mathf.CeilToInt(xpNext)}";
+        _playerRow.HpFill.fillAmount = hpFill;
+        _playerRow.HpLabel.text = $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}";
     }
 
     static void ApplyWeaponClassIcon(PartyRowUi row, EntityManager em, Entity e)
@@ -334,9 +396,13 @@ public sealed class GameplayHUD : MonoBehaviour
 
         if (_standingLabel != null)
         {
-            string claim = nearby.OwnedByPlayer
-                ? "Your land — taxes trickle in"
-                : $"Standing {nearby.Reputation} ({nearby.StandingLabel})";
+            string claim;
+            if (nearby.OwnedByPlayer)
+                claim = "Your land — taxes trickle in";
+            else if (nearby.IsOwnedByNeutralKingdom)
+                claim = $"Ruled by {nearby.StandingLabel} — Standing {nearby.Reputation}";
+            else
+                claim = $"Standing {nearby.Reputation} ({nearby.StandingLabel})";
             _standingLabel.text = claim;
         }
 

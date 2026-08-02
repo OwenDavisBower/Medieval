@@ -52,10 +52,14 @@ public static class TerrainChunkDotsNpcStreaming
                 continue;
 
             int fid = factions[i].Value;
-            bool banditOrVillagerFaction = fid == WellKnownFactionIds.Bandit || fid == WellKnownFactionIds.Villager;
+            bool streamableFaction = fid == WellKnownFactionIds.Bandit ||
+                                     fid == WellKnownFactionIds.Villager ||
+                                     WellKnownFactionIds.IsNeutralKingdom(fid);
             NpcRole role = profiles[i].Role;
-            bool banditOrVillagerRole = role == NpcRole.Bandit || role == NpcRole.Villager;
-            if (!banditOrVillagerFaction && !banditOrVillagerRole)
+            bool streamableRole = role == NpcRole.Bandit ||
+                                  role == NpcRole.Villager ||
+                                  role == NpcRole.Soldier;
+            if (!streamableFaction && !streamableRole)
                 continue;
 
             float3 p = transforms[i].Position;

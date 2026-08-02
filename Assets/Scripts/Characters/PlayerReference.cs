@@ -7,6 +7,7 @@ using UnityEngine;
 public static class PlayerReference
 {
     static Character s_Character;
+    static PlayerExperience s_Experience;
 
     public static void Register(Transform transform, Rigidbody rigidbody, Character character)
     {
@@ -14,6 +15,14 @@ public static class PlayerReference
         int factionId = aff != null ? aff.FactionId : -1;
         PlayerAnchorRegistration.Register(transform, rigidbody, factionId);
         s_Character = character;
+        if (transform != null)
+        {
+            s_Experience = transform.GetComponent<PlayerExperience>();
+            if (s_Experience == null)
+                s_Experience = transform.gameObject.AddComponent<PlayerExperience>();
+        }
+        else
+            s_Experience = null;
     }
 
     public static void Unregister(Transform transform)
@@ -22,7 +31,10 @@ public static class PlayerReference
                            PlayerAnchorRegistration.Transform == transform;
         PlayerAnchorRegistration.Unregister(transform);
         if (hadThisRoot)
+        {
             s_Character = null;
+            s_Experience = null;
+        }
     }
 
     public static Transform TryGetTransform() => PlayerAnchorRegistration.Transform;
@@ -30,4 +42,6 @@ public static class PlayerReference
     public static Rigidbody TryGetRigidbody() => PlayerAnchorRegistration.Rigidbody;
 
     public static Character TryGetCharacter() => s_Character;
+
+    public static PlayerExperience TryGetExperience() => s_Experience;
 }

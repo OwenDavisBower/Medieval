@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(PlayerExperience))]
 public class PlayerController : MonoBehaviour
 {
     /// <summary>Fired once after the player has been snapped onto terrain; argument is the applied world position (use this instead of <see cref="Transform.position"/>—RB teleport may not sync the transform yet this frame).</summary>
@@ -26,6 +27,8 @@ public class PlayerController : MonoBehaviour
         _rb = GetComponent<Rigidbody>();
         _character = GetComponent<Character>();
         _ranged = GetComponent<RangedCombat>();
+        if (GetComponent<PlayerExperience>() == null)
+            gameObject.AddComponent<PlayerExperience>();
         _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
         if (Camera.main != null)
             _cam = Camera.main.transform;

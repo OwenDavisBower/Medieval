@@ -168,6 +168,43 @@ public class Character : MonoBehaviour, IDamageableHealth
         return healed;
     }
 
+    /// <summary>
+    /// Applies the same level-up growth as DOTS NPCs (<see cref="Medieval.Npcs.NpcExperienceUtility"/>).
+    /// God-mode max HP is left alone; bonuses apply to the stored pre-god-mode max.
+    /// </summary>
+    public void ApplyLevelUpBonuses(
+        float healthGain,
+        float healthRestoreFraction,
+        float meleeDamageMult,
+        float moveSpeedMult,
+        float aimErrorMult,
+        float braveryGain)
+    {
+        if (IsDead)
+            return;
+
+        if (_godMode)
+        {
+            _preGodModeRolledMaxHealth += healthGain;
+            float healGod = _preGodModeRolledMaxHealth * Mathf.Clamp01(healthRestoreFraction);
+            _preGodModeCurrentHealth = Mathf.Min(_preGodModeRolledMaxHealth,
+                _preGodModeCurrentHealth + healGod);
+        }
+        else
+        {
+            _rolledMaxHealth += healthGain;
+            float heal = _rolledMaxHealth * Mathf.Clamp01(healthRestoreFraction);
+            _current = Mathf.Min(_rolledMaxHealth, _current + heal);
+            _healthBar ??= GetComponent<CharacterHealthBar>();
+            _healthBar?.OnHealthChanged(_current, _rolledMaxHealth);
+        }
+
+        _meleeDamageMultiplier *= meleeDamageMult;
+        _movementSpeedMultiplier *= moveSpeedMult;
+        _rangedAimErrorMultiplier *= aimErrorMult;
+        _bravery += braveryGain;
+    }
+
     void HandleDeath()
     {
         if (_deathHandled)

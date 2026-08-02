@@ -88,7 +88,8 @@ namespace Medieval.Npcs
             NpcWeaponClass resolved;
             if (explicitWeaponClass == NpcWeaponClass.Melee || explicitWeaponClass == NpcWeaponClass.Ranged)
                 resolved = explicitWeaponClass;
-            else if ((role == NpcRole.Follower || role == NpcRole.Bandit) && inferred == NpcWeaponClass.Both)
+            else if ((role == NpcRole.Follower || role == NpcRole.Bandit || role == NpcRole.Soldier) &&
+                     inferred == NpcWeaponClass.Both)
                 resolved = CoinFlipWeapon(em, npc);
             else
                 resolved = inferred;
@@ -107,7 +108,7 @@ namespace Medieval.Npcs
                 profile.WeaponClass = explicitWeaponClass;
             else if (profile.WeaponClass == NpcWeaponClass.Unspecified)
                 profile.WeaponClass = resolved;
-            else if ((role == NpcRole.Follower || role == NpcRole.Bandit) &&
+            else if ((role == NpcRole.Follower || role == NpcRole.Bandit || role == NpcRole.Soldier) &&
                      profile.WeaponClass == NpcWeaponClass.Both)
                 profile.WeaponClass = CoinFlipWeapon(em, npc);
             em.SetComponentData(npc, profile);
@@ -202,6 +203,10 @@ namespace Medieval.Npcs
         {
             if (!em.Exists(npc))
                 return;
+            // Soldier faction is assigned by the caller via <see cref="ApplyFactionId"/>.
+            if (role == NpcRole.Soldier)
+                return;
+
             int id = role switch
             {
                 NpcRole.Follower => WellKnownFactionIds.Player,
@@ -209,14 +214,22 @@ namespace Medieval.Npcs
                 NpcRole.Villager => WellKnownFactionIds.Villager,
                 _ => -1
             };
-            if (!em.HasComponent<NpcFactionId>(npc))
-                em.AddComponentData(npc, new NpcFactionId { Value = id });
-            else
-                em.SetComponentData(npc, new NpcFactionId { Value = id });
+            ApplyFactionId(em, npc, id);
+        }
 
-            // Villager/soldier body meshes use clothing-mask albedo; tint from faction clothing color.
-            if (id >= 0)
-                NpcFactionClothingUtility.ApplyClothingColorForFaction(em, npc, id);
+        /// <summary>Sets <see cref="NpcFactionId"/> and clothing tint for any spawn (soldiers, owned villagers, etc.).</summary>
+        public static void ApplyFactionId(EntityManager em, Entity npc, int factionId)
+        {
+            if (!em.Exists(npc))
+                return;
+
+            if (!em.HasComponent<NpcFactionId>(npc))
+                em.AddComponentData(npc, new NpcFactionId { Value = factionId });
+            else
+                em.SetComponentData(npc, new NpcFactionId { Value = factionId });
+
+            if (factionId >= 0)
+                NpcFactionClothingUtility.ApplyClothingColorForFaction(em, npc, factionId);
         }
 
         /// <summary>Uses combat config presence on this entity (baked root). For configs on child entities, set <see cref="NpcProfile.WeaponClass"/> in authoring.</summary>

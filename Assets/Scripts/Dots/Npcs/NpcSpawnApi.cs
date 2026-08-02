@@ -72,6 +72,39 @@ namespace Medieval.Npcs
             return e;
         }
 
+        /// <summary>
+        /// Spawns an armed soldier for a faction (reuses the Bandit prefab mesh/weapons).
+        /// Neutral kingdom troops seek hostiles (e.g. bandits) but are not bandits for kill credit.
+        /// </summary>
+        public static Entity SpawnFactionSoldier(
+            Vector3 worldPosition,
+            quaternion worldRotation,
+            int factionId,
+            float uniformScale = 1f,
+            NpcWeaponClass explicitWeaponClass = NpcWeaponClass.Unspecified)
+        {
+            World world = World.DefaultGameObjectInjectionWorld;
+            if (world == null || !world.IsCreated)
+                return Entity.Null;
+
+            EntityManager em = world.EntityManager;
+            if (!TryGetPrefab(em, NpcPrefabKind.Bandit, out Entity prefab))
+                return Entity.Null;
+
+            float3 pos = new float3(worldPosition.x, worldPosition.y, worldPosition.z);
+
+            Entity e = em.Instantiate(prefab);
+#if UNITY_EDITOR
+            em.SetName(e, "FactionSoldierNpc");
+#endif
+            em.SetComponentData(e, LocalTransform.FromPositionRotationScale(pos, worldRotation, uniformScale));
+            NpcCombatSpawnUtility.RollAndAttachCombatState(em, e);
+            NpcCombatSpawnUtility.FinalizeSpawnProfile(em, e, NpcRole.Soldier, explicitWeaponClass);
+            NpcCombatSpawnUtility.ApplyFactionId(em, e, factionId);
+            EnsureCombatPipelineComponents(em, e, NpcRole.Soldier);
+            return e;
+        }
+
         public static Entity SpawnVillager(Vector3 worldPosition, quaternion worldRotation, float uniformScale = 1f)
         {
             World world = World.DefaultGameObjectInjectionWorld;
@@ -226,7 +259,9 @@ namespace Medieval.Npcs
                     leash = 15f;
                 float teleBack = followerGroup ? 80f : 0f;
                 float teleTarget = followerGroup ? 50f : 0f;
-                byte seeks = role == NpcRole.Villager || role == NpcRole.Unknown ? (byte)0 : (byte)1;
+                byte seeks = role == NpcRole.Villager || role == NpcRole.Unknown
+                    ? (byte)0
+                    : (byte)1;
                 em.AddComponentData(npc, new NpcCombatSeekConfig
                 {
                     AggroRadius = 50f,

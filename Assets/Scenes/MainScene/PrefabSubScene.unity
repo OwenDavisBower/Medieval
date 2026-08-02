@@ -153,6 +153,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770001, type: 2}
   - {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770002, type: 2}
   - {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770003, type: 2}
+  - {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770005, type: 2}
+  - {fileID: 11400000, guid: aa11aa22bb33cc44dd55ee66ff770006, type: 2}
   dontDestroyOnLoad: 1
 --- !u!4 &2254903
 Transform:

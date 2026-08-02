@@ -35,6 +35,12 @@ namespace Medieval.Npcs
             if (shooterFactionId == WellKnownFactionIds.Player)
                 return true;
 
+            return IsPlayerLegacyShooter(legacyRootId);
+        }
+
+        /// <summary>True when the projectile's legacy GameObject root is the player (not towers/followers).</summary>
+        public static bool IsPlayerLegacyShooter(EntityId legacyRootId)
+        {
             Transform playerTf = PlayerAnchorRegistration.Transform;
             return playerTf != null &&
                    playerTf.root != null &&

@@ -5,6 +5,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Top-right screen minimap baked from terrain height + splat (paths / rock / water) with village and player markers.
+/// The baked texture covers the full world; the visible window pans to follow the player.
 /// Village markers use live <see cref="SettlementBuilder"/> world centers when available (not nominal plan points).
 /// Follows the same runtime uGUI pattern as <see cref="VirtualJoystick"/>.
 /// Spawns itself at play mode start so scene script GUID wiring is not required.
@@ -19,6 +20,8 @@ public class MinimapUI : MonoBehaviour
     [SerializeField] float zoom = 1.5f;
     [SerializeField] float villageMarkerRadiusTexels = 3.5f;
     [SerializeField] float playerMarkerSizePixels = 12f;
+    [SerializeField] float villageLabelFontSize = 11f;
+    [SerializeField] float villageLabelOffsetPixels = 10f;
     [Tooltip("Blend to water where height is this far below TerrainGenerator.baseHeight.")]
     [SerializeField] float waterDepthBlend = 0.35f;
     [SerializeField] Color borderColor = new Color(0.08f, 0.08f, 0.1f, 0.85f);
@@ -30,6 +33,9 @@ public class MinimapUI : MonoBehaviour
     [SerializeField] Color mountainColor = new Color(0.78f, 0.78f, 0.8f, 1f);
     [SerializeField] Color waterColor = new Color(0.22f, 0.42f, 0.72f, 1f);
     [SerializeField] Color villageColor = new Color(0.92f, 0.72f, 0.22f, 1f);
+    [SerializeField] Color villageLabelColor = new Color(0.98f, 0.94f, 0.82f, 1f);
+    [Tooltip("Minimap name color for player-owned settlements.")]
+    [SerializeField] Color playerOwnedVillageLabelColor = new Color(1f, 0.85f, 0.25f, 1f);
     [SerializeField] Color playerColor = new Color(0.95f, 0.25f, 0.2f, 1f);
     [SerializeField] Color questTargetColor = new Color(0.3f, 0.95f, 1f, 1f);
     [SerializeField] float questMarkerSizePixels = 16f;
@@ -49,11 +55,20 @@ public class MinimapUI : MonoBehaviour
     Texture2D _diamondTexture;
     Sprite _diamondSprite;
     float _questPulse;
+    static Font s_font;
 
     bool _rebuildQueued;
     TerrainGenerator _boundTerrain;
     bool _subscribedSettlements;
     readonly List<Vector3> _lastPaintedSettlementCenters = new List<Vector3>();
+    readonly List<VillageLabel> _villageLabels = new List<VillageLabel>(16);
+
+    sealed class VillageLabel
+    {
+        public GameObject Root;
+        public RectTransform Rect;
+        public Text Text;
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Bootstrap()
@@ -111,8 +126,10 @@ public class MinimapUI : MonoBehaviour
         }
 
         _questPulse += Time.deltaTime;
+        UpdateViewWindow();
         UpdatePlayerMarker();
         UpdateQuestMarker();
+        UpdateVillageLabels();
     }
 
     void OnTerrainGenerated(TerrainGenerator _) => QueueRebuild();
@@ -242,6 +259,7 @@ public class MinimapUI : MonoBehaviour
         _mapRect.anchorMax = Vector2.one;
         _mapRect.offsetMin = new Vector2(borderPixels, borderPixels);
         _mapRect.offsetMax = new Vector2(-borderPixels, -borderPixels);
+        mapGo.AddComponent<RectMask2D>();
 
         var playerGo = new GameObject("PlayerMarker");
         playerGo.transform.SetParent(_mapRect, false);
@@ -378,7 +396,6 @@ public class MinimapUI : MonoBehaviour
         int res = _mapTexture.width;
         float worldSize = gen.worldSize;
         Vector3 origin = gen.transform.position;
-        float viewSize = GetViewSize(worldSize);
         float baseH = gen.baseHeight;
         float maxH = Mathf.Max(1e-3f, gen.maxHeightVariation);
 
@@ -395,11 +412,11 @@ public class MinimapUI : MonoBehaviour
             for (int y = 0; y < res; y++)
             {
                 float v = (y + 0.5f) / res;
-                float wz = origin.z + (v - 0.5f) * viewSize;
+                float wz = origin.z + (v - 0.5f) * worldSize;
                 for (int x = 0; x < res; x++)
                 {
                     float u = (x + 0.5f) / res;
-                    float wx = origin.x + (u - 0.5f) * viewSize;
+                    float wx = origin.x + (u - 0.5f) * worldSize;
 
                     float h = SampleHeightBilinear(heights, hr, origin, worldSize, wx, wz);
                     float height01 = Mathf.Clamp01((h - baseH) / maxH);
@@ -425,9 +442,10 @@ public class MinimapUI : MonoBehaviour
                 }
             }
 
-            PaintVillages(res, origin, viewSize);
+            PaintVillages(res, origin, worldSize);
             _mapTexture.SetPixels32(_pixels);
             _mapTexture.Apply(false, false);
+            UpdateViewWindow();
         }
         finally
         {
@@ -436,11 +454,72 @@ public class MinimapUI : MonoBehaviour
         }
     }
 
-    float GetViewSize(float worldSize) => worldSize / Mathf.Max(1e-3f, zoom);
+    float GetViewFraction() => 1f / Mathf.Max(1e-3f, zoom);
 
-    void PaintVillages(int res, Vector3 origin, float viewSize)
+    void UpdateViewWindow()
     {
-        float r = Mathf.Max(1.5f, villageMarkerRadiusTexels);
+        if (_mapImage == null)
+            return;
+
+        var gen = _boundTerrain != null ? _boundTerrain : ResolveTerrain();
+        if (gen == null || !gen.IsTerrainReady)
+        {
+            _mapImage.uvRect = new Rect(0f, 0f, 1f, 1f);
+            return;
+        }
+
+        float viewFrac = Mathf.Clamp01(GetViewFraction());
+        Vector3 origin = gen.transform.position;
+        float worldSize = gen.worldSize;
+
+        float focusX = origin.x;
+        float focusZ = origin.z;
+        Transform player = PlayerReference.TryGetTransform();
+        if (player != null)
+        {
+            focusX = player.position.x;
+            focusZ = player.position.z;
+        }
+
+        float px = (focusX - origin.x) / worldSize + 0.5f;
+        float pz = (focusZ - origin.z) / worldSize + 0.5f;
+        float u = Mathf.Clamp(px - viewFrac * 0.5f, 0f, 1f - viewFrac);
+        float v = Mathf.Clamp(pz - viewFrac * 0.5f, 0f, 1f - viewFrac);
+        _mapImage.uvRect = new Rect(u, v, viewFrac, viewFrac);
+    }
+
+    bool TryWorldToMapLocal(Vector3 worldPos, out Vector2 anchored)
+    {
+        anchored = default;
+        if (_mapRect == null || _mapImage == null)
+            return false;
+
+        var gen = _boundTerrain != null ? _boundTerrain : ResolveTerrain();
+        if (gen == null || !gen.IsTerrainReady)
+            return false;
+
+        Vector3 origin = gen.transform.position;
+        float worldSize = gen.worldSize;
+        float texU = (worldPos.x - origin.x) / worldSize + 0.5f;
+        float texV = (worldPos.z - origin.z) / worldSize + 0.5f;
+        Rect uv = _mapImage.uvRect;
+        if (uv.width <= 1e-6f || uv.height <= 1e-6f)
+            return false;
+
+        float localU = (texU - uv.x) / uv.width;
+        float localV = (texV - uv.y) / uv.height;
+        if (localU < 0f || localU > 1f || localV < 0f || localV > 1f)
+            return false;
+
+        Vector2 size = _mapRect.rect.size;
+        anchored = new Vector2((localU - 0.5f) * size.x, (localV - 0.5f) * size.y);
+        return true;
+    }
+
+    void PaintVillages(int res, Vector3 origin, float worldSize)
+    {
+        // Full-world bake + UV zoom: shrink texels by view fraction so on-screen size stays stable.
+        float r = Mathf.Max(1.2f, villageMarkerRadiusTexels * GetViewFraction());
         float rSq = r * r;
         Color32 fill = villageColor;
         Color32 outline = new Color32(40, 28, 8, 255);
@@ -461,7 +540,7 @@ public class MinimapUI : MonoBehaviour
             // Built villages use mesh placement center; others stay on the plan point until resolved.
             Vector3 center = s.IsBuilt ? s.WorldCenter : s.PlannedCenter;
             _lastPaintedSettlementCenters.Add(center);
-            PaintVillageMarker(center, res, origin, viewSize, r, rSq, fill, outline);
+            PaintVillageMarker(center, res, origin, worldSize, r, rSq, fill, outline);
         }
     }
 
@@ -469,14 +548,14 @@ public class MinimapUI : MonoBehaviour
         Vector3 worldPos,
         int res,
         Vector3 origin,
-        float viewSize,
+        float worldSize,
         float r,
         float rSq,
         Color32 fill,
         Color32 outline)
     {
-        float u = (worldPos.x - origin.x) / viewSize + 0.5f;
-        float v = (worldPos.z - origin.z) / viewSize + 0.5f;
+        float u = (worldPos.x - origin.x) / worldSize + 0.5f;
+        float v = (worldPos.z - origin.z) / worldSize + 0.5f;
         if (u < 0f || u > 1f || v < 0f || v > 1f)
             return;
 
@@ -506,27 +585,16 @@ public class MinimapUI : MonoBehaviour
         if (_playerMarker == null || _mapRect == null)
             return;
 
-        var gen = _boundTerrain != null ? _boundTerrain : ResolveTerrain();
         Transform player = PlayerReference.TryGetTransform();
-        if (gen == null || !gen.IsTerrainReady || player == null)
+        if (player == null || !TryWorldToMapLocal(player.position, out Vector2 anchored))
         {
             _playerMarker.gameObject.SetActive(false);
             return;
         }
 
-        Vector3 origin = gen.transform.position;
-        float viewSize = GetViewSize(gen.worldSize);
-        float u = (player.position.x - origin.x) / viewSize + 0.5f;
-        float v = (player.position.z - origin.z) / viewSize + 0.5f;
-        if (u < 0f || u > 1f || v < 0f || v > 1f)
-        {
-            _playerMarker.gameObject.SetActive(false);
-            return;
-        }
-
-        Vector2 size = _mapRect.rect.size;
-        _playerMarker.anchoredPosition = new Vector2((u - 0.5f) * size.x, (v - 0.5f) * size.y);
+        _playerMarker.anchoredPosition = anchored;
         _playerMarker.gameObject.SetActive(true);
+        _playerMarker.SetAsLastSibling();
     }
 
     void UpdateQuestMarker()
@@ -542,26 +610,13 @@ public class MinimapUI : MonoBehaviour
             return;
         }
 
-        var gen = _boundTerrain != null ? _boundTerrain : ResolveTerrain();
-        if (gen == null || !gen.IsTerrainReady)
+        if (!TryWorldToMapLocal(q.TargetPosition, out Vector2 anchored))
         {
             _questMarker.gameObject.SetActive(false);
             return;
         }
 
-        Vector3 origin = gen.transform.position;
-        float viewSize = GetViewSize(gen.worldSize);
-        Vector3 target = q.TargetPosition;
-        float u = (target.x - origin.x) / viewSize + 0.5f;
-        float v = (target.z - origin.z) / viewSize + 0.5f;
-        if (u < 0f || u > 1f || v < 0f || v > 1f)
-        {
-            _questMarker.gameObject.SetActive(false);
-            return;
-        }
-
-        Vector2 size = _mapRect.rect.size;
-        _questMarker.anchoredPosition = new Vector2((u - 0.5f) * size.x, (v - 0.5f) * size.y);
+        _questMarker.anchoredPosition = anchored;
 
         float pulse = 0.8f + 0.2f * Mathf.Sin(_questPulse * 4f);
         if (_questMarkerImage != null)
@@ -574,6 +629,122 @@ public class MinimapUI : MonoBehaviour
         float scale = 1f + 0.12f * Mathf.Sin(_questPulse * 4f);
         _questMarker.sizeDelta = new Vector2(questMarkerSizePixels * scale, questMarkerSizePixels * scale);
         _questMarker.gameObject.SetActive(true);
+    }
+
+    void UpdateVillageLabels()
+    {
+        var settlements = SettlementService.Instance != null
+            ? SettlementService.Instance.Settlements
+            : null;
+
+        int visible = 0;
+        if (settlements != null)
+        {
+            for (int i = 0; i < settlements.Count; i++)
+            {
+                SettlementRecord s = settlements[i];
+                if (s.BuildFailed)
+                    continue;
+
+                Vector3 center = s.IsBuilt ? s.WorldCenter : s.PlannedCenter;
+                if (!TryWorldToMapLocal(center, out Vector2 anchored))
+                    continue;
+
+                VillageLabel label = EnsureVillageLabel(visible);
+                string name = string.IsNullOrEmpty(s.Name) ? s.DisplayName : s.Name;
+                if (label.Text.text != name)
+                    label.Text.text = name;
+
+                Color labelColor = ResolveSettlementLabelColor(s);
+                if (label.Text.color != labelColor)
+                    label.Text.color = labelColor;
+
+                label.Rect.anchoredPosition = new Vector2(anchored.x, anchored.y - villageLabelOffsetPixels);
+                label.Root.SetActive(true);
+                visible++;
+            }
+        }
+
+        for (int i = visible; i < _villageLabels.Count; i++)
+            _villageLabels[i].Root.SetActive(false);
+
+        // Keep player/quest above labels.
+        if (_questMarker != null)
+            _questMarker.SetAsLastSibling();
+        if (_playerMarker != null)
+            _playerMarker.SetAsLastSibling();
+    }
+
+    Color ResolveSettlementLabelColor(SettlementRecord settlement)
+    {
+        if (settlement == null)
+            return villageLabelColor;
+        if (settlement.OwnedByPlayer)
+            return playerOwnedVillageLabelColor;
+
+        if (FactionManager.Instance != null &&
+            FactionManager.Instance.TryGetClothingColor(settlement.OwnerFactionId, out Color clothing))
+            return ElevateForMinimapLabel(clothing);
+
+        return villageLabelColor;
+    }
+
+    /// <summary>Brightens dark faction cloth colors so names stay readable on the minimap.</summary>
+    static Color ElevateForMinimapLabel(Color clothing)
+    {
+        Color.RGBToHSV(clothing, out float h, out float s, out float v);
+        s = Mathf.Clamp01(s * 0.9f + 0.1f);
+        v = Mathf.Clamp01(Mathf.Max(v, 0.72f) * 1.05f);
+        Color elevated = Color.HSVToRGB(h, s, v);
+        elevated.a = 1f;
+        return elevated;
+    }
+
+    VillageLabel EnsureVillageLabel(int index)
+    {
+        while (_villageLabels.Count <= index)
+        {
+            var go = new GameObject($"VillageLabel_{_villageLabels.Count}");
+            go.transform.SetParent(_mapRect, false);
+            var text = go.AddComponent<Text>();
+            text.font = BuiltinFont();
+            text.fontSize = Mathf.RoundToInt(villageLabelFontSize);
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.UpperCenter;
+            text.color = villageLabelColor;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
+
+            var outline = go.AddComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+            outline.effectDistance = new Vector2(1f, -1f);
+
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.sizeDelta = new Vector2(120f, 18f);
+
+            _villageLabels.Add(new VillageLabel
+            {
+                Root = go,
+                Rect = rect,
+                Text = text
+            });
+            go.SetActive(false);
+        }
+
+        return _villageLabels[index];
+    }
+
+    static Font BuiltinFont()
+    {
+        if (s_font != null)
+            return s_font;
+        s_font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (s_font == null)
+            s_font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        return s_font;
     }
 
     TerrainGenerator ResolveTerrain() =>

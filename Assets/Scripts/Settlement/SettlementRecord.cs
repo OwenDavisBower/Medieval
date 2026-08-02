@@ -1,3 +1,4 @@
+using Medieval.NpcMovement;
 using UnityEngine;
 
 /// <summary>Runtime state for one planned settlement.</summary>
@@ -8,6 +9,11 @@ public sealed class SettlementRecord
     public Vector3 WorldCenter;
     public int Reputation;
     public bool OwnedByPlayer;
+    /// <summary>
+    /// Owning faction id (<see cref="WellKnownFactionIds"/>). Independent villages use
+    /// <see cref="WellKnownFactionIds.Villager"/>; player claim sets Player.
+    /// </summary>
+    public int OwnerFactionId = WellKnownFactionIds.Villager;
     public int WoodStock = 40;
     public int FoodStock = 25;
     public float StockRegenTimer;
@@ -17,10 +23,28 @@ public sealed class SettlementRecord
     public bool IsBuilt;
     /// <summary>True when placement failed (no flat center or no structures); minimap hides these.</summary>
     public bool BuildFailed;
+    /// <summary>Generated medieval place name (stable for the world seed + id).</summary>
+    public string Name;
 
     public Vector3 Center => HasLiveInstance || IsBuilt ? WorldCenter : PlannedCenter;
 
-    public string DisplayName => OwnedByPlayer ? $"Your Village #{Id + 1}" : $"Village #{Id + 1}";
+    public bool IsOwnedByNeutralKingdom =>
+        !OwnedByPlayer && WellKnownFactionIds.IsNeutralKingdom(OwnerFactionId);
+
+    public string DisplayName
+    {
+        get
+        {
+            string place = string.IsNullOrEmpty(Name) ? $"Village #{Id + 1}" : Name;
+            if (OwnedByPlayer)
+                return $"Your {place}";
+            if (IsOwnedByNeutralKingdom &&
+                FactionManager.Instance != null &&
+                FactionManager.Instance.TryGetFactionName(OwnerFactionId, out string factionName))
+                return $"{place} ({factionName})";
+            return place;
+        }
+    }
 
     public string StandingLabel
     {
@@ -28,6 +52,10 @@ public sealed class SettlementRecord
         {
             if (OwnedByPlayer)
                 return "Owned";
+            if (IsOwnedByNeutralKingdom &&
+                FactionManager.Instance != null &&
+                FactionManager.Instance.TryGetFactionName(OwnerFactionId, out string factionName))
+                return factionName;
             if (Reputation >= 60)
                 return "Allied";
             if (Reputation >= 25)

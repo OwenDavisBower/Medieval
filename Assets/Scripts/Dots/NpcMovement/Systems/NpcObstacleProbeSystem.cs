@@ -131,6 +131,10 @@ namespace Medieval.NpcMovement
                 if (hit.distance < 0f || hit.distance >= probeDist - 1e-4f)
                     return;
 
+                // Shoreline: mesh often ends at Water. If Water lies just past the hit, allow fording.
+                if (IsWaterFordBeyondHit(rayOrigin, dir, hit.distance))
+                    return;
+
                 float3 normal = new float3(hit.normal.x, 0f, hit.normal.z);
                 if (math.lengthsq(normal) < 1e-6f)
                     return;
@@ -148,6 +152,20 @@ namespace Medieval.NpcMovement
                     bestDist = hit.distance;
                     bestTangent = tangent;
                 }
+            }
+
+            bool IsWaterFordBeyondHit(float3 rayOrigin, float3 dir, float hitDistance)
+            {
+                float3 past = rayOrigin + dir * (hitDistance + 0.35f);
+                // Query near the visual surface so deep riverbed still counts as a ford.
+                past.y = math.min(past.y, NpcMath.WaterSurfaceY);
+                const int waterMask = 1 << NpcNavMeshSampling.WaterAreaIndex;
+                var waterLoc = NavQuery.MapLocation(
+                    NpcNavMeshSampling.ToVector3(past),
+                    NpcNavMeshSampling.SampleExtentsXZ(1.25f, NpcNavMeshSampling.MaxWadeVerticalDrop),
+                    0,
+                    waterMask);
+                return NavQuery.IsValid(waterLoc);
             }
 
             static bool TryResolveIntent(

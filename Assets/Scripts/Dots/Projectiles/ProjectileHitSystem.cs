@@ -157,14 +157,14 @@ namespace Medieval.Projectiles
                     {
                         float dealt = NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim,
                             damage.ValueRO.Amount, out bool killed, impactDir);
+                        bool playerSide = NpcKillCreditUtility.IsPlayerSideProjectileShooter(
+                            em, shooterRoot, shooterFaction.ValueRO.Value, legacyRootId);
                         if (killed)
-                        {
-                            bool playerSide = NpcKillCreditUtility.IsPlayerSideProjectileShooter(
-                                em, shooterRoot, shooterFaction.ValueRO.Value, legacyRootId);
                             NpcKillCreditUtility.TryMarkPlayerSideKill(em, dotsVictim, playerSide, shooterRoot);
-                        }
                         if (shooterRoot != Entity.Null && shooterRoot != dotsVictim)
                             NpcExperienceUtility.GrantDamageXp(em, ref ecb, shooterRoot, dealt, killed);
+                        else if (NpcKillCreditUtility.IsPlayerLegacyShooter(legacyRootId))
+                            PlayerExperience.TryGrantDamageXp(dealt, killed);
                         ecb.DestroyEntity(entity);
                         continue;
                     }
@@ -402,8 +402,13 @@ namespace Medieval.Projectiles
                 if (victim is Building)
                 {
                     victim.TakeDamage(amount);
-                    if (shooterRoot != Entity.Null && dealt > 0f)
-                        NpcExperienceUtility.GrantBuildingDamageXp(em, shooterRoot, dealt, lethal);
+                    if (dealt > 0f)
+                    {
+                        if (shooterRoot != Entity.Null)
+                            NpcExperienceUtility.GrantBuildingDamageXp(em, shooterRoot, dealt, lethal);
+                        else if (NpcKillCreditUtility.IsPlayerLegacyShooter(legacyShooterRootEntityId))
+                            PlayerExperience.TryGrantBuildingDamageXp(dealt, lethal);
+                    }
                 }
                 else
                 {
@@ -412,12 +417,12 @@ namespace Medieval.Projectiles
                         character.TakeDamage(amount, new Vector3(impactDir.x, impactDir.y, impactDir.z));
                     else
                         victim.TakeDamage(amount);
+                    float after = victim.CurrentHealth;
+                    dealt = math.max(0f, before - after);
                     if (shooterRoot != Entity.Null)
-                    {
-                        float after = victim.CurrentHealth;
-                        dealt = math.max(0f, before - after);
                         NpcExperienceUtility.GrantDamageXp(em, shooterRoot, dealt, victim.IsDead);
-                    }
+                    else if (NpcKillCreditUtility.IsPlayerLegacyShooter(legacyShooterRootEntityId))
+                        PlayerExperience.TryGrantDamageXp(dealt, victim.IsDead);
                 }
 
                 em.DestroyEntity(entity);

@@ -10,6 +10,8 @@ namespace Medieval.Npcs
         Follower = 1,
         Bandit = 2,
         Villager = 3,
+        /// <summary>Armed troop for a non-bandit faction (faction id set at spawn).</summary>
+        Soldier = 4,
     }
 
     /// <summary>Weapon capability for AI and gameplay queries (see <see cref="NpcCombatSpawnUtility.FinalizeSpawnProfile"/>).</summary>
