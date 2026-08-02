@@ -36,11 +36,15 @@ namespace Medieval.NpcMovement
             float3 leader = player.Position;
             var navQuery = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob, 64);
 
-            foreach (var (tfRW, cfgRO, mcfgRO, stateRW, pathRW, seekRW, facingRW, combatTargetRW, corners) in SystemAPI
+            // SystemAPI.Query arity max is 7; seek/facing/combat target are WithAll + EntityManager.
+            foreach (var (tfRW, cfgRO, mcfgRO, stateRW, pathRW, corners, entity) in SystemAPI
                          .Query<RefRW<LocalTransform>, RefRO<NpcCombatSeekConfig>, RefRO<NpcMovementConfig>,
-                             RefRW<NpcMovementState>, RefRW<NpcPathState>, RefRW<NpcSeekOverride>,
-                             RefRW<NpcOverrideFacing>, RefRW<NpcCombatTarget>, DynamicBuffer<NpcPathCorner>>()
-                         .WithAll<NpcMovementTag>())
+                             RefRW<NpcMovementState>, RefRW<NpcPathState>, DynamicBuffer<NpcPathCorner>>()
+                         .WithAll<NpcMovementTag>()
+                         .WithAll<NpcSeekOverride>()
+                         .WithAll<NpcOverrideFacing>()
+                         .WithAll<NpcCombatTarget>()
+                         .WithEntityAccess())
             {
                 var cfg = cfgRO.ValueRO;
                 if (cfg.FollowerTeleportBackDistance <= 0f || cfg.FollowerTeleportBackTargetDistance < 0f)
@@ -83,9 +87,9 @@ namespace Medieval.NpcMovement
                 move.CombatLeashBlocked = 0;
                 move.HasSmoothTarget = 0;
 
-                seekRW.ValueRW = default;
-                facingRW.ValueRW = default;
-                combatTargetRW.ValueRW = default;
+                EntityManager.SetComponentData(entity, default(NpcSeekOverride));
+                EntityManager.SetComponentData(entity, default(NpcOverrideFacing));
+                EntityManager.SetComponentData(entity, default(NpcCombatTarget));
 
                 corners.Clear();
                 ref NpcPathState path = ref pathRW.ValueRW;
