@@ -68,12 +68,12 @@ public sealed class QuestGuidanceUI : MonoBehaviour
     {
         _pulse += Time.deltaTime;
         var quests = QuestService.Instance;
-        ActiveQuest q = quests != null ? quests.Active : null;
+        QuestInstance q = quests != null ? quests.Tracked : null;
         bool active = q != null && q.Status == QuestStatus.Active;
 
         UpdateArrow(active ? q : null);
         UpdateBeacon(active ? q : null);
-        UpdateEscortIcon(active && q.Type == QuestType.Escort ? q : null);
+        UpdateEscortIcon(active && q.TryGetActiveEscortObjective(out _) ? q : null);
     }
 
     void BuildUi()
@@ -108,7 +108,7 @@ public sealed class QuestGuidanceUI : MonoBehaviour
         arrowGo.SetActive(false);
     }
 
-    void UpdateArrow(ActiveQuest q)
+    void UpdateArrow(QuestInstance q)
     {
         if (_arrowRoot == null)
             return;
@@ -150,7 +150,7 @@ public sealed class QuestGuidanceUI : MonoBehaviour
         _arrowRoot.gameObject.SetActive(true);
     }
 
-    void UpdateBeacon(ActiveQuest q)
+    void UpdateBeacon(QuestInstance q)
     {
         if (q == null)
         {
@@ -178,9 +178,10 @@ public sealed class QuestGuidanceUI : MonoBehaviour
         _beacon.SetActive(true);
     }
 
-    void UpdateEscortIcon(ActiveQuest q)
+    void UpdateEscortIcon(QuestInstance q)
     {
-        if (q == null || q.EscortEntity == Entity.Null)
+        if (q == null || !q.TryGetActiveEscortObjective(out QuestObjective step) ||
+            step.EscortEntity == Entity.Null)
         {
             if (_escortIcon != null)
                 _escortIcon.SetActive(false);
@@ -196,7 +197,7 @@ public sealed class QuestGuidanceUI : MonoBehaviour
         }
 
         EntityManager em = world.EntityManager;
-        if (!em.Exists(q.EscortEntity) || !em.HasComponent<LocalTransform>(q.EscortEntity))
+        if (!em.Exists(step.EscortEntity) || !em.HasComponent<LocalTransform>(step.EscortEntity))
         {
             if (_escortIcon != null)
                 _escortIcon.SetActive(false);
@@ -204,7 +205,7 @@ public sealed class QuestGuidanceUI : MonoBehaviour
         }
 
         EnsureEscortIcon();
-        var lt = em.GetComponentData<LocalTransform>(q.EscortEntity);
+        var lt = em.GetComponentData<LocalTransform>(step.EscortEntity);
         Vector3 pos = new Vector3(lt.Position.x, lt.Position.y, lt.Position.z);
         float bob = Mathf.Sin(_pulse * 3f) * 0.08f;
         _escortIcon.transform.position = pos + Vector3.up * (EscortIconHeight + bob);

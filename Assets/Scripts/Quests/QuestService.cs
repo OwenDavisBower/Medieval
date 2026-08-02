@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Medieval.NpcMovement;
 using Medieval.Npcs;
 using Unity.Entities;
@@ -6,12 +7,35 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-/// <summary>Offers and tracks clear-camp, deliver-wood, and escort quests.</summary>
+/// <summary>
+/// Multi-quest journal with composable objectives. Seeds offers from settlement/camp world state.
+/// </summary>
 public sealed class QuestService : MonoBehaviour
 {
+    public const int MaxActiveQuests = 3;
+    public const int MaxJournalEntries = 24;
+    public const float KillNearRadius = 60f;
+    public const float EscortArriveRadius = 16f;
+    public const float PlayerArriveRadius = 20f;
+    public const float EscortAbandonDistance = 55f;
+
     public static QuestService Instance { get; private set; }
 
-    public ActiveQuest Active { get; private set; }
+    readonly List<QuestInstance> _active = new List<QuestInstance>(MaxActiveQuests);
+    readonly List<QuestInstance> _journal = new List<QuestInstance>(MaxJournalEntries);
+    readonly List<QuestOffer> _offerScratch = new List<QuestOffer>(4);
+    int _nextId = 1;
+    int _lastDeliverWoodSeen = -1;
+    PlayerInventory _boundInventory;
+
+    /// <summary>Currently tracked quest (guidance / HUD focus).</summary>
+    public QuestInstance Tracked { get; private set; }
+
+    /// <summary>Compatibility alias for tracked quest.</summary>
+    public QuestInstance Active => Tracked;
+
+    public IReadOnlyList<QuestInstance> ActiveQuests => _active;
+    public IReadOnlyList<QuestInstance> Journal => _journal;
 
     public event Action Changed;
 
@@ -40,7 +64,11 @@ public sealed class QuestService : MonoBehaviour
 
     void OnEnable() => GameplayEvents.EnemyKilled += OnEnemyKilled;
 
-    void OnDisable() => GameplayEvents.EnemyKilled -= OnEnemyKilled;
+    void OnDisable()
+    {
+        GameplayEvents.EnemyKilled -= OnEnemyKilled;
+        UnbindInventory();
+    }
 
     void OnDestroy()
     {
@@ -50,184 +78,91 @@ public sealed class QuestService : MonoBehaviour
 
     void Update()
     {
-        if (Active == null || Active.Status != QuestStatus.Active)
-            return;
-
-        switch (Active.Type)
+        TryBindInventory();
+        for (int i = _active.Count - 1; i >= 0; i--)
         {
-            case QuestType.ClearCamp:
-                TickClearCamp();
-                break;
-            case QuestType.Escort:
-                TickEscort();
-                break;
-        }
-    }
-
-    public bool HasActiveQuest => Active != null && Active.Status == QuestStatus.Active;
-
-    public bool TryAcceptClearCamp(SettlementRecord settlement)
-    {
-        if (!BeginGuard(settlement))
-            return false;
-
-        var settlements = SettlementService.Instance;
-        CampRecord camp = settlements.FindUnclearedCampLinkedTo(settlement.Id)
-                          ?? settlements.FindNearestUnclearedCamp(settlement.Center, 160f);
-        if (camp == null)
-        {
-            GameplayEvents.RaiseToast("No bandit camps threaten this village.");
-            return false;
-        }
-
-        int required = Mathf.Max(3, camp.SpawnedBanditCount > 0 ? camp.SpawnedBanditCount : 3);
-        Active = new ActiveQuest
-        {
-            Type = QuestType.ClearCamp,
-            OriginSettlementId = settlement.Id,
-            TargetCampId = camp.Id,
-            TargetPosition = camp.Center,
-            RequiredKills = required,
-            ProgressKills = camp.KilledNearCamp,
-            Title = "Clear the Camp",
-            Description = $"Defeat the bandits camping near {settlement.DisplayName}.",
-            GoldReward = 35 + required * 4,
-            ReputationReward = 22
-        };
-
-        if (camp.Cleared || Active.ProgressKills >= Active.RequiredKills)
-            CompleteActive("Camp already cleared!");
-        else
-        {
-            GameplayEvents.RaiseToast("Quest: Clear the Camp");
-            Changed?.Invoke();
-        }
-
-        return true;
-    }
-
-    public bool TryAcceptDeliverWood(SettlementRecord settlement)
-    {
-        if (!BeginGuard(settlement))
-            return false;
-
-        const int need = 8;
-        Active = new ActiveQuest
-        {
-            Type = QuestType.DeliverWood,
-            OriginSettlementId = settlement.Id,
-            RequiredWood = need,
-            TargetPosition = settlement.Center,
-            Title = "Deliver Wood",
-            Description = $"Bring {need} wood to {settlement.DisplayName}. Buy it here or haul it from elsewhere.",
-            GoldReward = 28,
-            ReputationReward = 12
-        };
-
-        GameplayEvents.RaiseToast("Quest: Deliver Wood");
-        Changed?.Invoke();
-        return true;
-    }
-
-    public bool TryAcceptEscort(SettlementRecord settlement)
-    {
-        if (!BeginGuard(settlement))
-            return false;
-
-        var settlements = SettlementService.Instance;
-        SettlementRecord dest = null;
-        float best = float.MaxValue;
-        for (int i = 0; i < settlements.Settlements.Count; i++)
-        {
-            SettlementRecord s = settlements.Settlements[i];
-            if (s.Id == settlement.Id)
+            QuestInstance quest = _active[i];
+            if (quest == null || quest.Status != QuestStatus.Active)
                 continue;
-            float dx = s.Center.x - settlement.Center.x;
-            float dz = s.Center.z - settlement.Center.z;
-            float sq = dx * dx + dz * dz;
-            if (sq < best && sq > 40f * 40f)
-            {
-                best = sq;
-                dest = s;
-            }
+            TickQuest(quest);
         }
-
-        if (dest == null)
-        {
-            GameplayEvents.RaiseToast("No other village to escort to.");
-            return false;
-        }
-
-        Transform player = PlayerReference.TryGetTransform();
-        if (player == null || PartyManager.Instance == null)
-            return false;
-
-        Entity escort = PartyManager.Instance.SpawnEscortFollower(player.position);
-        if (escort == Entity.Null)
-        {
-            GameplayEvents.RaiseToast("Could not find an escort.");
-            return false;
-        }
-
-        float routeDx = dest.Center.x - settlement.Center.x;
-        float routeDz = dest.Center.z - settlement.Center.z;
-        float routeLength = Mathf.Sqrt(routeDx * routeDx + routeDz * routeDz);
-
-        Active = new ActiveQuest
-        {
-            Type = QuestType.Escort,
-            OriginSettlementId = settlement.Id,
-            TargetSettlementId = dest.Id,
-            TargetPosition = dest.Center,
-            EscortEntity = escort,
-            Title = "Escort Villager",
-            Description = $"Safely bring the villager to {dest.DisplayName}.",
-            GoldReward = 40,
-            ReputationReward = 16,
-            EscortRouteLength = routeLength,
-            AmbushTriggered = false
-        };
-
-        GameplayEvents.RaiseToast($"Quest: Escort to {dest.DisplayName}");
-        Changed?.Invoke();
-        return true;
     }
 
-    public bool TryTurnInDeliverWood()
+    void TryBindInventory()
     {
-        if (Active == null || Active.Type != QuestType.DeliverWood || Active.Status != QuestStatus.Active)
-            return false;
-
-        var inv = PlayerInventory.Instance;
-        if (inv == null || !inv.TrySpendWood(Active.RequiredWood))
-        {
-            GameplayEvents.RaiseToast($"Need {Active.RequiredWood} wood to deliver.");
-            return false;
-        }
-
-        if (SettlementService.Instance != null &&
-            SettlementService.Instance.TryGetSettlement(Active.OriginSettlementId, out SettlementRecord s))
-            s.WoodStock += Active.RequiredWood;
-
-        CompleteActive("Wood delivered!");
-        return true;
-    }
-
-    public void Abandon()
-    {
-        if (Active == null)
+        if (_boundInventory != null || PlayerInventory.Instance == null)
             return;
-
-        if (Active.Type == QuestType.Escort && Active.EscortEntity != Entity.Null)
-            DestroyEscort(Active.EscortEntity);
-
-        Active.Status = QuestStatus.Failed;
-        GameplayEvents.RaiseToast("Quest abandoned.");
-        Active = null;
-        Changed?.Invoke();
+        _boundInventory = PlayerInventory.Instance;
+        _boundInventory.Changed += OnInventoryChanged;
+        _lastDeliverWoodSeen = _boundInventory.Wood;
     }
 
-    bool BeginGuard(SettlementRecord settlement)
+    void UnbindInventory()
+    {
+        if (_boundInventory != null)
+            _boundInventory.Changed -= OnInventoryChanged;
+        _boundInventory = null;
+    }
+
+    public bool HasActiveQuest => _active.Count > 0;
+
+    public int ActiveCount => _active.Count;
+
+    public bool HasActiveTypeFrom(QuestType type, int originSettlementId)
+    {
+        for (int i = 0; i < _active.Count; i++)
+        {
+            QuestInstance q = _active[i];
+            if (q != null && q.Status == QuestStatus.Active &&
+                q.Type == type && q.OriginSettlementId == originSettlementId)
+                return true;
+        }
+
+        return false;
+    }
+
+    public void GetOffers(SettlementRecord settlement, List<QuestOffer> into)
+    {
+        QuestTemplateFactory.BuildOffers(settlement, this, into);
+    }
+
+    public IReadOnlyList<QuestOffer> GetOffers(SettlementRecord settlement)
+    {
+        QuestTemplateFactory.BuildOffers(settlement, this, _offerScratch);
+        return _offerScratch;
+    }
+
+    public bool TryAcceptOffer(QuestOffer offer)
+    {
+        if (offer == null)
+            return false;
+        if (!BeginGuard())
+            return false;
+
+        QuestInstance quest = QuestTemplateFactory.CreateFromOffer(offer);
+        if (quest == null)
+            return false;
+
+        // Escort template needs a live follower at accept time.
+        if (offer.Type == QuestType.Escort)
+        {
+            if (!TrySpawnEscortFor(quest, quest.CurrentObjective, atPlayer: true))
+                return false;
+        }
+
+        return ActivateQuest(quest, $"Quest: {quest.Title}");
+    }
+
+    public bool TryAcceptClearCamp(SettlementRecord settlement) =>
+        TryAcceptFirstOfType(settlement, QuestType.ClearCamp);
+
+    public bool TryAcceptDeliverWood(SettlementRecord settlement) =>
+        TryAcceptFirstOfType(settlement, QuestType.DeliverWood);
+
+    public bool TryAcceptEscort(SettlementRecord settlement) =>
+        TryAcceptFirstOfType(settlement, QuestType.Escort);
+
+    public bool TryAcceptOfferAt(SettlementRecord settlement, int offerIndex)
     {
         if (settlement == null)
         {
@@ -235,105 +170,490 @@ public sealed class QuestService : MonoBehaviour
             return false;
         }
 
-        if (HasActiveQuest)
+        GetOffers(settlement, _offerScratch);
+        if (offerIndex < 0 || offerIndex >= _offerScratch.Count)
         {
-            GameplayEvents.RaiseToast("Finish or abandon your current quest first.");
+            GameplayEvents.RaiseToast("No quest available.");
+            return false;
+        }
+
+        return TryAcceptOffer(_offerScratch[offerIndex]);
+    }
+
+    public bool TryTurnInAt(SettlementRecord settlement)
+    {
+        if (settlement == null)
+            return false;
+
+        for (int i = 0; i < _active.Count; i++)
+        {
+            QuestInstance quest = _active[i];
+            if (quest == null || !quest.NeedsTurnInAt(settlement.Id))
+                continue;
+
+            var step = quest.CurrentObjective;
+            if (step == null)
+                continue;
+
+            if (step.Kind == QuestObjectiveKind.DeliverItem)
+            {
+                var inv = PlayerInventory.Instance;
+                if (inv == null || !inv.TrySpendWood(step.RequiredCount))
+                {
+                    GameplayEvents.RaiseToast($"Need {step.RequiredCount} wood to deliver.");
+                    return false;
+                }
+
+                if (SettlementService.Instance != null &&
+                    SettlementService.Instance.TryGetSettlement(step.TargetSettlementId, out SettlementRecord dest) &&
+                    dest != null)
+                    dest.WoodStock += step.RequiredCount;
+
+                CompleteObjective(quest, step, "Wood delivered!");
+                return true;
+            }
+
+            if (step.Kind == QuestObjectiveKind.ReportBack)
+            {
+                CompleteObjective(quest, step, "Reported in.");
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Legacy entry used by village controller deliver/turn-in key.</summary>
+    public bool TryTurnInDeliverWood()
+    {
+        var nearby = VillageInteractionController.Instance != null
+            ? VillageInteractionController.Instance.NearbySettlement
+            : null;
+        return TryTurnInAt(nearby);
+    }
+
+    public bool HasTurnInAt(SettlementRecord settlement)
+    {
+        if (settlement == null)
+            return false;
+        for (int i = 0; i < _active.Count; i++)
+        {
+            if (_active[i] != null && _active[i].NeedsTurnInAt(settlement.Id))
+                return true;
+        }
+
+        return false;
+    }
+
+    public void Abandon() => Abandon(Tracked);
+
+    public void Abandon(QuestInstance quest)
+    {
+        if (quest == null || !_active.Contains(quest))
+            return;
+
+        CleanupEscort(quest);
+        quest.Status = QuestStatus.Failed;
+        PushJournal(quest);
+        _active.Remove(quest);
+        if (Tracked == quest)
+            Tracked = _active.Count > 0 ? _active[0] : null;
+        GameplayEvents.RaiseToast("Quest abandoned.");
+        Changed?.Invoke();
+    }
+
+    public void CycleTracked()
+    {
+        if (_active.Count <= 1)
+            return;
+        int idx = Tracked != null ? _active.IndexOf(Tracked) : -1;
+        idx = (idx + 1) % _active.Count;
+        Tracked = _active[idx];
+        GameplayEvents.RaiseToast($"Tracking: {Tracked.Title}");
+        Changed?.Invoke();
+    }
+
+    public void SetTracked(QuestInstance quest)
+    {
+        if (quest == null || !_active.Contains(quest))
+            return;
+        Tracked = quest;
+        Changed?.Invoke();
+    }
+
+    /// <summary>First active escort quest (for road ambush), preferring tracked.</summary>
+    public QuestInstance FindActiveEscortQuest()
+    {
+        if (Tracked != null && Tracked.TryGetActiveEscortObjective(out _))
+            return Tracked;
+        for (int i = 0; i < _active.Count; i++)
+        {
+            if (_active[i] != null && _active[i].TryGetActiveEscortObjective(out _))
+                return _active[i];
+        }
+
+        return null;
+    }
+
+    bool TryAcceptFirstOfType(SettlementRecord settlement, QuestType type)
+    {
+        if (settlement == null)
+        {
+            GameplayEvents.RaiseToast("No village nearby.");
+            return false;
+        }
+
+        GetOffers(settlement, _offerScratch);
+        for (int i = 0; i < _offerScratch.Count; i++)
+        {
+            if (_offerScratch[i].Type == type)
+                return TryAcceptOffer(_offerScratch[i]);
+        }
+
+        GameplayEvents.RaiseToast("No quest available.");
+        return false;
+    }
+
+    bool BeginGuard()
+    {
+        if (_active.Count >= MaxActiveQuests)
+        {
+            GameplayEvents.RaiseToast($"Quest log full ({MaxActiveQuests}). Finish or abandon one.");
             return false;
         }
 
         return true;
     }
 
+    bool ActivateQuest(QuestInstance quest, string toast)
+    {
+        quest.Id = _nextId++;
+        _active.Add(quest);
+        Tracked = quest;
+
+        // Clear-camp already satisfied (camp wiped before accept).
+        var step = quest.CurrentObjective;
+        if (step != null &&
+            step.Kind == QuestObjectiveKind.KillNear &&
+            (step.ProgressCount >= step.RequiredCount || IsCampCleared(step.TargetCampId)))
+        {
+            CompleteObjective(quest, step, "Camp already cleared!");
+            return quest.Status == QuestStatus.Active || quest.Status == QuestStatus.Completed;
+        }
+
+        GameplayEvents.RaiseToast(toast);
+        Changed?.Invoke();
+        return true;
+    }
+
+    void TickQuest(QuestInstance quest)
+    {
+        var step = quest.CurrentObjective;
+        if (step == null || step.Status != QuestStatus.Active)
+            return;
+
+        switch (step.Kind)
+        {
+            case QuestObjectiveKind.KillNear:
+                if (IsCampCleared(step.TargetCampId))
+                    CompleteObjective(quest, step, "Camp cleared!");
+                break;
+            case QuestObjectiveKind.EscortTo:
+                TickEscort(quest, step);
+                break;
+            case QuestObjectiveKind.DeliverItem:
+            case QuestObjectiveKind.ReportBack:
+                // Manual turn-in via village interaction.
+                break;
+        }
+    }
+
     void OnEnemyKilled(Vector3 worldPosition, int _)
     {
-        if (Active == null || Active.Type != QuestType.ClearCamp || Active.Status != QuestStatus.Active)
-            return;
-        if (!SettlementService.Instance.TryGetCamp(Active.TargetCampId, out CampRecord camp))
-            return;
+        bool any = false;
+        for (int i = 0; i < _active.Count; i++)
+        {
+            QuestInstance quest = _active[i];
+            if (quest == null || quest.Status != QuestStatus.Active)
+                continue;
+            var step = quest.CurrentObjective;
+            if (step == null || step.Kind != QuestObjectiveKind.KillNear || step.Status != QuestStatus.Active)
+                continue;
+            if (!SettlementService.Instance.TryGetCamp(step.TargetCampId, out CampRecord camp))
+                continue;
 
-        float dx = worldPosition.x - camp.Center.x;
-        float dz = worldPosition.z - camp.Center.z;
-        if (dx * dx + dz * dz > 60f * 60f)
-            return;
+            float dx = worldPosition.x - camp.Center.x;
+            float dz = worldPosition.z - camp.Center.z;
+            if (dx * dx + dz * dz > KillNearRadius * KillNearRadius)
+                continue;
 
-        Active.ProgressKills++;
-        Changed?.Invoke();
-        if (Active.ProgressKills >= Active.RequiredKills || camp.Cleared)
-            CompleteActive("Camp cleared!");
+            step.ProgressCount++;
+            any = true;
+            if (step.ProgressCount >= step.RequiredCount || camp.Cleared)
+                CompleteObjective(quest, step, "Camp cleared!");
+        }
+
+        if (any)
+            Changed?.Invoke();
     }
 
-    void TickClearCamp()
+    void OnInventoryChanged()
     {
-        if (SettlementService.Instance != null &&
-            SettlementService.Instance.TryGetCamp(Active.TargetCampId, out CampRecord camp) &&
-            camp.Cleared)
-            CompleteActive("Camp cleared!");
+        int wood = PlayerInventory.Instance != null ? PlayerInventory.Instance.Wood : 0;
+        int previous = _lastDeliverWoodSeen;
+        if (wood == previous)
+            return;
+        _lastDeliverWoodSeen = wood;
+
+        bool notified = false;
+        for (int i = 0; i < _active.Count; i++)
+        {
+            QuestInstance quest = _active[i];
+            var step = quest?.CurrentObjective;
+            if (step == null || step.Kind != QuestObjectiveKind.DeliverItem)
+                continue;
+            if (!notified && previous < step.RequiredCount && wood >= step.RequiredCount)
+            {
+                GameplayEvents.RaiseToast($"Wood ready — turn in at the marked village ({step.RequiredCount}).");
+                notified = true;
+            }
+        }
+
+        Changed?.Invoke();
     }
 
-    void TickEscort()
+    void TickEscort(QuestInstance quest, QuestObjective step)
     {
         World world = World.DefaultGameObjectInjectionWorld;
         if (world == null || !world.IsCreated)
             return;
 
         EntityManager em = world.EntityManager;
-        if (Active.EscortEntity == Entity.Null || !em.Exists(Active.EscortEntity) ||
-            em.HasComponent<NpcDeadTag>(Active.EscortEntity))
+        if (step.EscortEntity == Entity.Null || !em.Exists(step.EscortEntity) ||
+            em.HasComponent<NpcDeadTag>(step.EscortEntity))
         {
-            GameplayEvents.RaiseToast("Escort died — quest failed.");
-            Active.Status = QuestStatus.Failed;
-            Active = null;
-            Changed?.Invoke();
+            FailQuest(quest, "Escort died — quest failed.");
             return;
         }
 
-        // Keep escort anchored near the player.
         Transform player = PlayerReference.TryGetTransform();
         if (player != null)
         {
-            NpcMovementApi.SetAnchorPosition(em, Active.EscortEntity,
+            float3 escortPos = em.GetComponentData<LocalTransform>(step.EscortEntity).Position;
+            float pdx = player.position.x - escortPos.x;
+            float pdz = player.position.z - escortPos.z;
+            if (pdx * pdx + pdz * pdz > EscortAbandonDistance * EscortAbandonDistance)
+            {
+                FailQuest(quest, "Escort left behind — quest failed.");
+                return;
+            }
+
+            NpcMovementApi.SetAnchorPosition(em, step.EscortEntity,
                 new float3(player.position.x, player.position.y, player.position.z));
         }
 
-        float3 escortPos = em.GetComponentData<LocalTransform>(Active.EscortEntity).Position;
-        Vector3 target = Active.TargetPosition;
-        float edx = escortPos.x - target.x;
-        float edz = escortPos.z - target.z;
-        if (edx * edx + edz * edz > 16f * 16f)
+        float3 pos = em.GetComponentData<LocalTransform>(step.EscortEntity).Position;
+        Vector3 target = step.TargetPosition;
+        float edx = pos.x - target.x;
+        float edz = pos.z - target.z;
+        if (edx * edx + edz * edz > EscortArriveRadius * EscortArriveRadius)
             return;
 
         if (player != null)
         {
             float pdx = player.position.x - target.x;
             float pdz = player.position.z - target.z;
-            if (pdx * pdx + pdz * pdz > 20f * 20f)
+            if (pdx * pdx + pdz * pdz > PlayerArriveRadius * PlayerArriveRadius)
                 return;
         }
 
-        DestroyEscort(Active.EscortEntity);
-        Active.EscortEntity = Entity.Null;
-        CompleteActive("Escort arrived safely!");
+        DestroyEscort(step.EscortEntity);
+        step.EscortEntity = Entity.Null;
+        CompleteObjective(quest, step, "Escort arrived safely!");
     }
 
-    void CompleteActive(string toast)
+    void CompleteObjective(QuestInstance quest, QuestObjective step, string toast)
     {
-        if (Active == null)
+        if (quest == null || step == null || step.Status != QuestStatus.Active)
             return;
 
-        Active.Status = QuestStatus.Completed;
-        var wallet = PlayerWallet.Instance;
-        wallet?.Add(Active.GoldReward);
+        step.Status = QuestStatus.Completed;
 
-        if (SettlementService.Instance != null && Active.OriginSettlementId >= 0)
-            SettlementService.Instance.AddReputation(Active.OriginSettlementId, Active.ReputationReward);
+        if (step.SpawnEscortOnComplete)
+        {
+            TrySpawnEscortAfterKill(quest);
+            if (quest.Status != QuestStatus.Active)
+                return;
+        }
 
-        // Escort also boosts destination standing a bit.
-        if (Active.Type == QuestType.Escort && Active.TargetSettlementId >= 0 && SettlementService.Instance != null)
-            SettlementService.Instance.AddReputation(Active.TargetSettlementId, Active.ReputationReward / 2);
+        int next = quest.CurrentObjectiveIndex + 1;
+        if (next < quest.Objectives.Count)
+        {
+            quest.CurrentObjectiveIndex = next;
+            var nextStep = quest.CurrentObjective;
+            if (nextStep != null)
+                nextStep.Status = QuestStatus.Active;
 
-        GameplayEvents.RaiseToast($"{toast} +{Active.GoldReward}g");
-        Active = null;
+            // Rescue: escort may have been spawned; ensure route length for ambush.
+            if (nextStep != null &&
+                nextStep.Kind == QuestObjectiveKind.EscortTo &&
+                nextStep.EscortEntity != Entity.Null &&
+                nextStep.EscortRouteLength <= 0f)
+            {
+                nextStep.EscortRouteLength = HorizontalDistance(nextStep.TargetPosition,
+                    GetEscortWorldPosition(nextStep.EscortEntity));
+                nextStep.EscortOriginSettlementId = -1;
+            }
+
+            GameplayEvents.RaiseToast($"{toast} Next: {nextStep?.Label ?? "continue"}");
+            Changed?.Invoke();
+            return;
+        }
+
+        CompleteQuest(quest, toast);
+    }
+
+    void CompleteQuest(QuestInstance quest, string toast)
+    {
+        if (quest == null)
+            return;
+
+        quest.Status = QuestStatus.Completed;
+        CleanupEscort(quest);
+
+        PlayerWallet.Instance?.Add(quest.GoldReward);
+        if (quest.FoodReward > 0)
+            PlayerInventory.Instance?.AddFood(quest.FoodReward);
+
+        if (SettlementService.Instance != null && quest.OriginSettlementId >= 0)
+            SettlementService.Instance.AddReputation(quest.OriginSettlementId, quest.ReputationReward);
+
+        if ((quest.Type == QuestType.Escort || quest.Type == QuestType.TradeRun ||
+             quest.Type == QuestType.RescueSurvivor) &&
+            quest.TargetSettlementId >= 0 &&
+            quest.TargetSettlementId != quest.OriginSettlementId &&
+            SettlementService.Instance != null)
+            SettlementService.Instance.AddReputation(quest.TargetSettlementId, quest.ReputationReward / 2);
+
+        string foodBit = quest.FoodReward > 0 ? $" +{quest.FoodReward} food" : string.Empty;
+        GameplayEvents.RaiseToast($"{toast} +{quest.GoldReward}g{foodBit}");
+
+        PushJournal(quest);
+        _active.Remove(quest);
+        if (Tracked == quest)
+            Tracked = _active.Count > 0 ? _active[0] : null;
         Changed?.Invoke();
+    }
+
+    void FailQuest(QuestInstance quest, string toast)
+    {
+        if (quest == null)
+            return;
+
+        CleanupEscort(quest);
+        quest.Status = QuestStatus.Failed;
+        PushJournal(quest);
+        _active.Remove(quest);
+        if (Tracked == quest)
+            Tracked = _active.Count > 0 ? _active[0] : null;
+        GameplayEvents.RaiseToast(toast);
+        Changed?.Invoke();
+    }
+
+    void TrySpawnEscortAfterKill(QuestInstance quest)
+    {
+        for (int i = quest.CurrentObjectiveIndex + 1; i < quest.Objectives.Count; i++)
+        {
+            var step = quest.Objectives[i];
+            if (step.Kind != QuestObjectiveKind.EscortTo)
+                continue;
+            if (!TrySpawnEscortFor(quest, step, atPlayer: true))
+                FailQuest(quest, "Could not find a survivor — quest failed.");
+            return;
+        }
+    }
+
+    bool TrySpawnEscortFor(QuestInstance quest, QuestObjective step, bool atPlayer)
+    {
+        if (step == null)
+            return false;
+
+        Transform player = PlayerReference.TryGetTransform();
+        if (player == null || PartyManager.Instance == null)
+        {
+            GameplayEvents.RaiseToast("Could not find an escort.");
+            return false;
+        }
+
+        Vector3 spawnPos = atPlayer ? player.position : step.TargetPosition;
+        Entity escort = PartyManager.Instance.SpawnEscortFollower(spawnPos);
+        if (escort == Entity.Null)
+        {
+            GameplayEvents.RaiseToast("Could not find an escort.");
+            return false;
+        }
+
+        step.EscortEntity = escort;
+        Vector3 origin = spawnPos;
+        if (step.EscortOriginSettlementId >= 0 &&
+            SettlementService.Instance != null &&
+            SettlementService.Instance.TryGetSettlement(step.EscortOriginSettlementId, out SettlementRecord originSettle) &&
+            originSettle != null)
+            origin = originSettle.Center;
+
+        step.EscortRouteLength = HorizontalDistance(origin, step.TargetPosition);
+        step.AmbushTriggered = false;
+        return true;
+    }
+
+    void CleanupEscort(QuestInstance quest)
+    {
+        if (quest == null)
+            return;
+        for (int i = 0; i < quest.Objectives.Count; i++)
+        {
+            var step = quest.Objectives[i];
+            if (step != null && step.EscortEntity != Entity.Null)
+            {
+                DestroyEscort(step.EscortEntity);
+                step.EscortEntity = Entity.Null;
+            }
+        }
+    }
+
+    void PushJournal(QuestInstance quest)
+    {
+        _journal.Insert(0, quest);
+        while (_journal.Count > MaxJournalEntries)
+            _journal.RemoveAt(_journal.Count - 1);
+    }
+
+    static bool IsCampCleared(int campId)
+    {
+        return campId >= 0 &&
+               SettlementService.Instance != null &&
+               SettlementService.Instance.TryGetCamp(campId, out CampRecord camp) &&
+               camp != null &&
+               camp.Cleared;
+    }
+
+    static float HorizontalDistance(Vector3 a, Vector3 b)
+    {
+        float dx = a.x - b.x;
+        float dz = a.z - b.z;
+        return Mathf.Sqrt(dx * dx + dz * dz);
+    }
+
+    static Vector3 GetEscortWorldPosition(Entity escort)
+    {
+        World world = World.DefaultGameObjectInjectionWorld;
+        if (world == null || !world.IsCreated || escort == Entity.Null)
+            return Vector3.zero;
+        var em = world.EntityManager;
+        if (!em.Exists(escort) || !em.HasComponent<LocalTransform>(escort))
+            return Vector3.zero;
+        float3 p = em.GetComponentData<LocalTransform>(escort).Position;
+        return new Vector3(p.x, p.y, p.z);
     }
 
     static void DestroyEscort(Entity escort)

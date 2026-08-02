@@ -92,11 +92,10 @@ public sealed class RoadAmbushService : MonoBehaviour
                 float speed = dist / dt;
                 _travelSinceOpenCheck += dist;
 
-                var quest = QuestService.Instance != null ? QuestService.Instance.Active : null;
-                bool escortActive = quest != null &&
-                                    quest.Type == QuestType.Escort &&
-                                    quest.Status == QuestStatus.Active;
-                if (escortActive)
+                var quest = QuestService.Instance != null
+                    ? QuestService.Instance.FindActiveEscortQuest()
+                    : null;
+                if (quest != null)
                 {
                     if (!quest.AmbushTriggered)
                         TryTriggerEscortAmbush(quest, pos);
@@ -112,12 +111,14 @@ public sealed class RoadAmbushService : MonoBehaviour
         _hasLastPlayerPos = true;
     }
 
-    void TryTriggerEscortAmbush(ActiveQuest quest, Vector3 playerPos)
+    void TryTriggerEscortAmbush(QuestInstance quest, Vector3 playerPos)
     {
-        if (quest.EscortRouteLength <= 1f)
+        if (quest == null || !quest.TryGetActiveEscortObjective(out QuestObjective step))
+            return;
+        if (step.EscortRouteLength <= 1f)
             return;
 
-        if (!HasReachedEscortAmbushPoint(quest, playerPos))
+        if (!HasReachedEscortAmbushPoint(quest, step, playerPos))
             return;
 
         if (!CanSpawnAt(playerPos))
@@ -126,7 +127,7 @@ public sealed class RoadAmbushService : MonoBehaviour
         if (!SpawnAmbush(playerPos, _travelForward))
             return;
 
-        quest.AmbushTriggered = true;
+        step.AmbushTriggered = true;
         _lastAmbushTime = Time.time;
         _travelSinceOpenCheck = 0f;
         GameplayEvents.RaiseToast("Ambush!");
@@ -158,19 +159,25 @@ public sealed class RoadAmbushService : MonoBehaviour
         GameplayEvents.RaiseToast("Ambush!");
     }
 
-    static bool HasReachedEscortAmbushPoint(ActiveQuest quest, Vector3 playerPos)
+    static bool HasReachedEscortAmbushPoint(QuestInstance quest, QuestObjective step, Vector3 playerPos)
     {
-        float threshold = quest.EscortRouteLength * EscortRouteTriggerFraction;
-        if (SettlementService.Instance != null &&
-            quest.OriginSettlementId >= 0 &&
-            SettlementService.Instance.TryGetSettlement(quest.OriginSettlementId, out SettlementRecord origin) &&
+        float routeLength = step.EscortRouteLength;
+        float threshold = routeLength * EscortRouteTriggerFraction;
+        int originId = step.EscortOriginSettlementId >= 0
+            ? step.EscortOriginSettlementId
+            : quest.OriginSettlementId;
+
+        if (step.EscortOriginSettlementId >= 0 &&
+            SettlementService.Instance != null &&
+            SettlementService.Instance.TryGetSettlement(originId, out SettlementRecord origin) &&
             origin != null)
         {
             return HorizontalDistance(playerPos, origin.Center) >= threshold;
         }
 
-        float toDest = HorizontalDistance(playerPos, quest.TargetPosition);
-        float traveled = quest.EscortRouteLength - toDest;
+        // Rescue / camp-origin escorts: measure progress toward the destination.
+        float toDest = HorizontalDistance(playerPos, step.TargetPosition);
+        float traveled = routeLength - toDest;
         return traveled >= threshold;
     }
 

@@ -98,11 +98,11 @@ public sealed class VillageInteractionController : MonoBehaviour
         else if (kb.cKey.wasPressedThisFrame)
             SellFood();
         else if (kb.digit5Key.wasPressedThisFrame || kb.numpad5Key.wasPressedThisFrame)
-            QuestClearCamp();
+            QuestSlot(0);
         else if (kb.digit6Key.wasPressedThisFrame || kb.numpad6Key.wasPressedThisFrame)
-            QuestDeliverOrTurnIn();
+            QuestSlot(1);
         else if (kb.digit7Key.wasPressedThisFrame || kb.numpad7Key.wasPressedThisFrame)
-            QuestEscort();
+            QuestSlot(2);
         else if (kb.digit8Key.wasPressedThisFrame || kb.numpad8Key.wasPressedThisFrame)
             Claim();
         else if (kb.xKey.wasPressedThisFrame)
@@ -116,7 +116,7 @@ public sealed class VillageInteractionController : MonoBehaviour
         if (_toastGate > 0f)
             return;
         _toastGate = 1.2f;
-        GameplayEvents.RaiseToast("1 Recruit  2/3 Wood  4/C Food  5–7 Quests  8 Claim  X Dismiss");
+        GameplayEvents.RaiseToast("1 Recruit  2/3 Wood  4/C Food  5–7 Quests  8 Claim  X Dismiss  J Journal");
     }
 
     public void Recruit() => PartyManager.Instance?.TryRecruit(_nearby);
@@ -133,6 +133,34 @@ public sealed class VillageInteractionController : MonoBehaviour
 
     public void Claim() => SettlementService.Instance?.TryClaim(_nearby);
 
+    /// <summary>Village keys 5/6/7 — turn-in takes slot 0 when available.</summary>
+    public void QuestSlot(int slotIndex)
+    {
+        var quests = QuestService.Instance;
+        if (quests == null || _nearby == null)
+            return;
+
+        if (quests.HasTurnInAt(_nearby))
+        {
+            if (slotIndex == 0)
+            {
+                QuestTurnIn();
+                return;
+            }
+
+            QuestAcceptOffer(slotIndex - 1);
+            return;
+        }
+
+        QuestAcceptOffer(slotIndex);
+    }
+
+    public void QuestAcceptOffer(int offerIndex) =>
+        QuestService.Instance?.TryAcceptOfferAt(_nearby, offerIndex);
+
+    public void QuestTurnIn() => QuestService.Instance?.TryTurnInAt(_nearby);
+
+    // Compatibility wrappers used by older HUD wiring / tests.
     public void QuestClearCamp() => QuestService.Instance?.TryAcceptClearCamp(_nearby);
 
     public void QuestEscort() => QuestService.Instance?.TryAcceptEscort(_nearby);
@@ -140,15 +168,12 @@ public sealed class VillageInteractionController : MonoBehaviour
     public void QuestDeliverOrTurnIn()
     {
         var quests = QuestService.Instance;
-        if (quests == null)
+        if (quests == null || _nearby == null)
             return;
 
-        if (quests.Active != null &&
-            quests.Active.Type == QuestType.DeliverWood &&
-            quests.Active.Status == QuestStatus.Active &&
-            quests.Active.OriginSettlementId == _nearby.Id)
+        if (quests.HasTurnInAt(_nearby))
         {
-            quests.TryTurnInDeliverWood();
+            quests.TryTurnInAt(_nearby);
             return;
         }
 

@@ -535,7 +535,7 @@ public class MinimapUI : MonoBehaviour
             return;
 
         var quests = QuestService.Instance;
-        ActiveQuest q = quests != null ? quests.Active : null;
+        QuestInstance q = quests != null ? quests.Tracked : null;
         if (q == null || q.Status != QuestStatus.Active)
         {
             _questMarker.gameObject.SetActive(false);

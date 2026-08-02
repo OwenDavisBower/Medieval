@@ -37,6 +37,7 @@ public sealed class GameplayHUD : MonoBehaviour
     readonly List<Text> _actionLabels = new List<Text>();
     readonly List<PartyRowUi> _partyRows = new List<PartyRowUi>(PartyManager.MaxPartySize);
     readonly List<Entity> _partyScratch = new List<Entity>(PartyManager.MaxPartySize);
+    readonly List<QuestOffer> _questOfferScratch = new List<QuestOffer>(4);
 
     float _toastLife;
     SettlementRecord _boundSettlement;
@@ -290,15 +291,18 @@ public sealed class GameplayHUD : MonoBehaviour
         if (_questTitle == null || _questBody == null)
             return;
 
-        var q = QuestService.Instance != null ? QuestService.Instance.Active : null;
+        var quests = QuestService.Instance;
+        var q = quests != null ? quests.Tracked : null;
         if (q == null || q.Status != QuestStatus.Active)
         {
             _questTitle.text = "No active quest";
-            _questBody.text = "Visit a village (stand near houses).\nPress E for controls.";
+            _questBody.text = "Visit a village (stand near houses).\nJ journal · E village controls";
             return;
         }
 
-        _questTitle.text = q.Title;
+        int activeCount = quests.ActiveCount;
+        string multi = activeCount > 1 ? $" ({activeCount} active · T cycle)" : string.Empty;
+        _questTitle.text = q.Title + multi;
         _questBody.text = $"{q.Description}\n{q.ProgressText}";
     }
 
@@ -338,19 +342,35 @@ public sealed class GameplayHUD : MonoBehaviour
         SetAction(2, $"3  Sell wood (+{SettlementService.SellWoodPrice}g)", () => VillageInteractionController.Instance?.SellWood());
         SetAction(3, $"4  Buy food ({SettlementService.BuyFoodPrice}g)", () => VillageInteractionController.Instance?.BuyFood());
 
-        bool deliverTurnIn = QuestService.Instance != null &&
-                             QuestService.Instance.Active != null &&
-                             QuestService.Instance.Active.Type == QuestType.DeliverWood &&
-                             QuestService.Instance.Active.OriginSettlementId == nearby.Id;
-        SetAction(4, "5  Quest: Clear camp", () => VillageInteractionController.Instance?.QuestClearCamp());
-        SetAction(5, deliverTurnIn ? "6  Turn in wood" : "6  Quest: Deliver wood",
-            () => VillageInteractionController.Instance?.QuestDeliverOrTurnIn());
-        SetAction(6, "7  Quest: Escort", () => VillageInteractionController.Instance?.QuestEscort());
+        var quests = QuestService.Instance;
+        bool turnIn = quests != null && quests.HasTurnInAt(nearby);
+        _questOfferScratch.Clear();
+        quests?.GetOffers(nearby, _questOfferScratch);
+
+        if (turnIn)
+        {
+            SetAction(4, "5  Turn in quest", () => VillageInteractionController.Instance?.QuestTurnIn());
+            SetAction(5, OfferLabel(_questOfferScratch, 0, "6"), () => VillageInteractionController.Instance?.QuestAcceptOffer(0));
+            SetAction(6, OfferLabel(_questOfferScratch, 1, "7"), () => VillageInteractionController.Instance?.QuestAcceptOffer(1));
+        }
+        else
+        {
+            SetAction(4, OfferLabel(_questOfferScratch, 0, "5"), () => VillageInteractionController.Instance?.QuestAcceptOffer(0));
+            SetAction(5, OfferLabel(_questOfferScratch, 1, "6"), () => VillageInteractionController.Instance?.QuestAcceptOffer(1));
+            SetAction(6, OfferLabel(_questOfferScratch, 2, "7"), () => VillageInteractionController.Instance?.QuestAcceptOffer(2));
+        }
 
         string claimLabel = nearby.OwnedByPlayer
             ? "8  Already owned"
             : $"8  Claim village ({SettlementService.ClaimGoldCost}g)";
         SetAction(7, claimLabel, () => VillageInteractionController.Instance?.Claim());
+    }
+
+    static string OfferLabel(List<QuestOffer> offers, int index, string key)
+    {
+        if (offers == null || index < 0 || index >= offers.Count || offers[index] == null)
+            return $"{key}  (no quest)";
+        return $"{key}  Quest: {offers[index].ButtonLabel}";
     }
 
     void SetAction(int index, string label, UnityEngine.Events.UnityAction onClick)
@@ -417,7 +437,7 @@ public sealed class GameplayHUD : MonoBehaviour
 
         // Quest panel top-left under party toggle (hidden while party roster is open)
         _questPanel = MakePanel(canvasRect, "QuestPanel", new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(18f, -96f), new Vector2(360f, 110f), new Color(0.05f, 0.06f, 0.07f, 0.62f));
+            new Vector2(18f, -96f), new Vector2(380f, 128f), new Color(0.05f, 0.06f, 0.07f, 0.62f));
         _questTitle = MakeLabel(_questPanel, "QuestTitle", new Vector2(0f, 1f), new Vector2(1f, 1f),
             new Vector2(0f, 0f), new Vector2(0f, 32f), 20, TextAnchor.MiddleLeft,
             new Color(1f, 0.86f, 0.45f, 1f));
