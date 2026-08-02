@@ -19,7 +19,7 @@ public class WorldGenerationCoordinator : MonoBehaviour
     const string DefaultTreePath = "Assets/Data/Spawning/MainScene_TreeSpawn.asset";
     const string DefaultBanditPath = "Assets/Data/Spawning/MainScene_BanditCampSpawn.asset";
     const string DefaultRockSpawnPath = "Assets/Data/Spawning/MainScene_RockSpawn.asset";
-    const string DefaultBridgePrefabPath = "Assets/Prefabs/Bridge.prefab";
+    const string DefaultBridgePrefabPath = "Assets/Prefabs/Buildings/Bridge.prefab";
 
     const float StreamingAnchorMoveEpsilonSqr = 0.25f;
 
