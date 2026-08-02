@@ -223,7 +223,7 @@ namespace Medieval.Npcs
                     em.GetComponentData<NpcMovementState>(npc).Group == NpcSeparationGroup.Followers;
                 float leash = 0f;
                 if (followerGroup)
-                    leash = 25f;
+                    leash = 15f;
                 float teleBack = followerGroup ? 80f : 0f;
                 float teleTarget = followerGroup ? 50f : 0f;
                 byte seeks = role == NpcRole.Villager || role == NpcRole.Unknown ? (byte)0 : (byte)1;

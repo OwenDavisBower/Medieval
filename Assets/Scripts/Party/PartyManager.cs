@@ -21,6 +21,8 @@ public sealed class PartyManager : MonoBehaviour
 
     public event Action Changed;
 
+    // Party food upkeep (consume rations / desertion) — off for now.
+    const bool FoodUpkeepEnabled = false;
     float _foodUpkeepTimer;
     const float FoodUpkeepInterval = 40f;
 
@@ -49,6 +51,9 @@ public sealed class PartyManager : MonoBehaviour
 
     void Update()
     {
+        if (!FoodUpkeepEnabled)
+            return;
+
         _foodUpkeepTimer += Time.deltaTime;
         if (_foodUpkeepTimer < FoodUpkeepInterval)
             return;

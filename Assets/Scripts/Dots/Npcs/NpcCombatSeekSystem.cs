@@ -11,6 +11,12 @@ namespace Medieval.Npcs
     [UpdateInGroup(typeof(NpcCombatSeekSystemGroup))]
     public partial struct NpcCombatSeekSystem : ISystem
     {
+        /// <summary>
+        /// SwordSlash humanoid body yaw is baked ~15° left of aim in the Animatron rig; rotate entity
+        /// facing this much to the right so the mesh looks at the target while melee-engaged.
+        /// </summary>
+        const float MeleeFacingYawCompensationDegrees = 15f;
+
         EntityQuery _candidateQuery;
 
         public void OnCreate(ref SystemState state)
@@ -206,7 +212,7 @@ namespace Medieval.Npcs
                     if (math.lengthsq(d) > 1e-6f)
                     {
                         d = math.normalize(d);
-                        facing.FlatDirection = d;
+                        facing.FlatDirection = RotateYawDegrees(d, MeleeFacingYawCompensationDegrees);
                         facing.HasOverride = 1;
                     }
                     else
@@ -228,6 +234,14 @@ namespace Medieval.Npcs
             move.MeleeEngageMovementLock = 0;
             move.RangedCombatSeparationBoost = 0;
             combatTarget = default;
+        }
+
+        static float3 RotateYawDegrees(float3 flatDirection, float degrees)
+        {
+            float rad = math.radians(degrees);
+            math.sincos(rad, out float s, out float c);
+            return new float3(flatDirection.x * c + flatDirection.z * s, 0f,
+                -flatDirection.x * s + flatDirection.z * c);
         }
     }
 }

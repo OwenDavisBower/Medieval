@@ -74,7 +74,7 @@ namespace Medieval.NpcMovement
         public float CombatSeekEyeHeight = 1.5f;
         public float CombatSeekTargetAimHeight = 1f;
         public LayerMask CombatSeekObstacleLayers = ~0;
-        [Tooltip("Followers: max horizontal distance from the player to pursue combat. 0 with Follower separation uses 25.")]
+        [Tooltip("Followers: max horizontal distance from the player to pursue combat. 0 with Follower separation uses 15.")]
         public float CombatSeekMaxDistanceFromLeader;
 
         [Header("Follower anti-stranding")]
@@ -138,7 +138,7 @@ namespace Medieval.NpcMovement
         {
             float leash = authoring.CombatSeekMaxDistanceFromLeader;
             if (leash <= 0f && authoring.SeparationGroup == NpcSeparationGroup.Followers)
-                leash = 25f;
+                leash = 15f;
             float teleDist = 0f;
             float teleTarget = 0f;
             if (authoring.SeparationGroup == NpcSeparationGroup.Followers)
