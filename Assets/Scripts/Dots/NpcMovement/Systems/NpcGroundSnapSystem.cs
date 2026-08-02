@@ -60,18 +60,6 @@ namespace Medieval.NpcMovement
             {
                 float targetY = hit.point.y + cfg.GroundSnapHeightOffset;
 
-                // Fording: XZ can drift onto the bank while Y is still at water height. A large upward
-                // snap onto terrain finishes the teleport-out. Allow a gentle shore exit climb only.
-                if (p.y <= NpcMath.NavMeshWaterTopY && targetY > p.y)
-                {
-                    const float maxWaterExitClimb = 0.45f;
-                    if (targetY - p.y > maxWaterExitClimb)
-                    {
-                        targetY = math.min(targetY, NpcMath.NavMeshWaterTopY);
-                        mst.GroundSnapYVelocity = 0f;
-                    }
-                }
-
                 float newY;
                 if (cfg.GroundSnapSmoothTime > 1e-4f)
                 {

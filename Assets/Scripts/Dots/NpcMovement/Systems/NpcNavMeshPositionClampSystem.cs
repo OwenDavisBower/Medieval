@@ -16,6 +16,8 @@ namespace Medieval.NpcMovement
     /// After horizontal integration, snaps <see cref="LocalTransform.Position"/> to the closest point on the
     /// NavMesh (same mapping rules as pathfinding). Prevents separation / steering from walking NPCs off
     /// small walkable islands such as tower tops, without pulling bridge traffic down onto river mesh.
+    /// Skipped entirely while fording (<see cref="NpcMath.NavMeshWaterTopY"/>) — Water-tagged slopes and
+    /// ford edges otherwise magnetize agents ashore in a single frame.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(NpcIntegrationSystem))]
@@ -62,6 +64,11 @@ namespace Medieval.NpcMovement
                 if (!math.all(math.isfinite(p)))
                     return;
 
+                // Fording: never snap onto navmesh. Water-tagged bank slopes and ford-edge polys
+                // magnetize MapLocation toward shore and read as a teleport out of the river.
+                if (p.y <= NpcMath.NavMeshWaterTopY)
+                    return;
+
                 bool preferWade = ShouldPreferWade(p, pathState, corners);
                 if (NpcNavMeshSampling.TryMapNearHeight(
                         NavQuery, p, cfg.NavMeshSampleMaxDistance,
@@ -86,10 +93,6 @@ namespace Medieval.NpcMovement
             static bool ShouldPreferWade(
                 float3 selfPos, in NpcPathState pathState, DynamicBuffer<NpcPathCorner> corners)
             {
-                // Already fording — keep Water preference even if string-pull corners sit on the bank.
-                if (selfPos.y <= NpcMath.NavMeshWaterTopY)
-                    return true;
-
                 if (pathState.PathValid == 0 || corners.Length == 0)
                     return false;
 

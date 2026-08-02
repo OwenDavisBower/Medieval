@@ -78,6 +78,10 @@ namespace Medieval.NpcMovement
                 if (flatSq <= thr * thr)
                     continue;
 
+                // Don't yank followers out of a river crossing onto dry land near the player.
+                if (self.y <= NpcMath.NavMeshWaterTopY)
+                    continue;
+
                 float3 away = self - leader;
                 away.y = 0f;
                 if (math.lengthsq(away) < 1e-6f)
