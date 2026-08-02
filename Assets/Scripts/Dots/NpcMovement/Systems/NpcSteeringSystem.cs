@@ -46,6 +46,10 @@ namespace Medieval.NpcMovement
         [WithAll(typeof(NpcMovementTag))]
         partial struct SteeringJob : IJobEntity
         {
+            /// <summary>Followers beyond this XZ distance from their anchor run to catch up.</summary>
+            const float FollowerCatchUpDistance = 15f;
+            const float FollowerCatchUpSpeedMultiplier = 1.5f;
+
             public float DeltaTime;
             public float ElapsedTime;
             public float WorldTime;
@@ -67,6 +71,15 @@ namespace Medieval.NpcMovement
                     speedMult = math.max(0.05f, CombatLookup[entity].MovementSpeedMultiplier);
                 mstate.EffectiveMoveSpeed = cfg.MoveSpeed * cfg.MoveSpeedScale * speedMult *
                                             NpcMath.WaterSpeedMultiplier(selfPos.y);
+
+                // Party followers sprint when far from the player so they can rejoin the orbit ring.
+                if (mstate.Group == NpcSeparationGroup.Followers && anchor.HasAnchor != 0)
+                {
+                    float3 toAnchor = anchor.Position - selfPos;
+                    toAnchor.y = 0f;
+                    if (math.lengthsq(toAnchor) > FollowerCatchUpDistance * FollowerCatchUpDistance)
+                        mstate.EffectiveMoveSpeed *= FollowerCatchUpSpeedMultiplier;
+                }
 
                 if (mstate.RangedMovementLock != 0 || mstate.MeleeEngageMovementLock != 0 ||
                     WorldTime < mstate.ShootGestureSuppressLocomotionUntilUnityTime)

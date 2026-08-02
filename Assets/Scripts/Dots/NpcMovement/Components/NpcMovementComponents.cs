@@ -191,6 +191,18 @@ namespace Medieval.NpcMovement
         public byte HasPending;
     }
 
+    /// <summary>
+    /// Short-lived ambush emerge: keep NavMesh clamp off while the bandit leaps out of a tree,
+    /// then restore movement config/mode when <see cref="EndUnityTime"/> elapses.
+    /// </summary>
+    public struct NpcAmbushEmerge : IComponentData
+    {
+        public float EndUnityTime;
+        public byte RestoreUseNavMesh;
+        public float RestoreGroundSnapSmoothTime;
+        public NpcMovementMode RestoreMode;
+    }
+
     public struct NpcPathCorner : IBufferElementData
     {
         public float3 Value;

@@ -13,6 +13,9 @@ namespace Medieval.Npcs
     /// </summary>
     public static class NpcWatchTowerBanditQuery
     {
+        static World? s_CachedWorld;
+        static EntityQuery s_CachedQuery;
+
         /// <param name="towerFactionId"><see cref="Affiliation.FactionId"/> for the tower; if &lt; 0, only entities with <see cref="WellKnownFactionIds.Bandit"/> are considered.</param>
         public static bool TryFindNearestHostileDotsNpcForTower(
             int towerFactionId,
@@ -28,14 +31,7 @@ namespace Medieval.Npcs
             targetFeetWorld = default;
             targetHorizontalVelocity = default;
 
-            World? world = World.DefaultGameObjectInjectionWorld;
-            if (world == null || !world.IsCreated)
-                return false;
-
-            EntityManager em = world.EntityManager;
-            using EntityQuery query = NpcCombatCandidateQuery.CreateEntityQuery(em);
-
-            if (query.IsEmpty)
+            if (!TryGetCachedQuery(out EntityManager em, out EntityQuery query) || query.IsEmpty)
                 return false;
 
             FactionManager? fm = FactionManager.Instance;
@@ -97,6 +93,28 @@ namespace Medieval.Npcs
                 targetHorizontalVelocity = new Vector3(v.x, 0f, v.z);
             }
 
+            return true;
+        }
+
+        static bool TryGetCachedQuery(out EntityManager em, out EntityQuery query)
+        {
+            World? world = World.DefaultGameObjectInjectionWorld;
+            if (world == null || !world.IsCreated)
+            {
+                em = default;
+                query = default;
+                return false;
+            }
+
+            // World dispose owns prior queries; recreate only when the default world changes.
+            if (s_CachedWorld != world)
+            {
+                s_CachedWorld = world;
+                s_CachedQuery = NpcCombatCandidateQuery.CreateEntityQuery(world.EntityManager);
+            }
+
+            em = world.EntityManager;
+            query = s_CachedQuery;
             return true;
         }
     }

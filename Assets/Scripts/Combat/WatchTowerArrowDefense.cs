@@ -41,13 +41,21 @@ public class WatchTowerArrowDefense : MonoBehaviour
             return;
 
         if (!TryGetShootTarget(out Transform transformTarget, out Vector3 feetWorld, out Vector3 horizVel))
+        {
+            // Avoid scanning all DOTS combat candidates every frame when nothing is in range.
+            _nextFireTime = Time.time + Mathf.Min(fireIntervalMin, fireIntervalMax);
             return;
+        }
 
         if (TryFireAt(transformTarget, feetWorld, horizVel))
         {
             float min = Mathf.Min(fireIntervalMin, fireIntervalMax);
             float max = Mathf.Max(fireIntervalMin, fireIntervalMax);
             _nextFireTime = Time.time + Random.Range(min, max);
+        }
+        else
+        {
+            _nextFireTime = Time.time + Mathf.Min(fireIntervalMin, fireIntervalMax);
         }
     }
 

@@ -154,6 +154,65 @@ namespace Medieval.NpcMovement
                 HasPending = 1
             });
         }
+
+        /// <summary>
+        /// Leap out of a tree: MoveTowards <paramref name="landingPosition"/> with an outward burst,
+        /// NavMesh clamp disabled until <paramref name="durationSeconds"/> elapses.
+        /// </summary>
+        public static void StartAmbushTreeEmerge(
+            EntityManager em,
+            Entity npc,
+            float3 landingPosition,
+            float3 outwardDirectionXZ,
+            float impulseSpeed,
+            float durationSeconds,
+            float groundSnapSmoothTime = 0.35f)
+        {
+            if (!em.Exists(npc) || !em.HasComponent<NpcMovementState>(npc))
+                return;
+
+            SetAnchorPosition(em, npc, landingPosition);
+
+            var state = em.GetComponentData<NpcMovementState>(npc);
+            var restoreMode = state.Mode;
+            state.Mode = NpcMovementMode.MoveTowards;
+
+            outwardDirectionXZ.y = 0f;
+            if (math.lengthsq(outwardDirectionXZ) > 1e-6f)
+            {
+                float3 dir = math.normalize(outwardDirectionXZ);
+                state.CurrentHorizontalVelocity = dir * math.max(0f, impulseSpeed);
+                state.DodgeImpulseThisFrame = 1;
+            }
+
+            em.SetComponentData(npc, state);
+
+            byte restoreNav = 1;
+            float restoreSnap = 0.1f;
+            if (em.HasComponent<NpcMovementConfig>(npc))
+            {
+                var cfg = em.GetComponentData<NpcMovementConfig>(npc);
+                restoreNav = cfg.UseNavMeshWhenAvailable;
+                restoreSnap = cfg.GroundSnapSmoothTime;
+                cfg.UseNavMeshWhenAvailable = 0;
+                cfg.GroundSnapSmoothTime = math.max(cfg.GroundSnapSmoothTime, groundSnapSmoothTime);
+                em.SetComponentData(npc, cfg);
+            }
+
+            var emerge = new NpcAmbushEmerge
+            {
+                EndUnityTime = UnityEngine.Time.time + math.max(0.05f, durationSeconds),
+                RestoreUseNavMesh = restoreNav,
+                RestoreGroundSnapSmoothTime = restoreSnap,
+                RestoreMode = restoreMode
+            };
+            if (em.HasComponent<NpcAmbushEmerge>(npc))
+                em.SetComponentData(npc, emerge);
+            else
+                em.AddComponentData(npc, emerge);
+
+            SetOverrideFacing(em, npc, outwardDirectionXZ);
+        }
     }
 }
 

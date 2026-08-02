@@ -1,7 +1,6 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
@@ -17,11 +16,17 @@ namespace Medieval.NpcMovement
     public partial struct NpcSeparationSystem : ISystem
     {
         NativeParallelMultiHashMap<int3, float3> _hash;
+        EntityQuery _dataQuery;
 
         public void OnCreate(ref SystemState state)
         {
             _hash = new NativeParallelMultiHashMap<int3, float3>(256, Allocator.Persistent);
-            state.RequireForUpdate<NpcMovementTag>();
+            _dataQuery = state.GetEntityQuery(
+                ComponentType.ReadOnly<NpcMovementTag>(),
+                ComponentType.ReadOnly<LocalTransform>(),
+                ComponentType.ReadOnly<NpcMovementState>(),
+                ComponentType.ReadOnly<NpcMovementConfig>());
+            state.RequireForUpdate(_dataQuery);
         }
 
         public void OnDestroy(ref SystemState state)
@@ -32,64 +37,45 @@ namespace Medieval.NpcMovement
 
         public void OnUpdate(ref SystemState state)
         {
-            var dataQuery = SystemAPI.QueryBuilder()
-                .WithAll<NpcMovementTag, LocalTransform, NpcMovementState, NpcMovementConfig>()
-                .Build();
-
-            int capacity = dataQuery.CalculateEntityCount();
+            int capacity = _dataQuery.CalculateEntityCount();
             if (capacity <= 0)
                 return;
             if (_hash.Capacity < capacity * 2)
                 _hash.Capacity = math.max(capacity * 2, 256);
             _hash.Clear();
 
-            // Cell size = 2 * maximum search radius so neighbors are always within a 3x3 block.
-            // We take the largest SeparationRadius across entities as a conservative cell size by
-            // scanning once (small vs. grouping three hash passes).
-            var positions = dataQuery.ToComponentDataArray<LocalTransform>(Allocator.TempJob);
-            var states = dataQuery.ToComponentDataArray<NpcMovementState>(Allocator.TempJob);
-            var configs = dataQuery.ToComponentDataArray<NpcMovementConfig>(Allocator.TempJob);
-
+            // Cell size must cover max search radius so neighbors stay within a 3x3 block.
+            // Allocation-free scan (configs are tiny); ranged boost uses r*1.45 so 1.5x is enough.
             float maxRadius = 0f;
-            for (int i = 0; i < configs.Length; i++)
-                maxRadius = math.max(maxRadius, configs[i].SeparationRadius);
-            // Ranged standoff can scale effective separation radius; keep cells large enough for 3x3 neighbor queries.
+            foreach (var cfg in SystemAPI.Query<RefRO<NpcMovementConfig>>().WithAll<NpcMovementTag>())
+                maxRadius = math.max(maxRadius, cfg.ValueRO.SeparationRadius);
             float cellSize = math.max(0.25f, maxRadius * 1.5f);
 
             var buildJob = new BuildHashJob
             {
                 Hash = _hash.AsParallelWriter(),
-                Positions = positions,
-                States = states,
                 CellSize = cellSize
-            }.Schedule(positions.Length, 64, state.Dependency);
+            }.ScheduleParallel(state.Dependency);
 
-            var accumJob = new AccumulateSeparationJob
+            state.Dependency = new AccumulateSeparationJob
             {
                 Hash = _hash,
                 CellSize = cellSize
             }.ScheduleParallel(buildJob);
-
-            state.Dependency = JobHandle.CombineDependencies(
-                positions.Dispose(accumJob),
-                states.Dispose(accumJob),
-                configs.Dispose(accumJob));
         }
 
         [BurstCompile]
-        struct BuildHashJob : IJobParallelFor
+        [WithAll(typeof(NpcMovementTag))]
+        partial struct BuildHashJob : IJobEntity
         {
             public NativeParallelMultiHashMap<int3, float3>.ParallelWriter Hash;
-            [ReadOnly] public NativeArray<LocalTransform> Positions;
-            [ReadOnly] public NativeArray<NpcMovementState> States;
             public float CellSize;
 
-            public void Execute(int index)
+            public void Execute(in LocalTransform tf, in NpcMovementState s)
             {
-                NpcMovementState s = States[index];
                 if (s.Group == NpcSeparationGroup.None)
                     return;
-                float3 p = Positions[index].Position;
+                float3 p = tf.Position;
                 int3 cell = new int3(
                     (int)math.floor(p.x / CellSize),
                     (int)s.Group,

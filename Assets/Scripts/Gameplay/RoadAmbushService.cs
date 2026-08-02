@@ -6,6 +6,7 @@ using UnityEngine;
 
 /// <summary>
 /// Spawns small roadside bandit ambushes during travel and once mid-route on escort quests.
+/// Bandits emerge from nearby trees with an outward leap when trees are available.
 /// </summary>
 public sealed class RoadAmbushService : MonoBehaviour
 {
@@ -22,6 +23,13 @@ public sealed class RoadAmbushService : MonoBehaviour
     const float SettlementExclusionRadius = 35f;
     const float CampExclusionRadius = 60f;
     const float BanditSpacing = 2.5f;
+
+    const float TreeSearchRadius = 14f;
+    const float TreeExitDistance = 3.6f;
+    const float TreeSpawnHeight = 2.4f;
+    const float LeapImpulseSpeed = 9.5f;
+    const float LeapDurationSeconds = 0.55f;
+    const float LeapGroundSnapSmoothTime = 0.4f;
 
     Vector3 _lastPlayerPos;
     bool _hasLastPlayerPos;
@@ -185,29 +193,126 @@ public sealed class RoadAmbushService : MonoBehaviour
 
         EntityManager em = world.EntityManager;
         int spawned = 0;
+        var usedTrees = new float3[BanditsPerAmbush];
+        int usedTreeCount = 0;
 
         for (int i = 0; i < BanditsPerAmbush; i++)
         {
-            float lateral = (i == 0 ? -1f : 1f) * (BanditSpacing * 0.5f);
+            float side = i == 0 ? -1f : 1f;
+            float lateral = side * (BanditSpacing * 0.5f);
             lateral += UnityEngine.Random.Range(-SpawnLateralJitter, SpawnLateralJitter);
             float ahead = SpawnDistanceAhead + UnityEngine.Random.Range(-1.5f, 1.5f);
-            Vector3 offset = forward * ahead + right * lateral;
-            Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(playerPos + offset);
+            Vector3 searchCenter = playerPos + forward * ahead + right * lateral;
 
             var wc = NpcSpawnApi.WeaponClassForHalfMeleeHalfRangedSplit(i, BanditsPerAmbush);
-            Entity e = NpcSpawnApi.SpawnBandit(pos, quaternion.identity, 1f, wc);
-            if (e == Entity.Null)
+
+            if (TryPickAmbushTree(em, searchCenter, TreeSearchRadius, usedTrees, usedTreeCount, out float3 treePos))
+            {
+                if (usedTreeCount < usedTrees.Length)
+                    usedTrees[usedTreeCount++] = treePos;
+
+                Vector3 roadPoint = playerPos + forward * ahead;
+                float3 outward = new float3(roadPoint.x - treePos.x, 0f, roadPoint.z - treePos.z);
+                if (math.lengthsq(outward) < 1e-4f)
+                    outward = new float3(right.x * -side, 0f, right.z * -side);
+                outward = math.normalize(outward);
+
+                float3 landing = treePos + outward * TreeExitDistance;
+                landing = new float3(
+                    landing.x,
+                    TerrainSpawnUtility.GetWorldPositionOnTerrain(new Vector3(landing.x, landing.y, landing.z)).y,
+                    landing.z);
+
+                Vector3 spawnPos = new Vector3(treePos.x, treePos.y + TreeSpawnHeight, treePos.z);
+                quaternion face = quaternion.LookRotationSafe(outward, new float3(0f, 1f, 0f));
+                Entity e = NpcSpawnApi.SpawnBandit(spawnPos, face, 1f, wc);
+                if (e == Entity.Null)
+                {
+                    Debug.LogWarning(
+                        "RoadAmbushService: NpcSpawnApi.SpawnBandit failed (is NpcPrefabRegistryAuthoring ready with Bandit prefab?).");
+                    continue;
+                }
+
+                NpcMovementApi.StartAmbushTreeEmerge(
+                    em, e, landing, outward, LeapImpulseSpeed, LeapDurationSeconds, LeapGroundSnapSmoothTime);
+                spawned++;
+                continue;
+            }
+
+            // Fallback: open roadside spawn if no tree is in range.
+            Vector3 offset = forward * ahead + right * lateral;
+            Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(playerPos + offset);
+            Entity open = NpcSpawnApi.SpawnBandit(pos, quaternion.identity, 1f, wc);
+            if (open == Entity.Null)
             {
                 Debug.LogWarning(
                     "RoadAmbushService: NpcSpawnApi.SpawnBandit failed (is NpcPrefabRegistryAuthoring ready with Bandit prefab?).");
                 continue;
             }
 
-            NpcMovementApi.SetAnchorPosition(em, e, new float3(pos.x, pos.y, pos.z));
+            NpcMovementApi.SetAnchorPosition(em, open, new float3(pos.x, pos.y, pos.z));
             spawned++;
         }
 
         return spawned > 0;
+    }
+
+    static bool TryPickAmbushTree(
+        EntityManager em,
+        Vector3 searchCenter,
+        float maxDistance,
+        float3[] usedTrees,
+        int usedTreeCount,
+        out float3 treePos)
+    {
+        treePos = default;
+        using var q = em.CreateEntityQuery(ComponentType.ReadOnly<WorldStreamingTreesSingletonTag>());
+        if (q.IsEmpty)
+            return false;
+
+        Entity singleton = q.GetSingletonEntity();
+        if (!em.HasBuffer<StreamingTreePosition>(singleton))
+            return false;
+
+        DynamicBuffer<StreamingTreePosition> trees = em.GetBuffer<StreamingTreePosition>(singleton, isReadOnly: true);
+        if (trees.Length == 0)
+            return false;
+
+        float maxSq = maxDistance * maxDistance;
+        float bestSq = maxSq;
+        bool found = false;
+
+        for (int i = 0; i < trees.Length; i++)
+        {
+            float3 p = trees[i].Position;
+            if (IsTreeUsed(p, usedTrees, usedTreeCount))
+                continue;
+
+            float dx = p.x - searchCenter.x;
+            float dz = p.z - searchCenter.z;
+            float dSq = dx * dx + dz * dz;
+            if (dSq > bestSq)
+                continue;
+
+            bestSq = dSq;
+            treePos = p;
+            found = true;
+        }
+
+        return found;
+    }
+
+    static bool IsTreeUsed(float3 treePos, float3[] usedTrees, int usedTreeCount)
+    {
+        for (int i = 0; i < usedTreeCount; i++)
+        {
+            float ux = treePos.x - usedTrees[i].x;
+            float uz = treePos.z - usedTrees[i].z;
+            if (ux * ux + uz * uz < 0.25f)
+                return true;
+        }
+
+        return false;
     }
 
     static bool IsNearSettlement(Vector3 worldPos, float radius)
