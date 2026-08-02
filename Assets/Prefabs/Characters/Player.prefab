@@ -50,6 +50,9 @@ GameObject:
   - component: {fileID: 7822334455667788990}
   - component: {fileID: 557766001}
   - component: {fileID: 6611223344556677889}
+  - component: {fileID: 7711223344556677901}
+  - component: {fileID: 7711223344556677902}
+  - component: {fileID: 7711223344556677903}
   m_Layer: 7
   m_Name: Player
   m_TagString: Untagged
@@ -237,6 +240,66 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerGodMode
   godModeMaxHealth: 1000
   godModeMoveSpeed: 25
+--- !u!114 &7711223344556677901
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8134341599606891099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4e5f678901234567890abcdef4512ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RangedCombat
+  arrowDamage: 25
+  arrowMaxLifetime: 12
+  arrowHitRadius: 0.08
+  fireInterval: 1.15
+  launchHeight: 1.45
+  targetAimHeight: 1
+  horizontalAimError: 1.4
+  verticalAimError: 0.28
+  fireAnimationLeadSeconds: 0.45
+  movementLockDuration: 0.85
+--- !u!114 &7711223344556677902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8134341599606891099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4a5968778695a4b3c2d1e0f1a2b3c4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetFinder
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 384
+  scanRadius: 14
+  scanInterval: 0.2
+  overlapBufferSize: 32
+  periodicScanInUpdate: 0
+--- !u!114 &7711223344556677903
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8134341599606891099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 534e1d740ac3475f95458b70ca0e8686, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerBowCombat
+  combatRange: 14
+  eyeHeight: 1.4
+  stopSpeedThreshold: 0.04
+  obstacleLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  aimTurnSpeedDegreesPerSecond: 720
 --- !u!1 &8753374470813275373
 GameObject:
   m_ObjectHideFlags: 0

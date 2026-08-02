@@ -14,3 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FactionDefinition
   factionID: 1
   factionName: Bandit
+  clothingColor: {r: 0.55, g: 0.22, b: 0.18, a: 1}

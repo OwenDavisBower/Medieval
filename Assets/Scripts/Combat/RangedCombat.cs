@@ -31,6 +31,8 @@ public class RangedCombat : MonoBehaviour
 
     public bool IsMovementLocked => Time.time < _movementLockUntilTime;
 
+    public float TargetAimHeight => targetAimHeight;
+
     public void CancelMovementLock() => _movementLockUntilTime = 0f;
 
     void OnDisable()
@@ -54,6 +56,15 @@ public class RangedCombat : MonoBehaviour
         var targetHealth = target.GetComponentInParent<IDamageableHealth>();
         if (targetHealth != null && targetHealth.IsDead)
             return false;
+
+        return BeginShot(target, target.position);
+    }
+
+    /// <summary>Fire at a world feet position (e.g. DOTS NPC with no GameObject transform).</summary>
+    public bool TryFireAtWorldFeet(Vector3 feetWorld) => BeginShot(null, feetWorld);
+
+    bool BeginShot(Transform liveTarget, Vector3 aimFeetFallback)
+    {
         if (_selfCharacter != null && !_selfCharacter.CanAttack)
             return false;
         if (Time.time < _nextFireTime)
@@ -77,33 +88,44 @@ public class RangedCombat : MonoBehaviour
 
         if (lead <= 0f)
         {
-            TrySpawnArrow(target, aimScale);
+            TrySpawnArrow(ResolveAimFeet(liveTarget, aimFeetFallback), aimScale);
             _shotInProgress = false;
         }
         else
-            StartCoroutine(SpawnArrowAfterLead(target, aimScale, lead));
+            StartCoroutine(SpawnArrowAfterLead(liveTarget, aimFeetFallback, aimScale, lead));
 
         return true;
     }
 
-    IEnumerator SpawnArrowAfterLead(Transform target, float aimScale, float lead)
+    IEnumerator SpawnArrowAfterLead(Transform liveTarget, Vector3 aimFeetFallback, float aimScale, float lead)
     {
         yield return new WaitForSeconds(lead);
-        if (target != null && (_selfCharacter == null || _selfCharacter.CanAttack))
+        if (_selfCharacter == null || _selfCharacter.CanAttack)
         {
-            var h = target.GetComponentInParent<IDamageableHealth>();
-            if (h == null || !h.IsDead)
-                TrySpawnArrow(target, aimScale);
+            if (liveTarget != null)
+            {
+                var h = liveTarget.GetComponentInParent<IDamageableHealth>();
+                if (h != null && h.IsDead)
+                {
+                    _shotInProgress = false;
+                    yield break;
+                }
+            }
+
+            TrySpawnArrow(ResolveAimFeet(liveTarget, aimFeetFallback), aimScale);
         }
         _shotInProgress = false;
     }
 
-    void TrySpawnArrow(Transform target, float aimScale)
+    static Vector3 ResolveAimFeet(Transform liveTarget, Vector3 aimFeetFallback) =>
+        liveTarget != null ? liveTarget.position : aimFeetFallback;
+
+    void TrySpawnArrow(Vector3 aimFeetWorld, float aimScale)
     {
         Vector3 origin = transform.position + Vector3.up * launchHeight;
-        Vector3 aim = target.position + Vector3.up * targetAimHeight;
-        Vector2 xz = Random.insideUnitCircle * (horizontalAimError * aimScale);
-        aim += new Vector3(xz.x, Random.Range(-verticalAimError, verticalAimError) * aimScale, xz.y);
+        Vector3 aim = aimFeetWorld + Vector3.up * targetAimHeight;
+        Vector2 xz = UnityEngine.Random.insideUnitCircle * (horizontalAimError * aimScale);
+        aim += new Vector3(xz.x, UnityEngine.Random.Range(-verticalAimError, verticalAimError) * aimScale, xz.y);
 
         Vector3 velocity = ProjectileBallistics.LobbedLaunchVelocity(origin, aim);
 

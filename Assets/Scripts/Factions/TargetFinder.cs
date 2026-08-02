@@ -65,6 +65,9 @@ public sealed class TargetFinder : MonoBehaviour
         RunScan();
     }
 
+    /// <summary>When false, only <see cref="ScanNow"/> runs scans.</summary>
+    public void SetPeriodicScanEnabled(bool enabled) => periodicScanInUpdate = enabled;
+
     void RunScan()
     {
         CurrentEnemyTarget = null;

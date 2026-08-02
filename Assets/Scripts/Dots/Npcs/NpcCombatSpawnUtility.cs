@@ -206,6 +206,10 @@ namespace Medieval.Npcs
                 em.AddComponentData(npc, new NpcFactionId { Value = id });
             else
                 em.SetComponentData(npc, new NpcFactionId { Value = id });
+
+            // Villager mesh uses a clothing-mask albedo; other NPC meshes are not set up for tint yet.
+            if (role == NpcRole.Villager && id >= 0)
+                NpcFactionClothingUtility.ApplyClothingColorForFaction(em, npc, id);
         }
 
         /// <summary>Uses combat config presence on this entity (baked root). For configs on child entities, set <see cref="NpcProfile.WeaponClass"/> in authoring.</summary>

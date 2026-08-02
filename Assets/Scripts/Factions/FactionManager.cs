@@ -30,6 +30,24 @@ public sealed class FactionManager : MonoBehaviour
     /// <summary>Current matrix dimension (max faction id + 1). 0 if not initialized.</summary>
     public int RelationshipMatrixSize => _matrix != null ? _size : 0;
 
+    /// <summary>Clothing tint for <paramref name="factionId"/> from registered factions; white if unknown.</summary>
+    public bool TryGetClothingColor(int factionId, out Color color)
+    {
+        color = Color.white;
+        if (registeredFactions == null)
+            return false;
+        for (int i = 0; i < registeredFactions.Count; i++)
+        {
+            FactionDefinition def = registeredFactions[i];
+            if (def == null || def.FactionID != factionId)
+                continue;
+            color = def.ClothingColor;
+            return true;
+        }
+
+        return false;
+    }
+
     void OnEnable()
     {
         if (Instance != null && Instance != this)

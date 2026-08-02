@@ -33,6 +33,7 @@ public sealed class GameplayHUD : MonoBehaviour
     RectTransform _questPanel;
     RectTransform _partyContent;
     Text _villageTitle;
+    Text _healLabel;
     readonly List<Button> _actionButtons = new List<Button>();
     readonly List<Text> _actionLabels = new List<Text>();
     readonly List<PartyRowUi> _partyRows = new List<PartyRowUi>(PartyManager.MaxPartySize);
@@ -351,6 +352,17 @@ public sealed class GameplayHUD : MonoBehaviour
             ? "8  Already owned"
             : $"8  Claim village ({SettlementService.ClaimGoldCost}g)";
         SetAction(7, claimLabel, () => VillageInteractionController.Instance?.Claim());
+
+        if (_healLabel != null)
+        {
+            var character = PlayerReference.TryGetCharacter();
+            int healCost = SettlementService.Instance != null
+                ? SettlementService.Instance.GetHealCost(nearby, character)
+                : 0;
+            _healLabel.text = healCost > 0
+                ? $"H  Heal ({healCost}g)"
+                : "H  Heal (full)";
+        }
     }
 
     void SetAction(int index, string label, UnityEngine.Events.UnityAction onClick)
@@ -464,6 +476,14 @@ public sealed class GameplayHUD : MonoBehaviour
             CreateActionButton(_villagePanel, i, y);
         }
 
+        var healBtn = CreateTextButton(_villagePanel, "HealBtn", $"H  Heal ({SettlementService.HealFullCost}g)",
+            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 8f), new Vector2(0f, 32f),
+            () => VillageInteractionController.Instance?.Heal());
+        var hb = healBtn.GetComponent<RectTransform>();
+        hb.offsetMin = new Vector2(10f, 72f);
+        hb.offsetMax = new Vector2(-10f, 104f);
+        _healLabel = healBtn.GetComponentInChildren<Text>();
+
         var dismiss = CreateTextButton(_villagePanel, "DismissBtn", "X  Dismiss follower",
             new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 8f), new Vector2(0f, 32f),
             () => VillageInteractionController.Instance?.Disband());
@@ -478,8 +498,8 @@ public sealed class GameplayHUD : MonoBehaviour
         sf.offsetMin = new Vector2(10f, 8f);
         sf.offsetMax = new Vector2(-10f, 40f);
 
-        // Taller panel to fit sell-food row
-        _villagePanel.sizeDelta = new Vector2(420f, 400f);
+        // Tall enough for 8 actions + heal / dismiss / sell-food rows
+        _villagePanel.sizeDelta = new Vector2(420f, 450f);
 
         _villagePanel.gameObject.SetActive(false);
         RefreshResources();

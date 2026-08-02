@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// Fires physics arrows at the nearest faction enemy in range with clear line of sight (same projectile flow as <see cref="RangedCombat"/>).
-/// Uses <see cref="TargetFinder"/> when present; otherwise queries DOTS bandit entities via <see cref="NpcWatchTowerBanditQuery"/>.
+/// Uses <see cref="TargetFinder"/> when present; otherwise queries DOTS NPC entities via <see cref="NpcHostileTargetQuery"/>.
 /// </summary>
 public class WatchTowerArrowDefense : MonoBehaviour
 {
@@ -96,7 +96,7 @@ public class WatchTowerArrowDefense : MonoBehaviour
         if (towerAff != null)
             towerFaction = towerAff.FactionId;
 
-        if (NpcWatchTowerBanditQuery.TryFindNearestHostileDotsNpcForTower(
+        if (NpcHostileTargetQuery.TryFindNearestHostileDotsNpc(
                 towerFaction,
                 transform.position,
                 combatRange,

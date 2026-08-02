@@ -28,6 +28,8 @@ public sealed class SettlementService : MonoBehaviour
     public const int SellWoodPrice = 2;
     public const int BuyFoodPrice = 5;
     public const int SellFoodPrice = 2;
+    /// <summary>Gold to fully restore the player at standing 0 (scales down with missing HP / standing / ownership).</summary>
+    public const int HealFullCost = 20;
 
     readonly List<SettlementRecord> _settlements = new List<SettlementRecord>();
     readonly List<CampRecord> _camps = new List<CampRecord>();
@@ -343,11 +345,69 @@ public sealed class SettlementService : MonoBehaviour
         if (settlement == null)
             return baseCost;
         if (settlement.OwnedByPlayer)
-            return Mathf.Max(8, baseCost / 2);
+            return Mathf.Max(5, baseCost / 2);
 
         // Standing 0 → full price; 100 → ~40% off
         float discount = Mathf.Clamp01(settlement.Reputation / 100f) * 0.45f;
-        return Mathf.Max(10, Mathf.RoundToInt(baseCost * (1f - discount)));
+        return Mathf.Max(6, Mathf.RoundToInt(baseCost * (1f - discount)));
+    }
+
+    /// <summary>
+    /// Gold to restore the player to full HP here. 0 if already full / unavailable.
+    /// Scales with missing HP; owned villages and high standing discount like recruit.
+    /// </summary>
+    public int GetHealCost(SettlementRecord settlement, Character character)
+    {
+        if (character == null || character.IsDead || character.MaxHealth <= 0f)
+            return 0;
+
+        float missing = character.MaxHealth - character.CurrentHealth;
+        if (missing <= 0.01f)
+            return 0;
+
+        int fullCost = HealFullCost;
+        if (settlement != null && settlement.OwnedByPlayer)
+            fullCost = Mathf.Max(5, fullCost / 2);
+        else if (settlement != null)
+        {
+            float discount = Mathf.Clamp01(settlement.Reputation / 100f) * 0.45f;
+            fullCost = Mathf.Max(6, Mathf.RoundToInt(fullCost * (1f - discount)));
+        }
+
+        float fraction = Mathf.Clamp01(missing / character.MaxHealth);
+        return Mathf.Max(1, Mathf.CeilToInt(fullCost * fraction));
+    }
+
+    public bool TryHealPlayer(SettlementRecord settlement)
+    {
+        if (settlement == null)
+            return false;
+
+        var character = PlayerReference.TryGetCharacter();
+        if (character == null || character.IsDead)
+        {
+            GameplayEvents.RaiseToast("Cannot heal right now.");
+            return false;
+        }
+
+        int cost = GetHealCost(settlement, character);
+        if (cost <= 0)
+        {
+            GameplayEvents.RaiseToast("Already at full health.");
+            return false;
+        }
+
+        var wallet = PlayerWallet.Instance;
+        if (wallet == null || !wallet.TrySpend(cost))
+        {
+            GameplayEvents.RaiseToast("Not enough gold.");
+            return false;
+        }
+
+        float missing = character.MaxHealth - character.CurrentHealth;
+        character.Heal(missing);
+        GameplayEvents.RaiseToast($"Healed (−{cost}g)");
+        return true;
     }
 
     public bool CanClaim(SettlementRecord settlement, out string failReason)

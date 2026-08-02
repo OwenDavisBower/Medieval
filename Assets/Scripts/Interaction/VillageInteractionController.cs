@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Near-village actions: recruit, trade, quests, claim, disband.
-/// Keyboard: E opens/advances hub focus; number keys 1–8 trigger actions when in range.
+/// Near-village actions: recruit, trade, heal, quests, claim, disband.
+/// Keyboard: E opens/advances hub focus; number keys 1–8 / H heal / C sell food when in range.
 /// </summary>
 public sealed class VillageInteractionController : MonoBehaviour
 {
@@ -95,6 +95,8 @@ public sealed class VillageInteractionController : MonoBehaviour
             SellWood();
         else if (kb.digit4Key.wasPressedThisFrame || kb.numpad4Key.wasPressedThisFrame)
             BuyFood();
+        else if (kb.hKey.wasPressedThisFrame)
+            Heal();
         else if (kb.cKey.wasPressedThisFrame)
             SellFood();
         else if (kb.digit5Key.wasPressedThisFrame || kb.numpad5Key.wasPressedThisFrame)
@@ -116,7 +118,7 @@ public sealed class VillageInteractionController : MonoBehaviour
         if (_toastGate > 0f)
             return;
         _toastGate = 1.2f;
-        GameplayEvents.RaiseToast("1 Recruit  2/3 Wood  4/C Food  5–7 Quests  8 Claim  X Dismiss");
+        GameplayEvents.RaiseToast("1 Recruit  2/3 Wood  4/C Food  H Heal  5–7 Quests  8 Claim  X Dismiss");
     }
 
     public void Recruit() => PartyManager.Instance?.TryRecruit(_nearby);
@@ -128,6 +130,8 @@ public sealed class VillageInteractionController : MonoBehaviour
     public void BuyFood() => SettlementService.Instance?.TryBuyFood(_nearby);
 
     public void SellFood() => SettlementService.Instance?.TrySellFood(_nearby);
+
+    public void Heal() => SettlementService.Instance?.TryHealPlayer(_nearby);
 
     public void Disband() => PartyManager.Instance?.TryDisbandOne();
 

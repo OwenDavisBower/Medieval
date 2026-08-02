@@ -13,7 +13,7 @@ public sealed class PartyManager : MonoBehaviour
 {
     public static PartyManager Instance { get; private set; }
 
-    public const int BaseRecruitCost = 25;
+    public const int BaseRecruitCost = 15;
     public const int MaxPartySize = 14;
     public const int DisbandRefund = 8;
 
@@ -315,6 +315,7 @@ public sealed class PartyManager : MonoBehaviour
             em.SetComponentData(e, new NpcFactionId { Value = WellKnownFactionIds.Player });
         else
             em.AddComponentData(e, new NpcFactionId { Value = WellKnownFactionIds.Player });
+        NpcFactionClothingUtility.ApplyClothingColorForFaction(em, e, WellKnownFactionIds.Player);
 
         NpcMovementApi.SetAnchorPosition(em, e, new float3(nearPlayer.x, nearPlayer.y, nearPlayer.z));
         return e;

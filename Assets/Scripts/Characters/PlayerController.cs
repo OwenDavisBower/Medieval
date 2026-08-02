@@ -18,12 +18,14 @@ public class PlayerController : MonoBehaviour
     Rigidbody _rb;
     Transform _cam;
     Character _character;
+    RangedCombat _ranged;
     bool _snappedToTerrain;
 
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
         _character = GetComponent<Character>();
+        _ranged = GetComponent<RangedCombat>();
         _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
         if (Camera.main != null)
             _cam = Camera.main.transform;
@@ -75,6 +77,16 @@ public class PlayerController : MonoBehaviour
         if (_character != null && _character.IsDead)
             return;
 
+        // Hold still while drawing/releasing the bow (PlayerBowCombat aims via transform rotation).
+        if (_ranged != null && _ranged.IsMovementLocked)
+        {
+            Vector3 locked = _rb.linearVelocity;
+            locked.x = 0f;
+            locked.z = 0f;
+            _rb.linearVelocity = locked;
+            return;
+        }
+
         ReadMoveAxes(out float h, out float v);
 
         Vector3 move;
@@ -109,6 +121,19 @@ public class PlayerController : MonoBehaviour
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot,
                 facingTurnSpeedDegreesPerSecond * Time.fixedDeltaTime);
         }
+    }
+
+    /// <summary>True when there is no move input and horizontal speed is below <paramref name="speedThreshold"/>.</summary>
+    public bool IsStationaryForRanged(float speedThreshold = 0.04f)
+    {
+        ReadMoveAxes(out float h, out float v);
+        if (h * h + v * v > 0.01f)
+            return false;
+
+        Vector3 vel = _rb.linearVelocity;
+        float horizSq = vel.x * vel.x + vel.z * vel.z;
+        float t = Mathf.Max(0f, speedThreshold);
+        return horizSq < t * t;
     }
 
     /// <summary>Player debug: flat move speed (before water only) while active.</summary>

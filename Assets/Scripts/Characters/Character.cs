@@ -151,6 +151,23 @@ public class Character : MonoBehaviour, IDamageableHealth
             HandleDeath();
     }
 
+    /// <summary>Restores up to <paramref name="amount"/> HP. Returns the amount actually healed.</summary>
+    public float Heal(float amount)
+    {
+        if (amount <= 0f || IsDead || _godMode)
+            return 0f;
+
+        float before = _current;
+        _current = Mathf.Min(_rolledMaxHealth, _current + amount);
+        float healed = _current - before;
+        if (healed <= 0f)
+            return 0f;
+
+        _healthBar ??= GetComponent<CharacterHealthBar>();
+        _healthBar?.OnHealthChanged(_current, _rolledMaxHealth);
+        return healed;
+    }
+
     void HandleDeath()
     {
         if (_deathHandled)
@@ -222,6 +239,10 @@ public class Character : MonoBehaviour, IDamageableHealth
         if (melee != null)
             melee.enabled = true;
 
+        var bow = GetComponent<PlayerBowCombat>();
+        if (bow != null)
+            bow.enabled = true;
+
         var player = GetComponent<PlayerController>();
         if (player != null)
             player.enabled = true;
@@ -245,6 +266,10 @@ public class Character : MonoBehaviour, IDamageableHealth
         var melee = GetComponent<MeleeCombat>();
         if (melee != null)
             melee.enabled = false;
+
+        var bow = GetComponent<PlayerBowCombat>();
+        if (bow != null)
+            bow.enabled = false;
 
         var player = GetComponent<PlayerController>();
         if (player != null)
