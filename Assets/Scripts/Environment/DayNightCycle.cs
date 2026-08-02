@@ -2,8 +2,8 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// World day/night driver. Lives on the main camera; rotates and dims the sun light,
-/// shifts ambient lighting, and exposes night state for gameplay systems.
+/// World day/night driver. Lives on the main camera; keeps the sun direction fixed
+/// (stable shadows) while dimming light, shifting ambient, and exposing night state.
 /// </summary>
 [DisallowMultipleComponent]
 public class DayNightCycle : MonoBehaviour
@@ -31,32 +31,32 @@ public class DayNightCycle : MonoBehaviour
     [Header("Sun")]
     [SerializeField] Light sun;
     [SerializeField] float dayIntensity = 2f;
-    [SerializeField] float nightIntensity = 0.28f;
+    [SerializeField] float nightIntensity = 0.5f;
     [SerializeField] float dayColorTemperature = 5000f;
     [SerializeField] float nightColorTemperature = 2800f;
-    [Tooltip("Peak sun altitude above the southern horizon (never reaches overhead).")]
-    [SerializeField] [Range(25f, 75f)] float maxElevationDegrees = 55f;
-    [SerializeField] float dayBlendSunDownDot = -0.15f;
-    [SerializeField] float dayBlendSunUpDot = 0.55f;
+    [Tooltip("Fixed sun altitude for shadows (never rotates with the cycle).")]
+    [SerializeField] [Range(25f, 75f)] float shadowElevationDegrees = 55f;
+    [Tooltip("Fixed sun azimuth for shadows. 0.5 = south (noon).")]
+    [SerializeField] [Range(0.25f, 0.75f)] float shadowCycle01 = 0.5f;
     [Tooltip("DayBlend at or below this counts as night for gameplay.")]
     [SerializeField] float nightThreshold = 0.35f;
 
     [Header("Ambient")]
     [SerializeField] Color dayAmbientSky = new Color(0.55f, 0.62f, 0.75f);
-    [SerializeField] Color nightAmbientSky = new Color(0.05f, 0.07f, 0.14f);
+    [SerializeField] Color nightAmbientSky = new Color(0.12f, 0.14f, 0.24f);
     [SerializeField] Color dayAmbientEquator = new Color(0.35f, 0.38f, 0.42f);
-    [SerializeField] Color nightAmbientEquator = new Color(0.04f, 0.05f, 0.08f);
+    [SerializeField] Color nightAmbientEquator = new Color(0.09f, 0.10f, 0.14f);
     [SerializeField] Color dayAmbientGround = new Color(0.18f, 0.16f, 0.12f);
-    [SerializeField] Color nightAmbientGround = new Color(0.02f, 0.02f, 0.03f);
+    [SerializeField] Color nightAmbientGround = new Color(0.05f, 0.05f, 0.07f);
     [SerializeField] float dayAmbientIntensity = 1f;
-    [SerializeField] float nightAmbientIntensity = 0.35f;
+    [SerializeField] float nightAmbientIntensity = 0.6f;
 
     [Header("Fog")]
     [SerializeField] bool driveFog = true;
     [SerializeField] Color dayFogColor = new Color(0.72f, 0.78f, 0.85f);
-    [SerializeField] Color nightFogColor = new Color(0.04f, 0.05f, 0.09f);
+    [SerializeField] Color nightFogColor = new Color(0.08f, 0.09f, 0.14f);
     [SerializeField] float dayFogDensity = 0.004f;
-    [SerializeField] float nightFogDensity = 0.014f;
+    [SerializeField] float nightFogDensity = 0.009f;
 
     [Header("Notices")]
     [SerializeField] bool announcePhaseChanges = true;
@@ -78,7 +78,10 @@ public class DayNightCycle : MonoBehaviour
         Instance = this;
         ResolveSun();
         if (sun != null)
+        {
             RenderSettings.sun = sun;
+            ApplyFixedSunRotation();
+        }
     }
 
     void OnDestroy()
@@ -90,8 +93,11 @@ public class DayNightCycle : MonoBehaviour
     void OnValidate()
     {
         cycleDurationSeconds = Mathf.Max(10f, cycleDurationSeconds);
-        maxElevationDegrees = Mathf.Clamp(maxElevationDegrees, 25f, 75f);
+        shadowElevationDegrees = Mathf.Clamp(shadowElevationDegrees, 25f, 75f);
+        shadowCycle01 = Mathf.Clamp(shadowCycle01, 0.25f, 0.75f);
         nightThreshold = Mathf.Clamp01(nightThreshold);
+        if (sun != null)
+            ApplyFixedSunRotation();
     }
 
     void Update()
@@ -102,16 +108,15 @@ public class DayNightCycle : MonoBehaviour
             if (sun == null)
                 return;
             RenderSettings.sun = sun;
+            ApplyFixedSunRotation();
         }
 
         float duration = Mathf.Max(10f, cycleDurationSeconds);
         _cycle01 = Mathf.Repeat(Time.time / duration + startCycle01, 1f);
-        sun.transform.rotation = Quaternion.LookRotation(
-            SunLightForward(_cycle01, maxElevationDegrees), Vector3.up);
 
-        // Directional light rays follow transform.forward; compare to "down" for day vs night.
-        float sunDown = Vector3.Dot(sun.transform.forward, Vector3.down);
-        _dayBlend = Mathf.Clamp01(Mathf.InverseLerp(dayBlendSunDownDot, dayBlendSunUpDot, sunDown));
+        // 1 at noon, 0 at midnight — darkness only; sun direction stays fixed.
+        float elevation = Mathf.Sin((_cycle01 - 0.25f) * Mathf.PI * 2f);
+        _dayBlend = Mathf.Clamp01((elevation + 1f) * 0.5f);
         _nightFactor = 1f - _dayBlend;
 
         sun.intensity = Mathf.Lerp(nightIntensity, dayIntensity, _dayBlend);
@@ -154,16 +159,21 @@ public class DayNightCycle : MonoBehaviour
         }
     }
 
+    void ApplyFixedSunRotation()
+    {
+        sun.transform.rotation = Quaternion.LookRotation(
+            SunLightForward(shadowCycle01, shadowElevationDegrees), Vector3.up);
+    }
+
     /// <summary>
     /// Northern-hemisphere path: rises east, arcs across the southern sky, sets west.
     /// Unity axes: +X east, +Y up, +Z north. Light travels along the returned forward.
+    /// Used only for the fixed shadow pose — not animated over the cycle.
     /// </summary>
     static Vector3 SunLightForward(float cycle01, float maxElevationDegrees)
     {
-        // 0.25 sunrise, 0.5 noon, 0.75 sunset; elevation is negative at night.
         float elevationRad = Mathf.Sin((cycle01 - 0.25f) * Mathf.PI * 2f)
             * maxElevationDegrees * Mathf.Deg2Rad;
-        // 0.25 → east (90°), 0.5 → south (180°), 0.75 → west (270°).
         float azimuthRad = cycle01 * Mathf.PI * 2f;
 
         float cosEl = Mathf.Cos(elevationRad);

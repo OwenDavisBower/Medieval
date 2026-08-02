@@ -306,26 +306,25 @@ MonoBehaviour:
   startCycle01: 0.4
   sun: {fileID: 410087040}
   dayIntensity: 2
-  nightIntensity: 0.28
+  nightIntensity: 0.5
   dayColorTemperature: 5000
   nightColorTemperature: 2800
-  maxElevationDegrees: 55
-  dayBlendSunDownDot: -0.15
-  dayBlendSunUpDot: 0.55
+  shadowElevationDegrees: 55
+  shadowCycle01: 0.5
   nightThreshold: 0.35
   dayAmbientSky: {r: 0.55, g: 0.62, b: 0.75, a: 1}
-  nightAmbientSky: {r: 0.05, g: 0.07, b: 0.14, a: 1}
+  nightAmbientSky: {r: 0.12, g: 0.14, b: 0.24, a: 1}
   dayAmbientEquator: {r: 0.35, g: 0.38, b: 0.42, a: 1}
-  nightAmbientEquator: {r: 0.04, g: 0.05, b: 0.08, a: 1}
+  nightAmbientEquator: {r: 0.09, g: 0.1, b: 0.14, a: 1}
   dayAmbientGround: {r: 0.18, g: 0.16, b: 0.12, a: 1}
-  nightAmbientGround: {r: 0.02, g: 0.02, b: 0.03, a: 1}
+  nightAmbientGround: {r: 0.05, g: 0.05, b: 0.07, a: 1}
   dayAmbientIntensity: 1
-  nightAmbientIntensity: 0.35
+  nightAmbientIntensity: 0.6
   driveFog: 1
   dayFogColor: {r: 0.72, g: 0.78, b: 0.85, a: 1}
-  nightFogColor: {r: 0.04, g: 0.05, b: 0.09, a: 1}
+  nightFogColor: {r: 0.08, g: 0.09, b: 0.14, a: 1}
   dayFogDensity: 0.004
-  nightFogDensity: 0.014
+  nightFogDensity: 0.009
   announcePhaseChanges: 1
 --- !u!1 &405064906
 GameObject:
