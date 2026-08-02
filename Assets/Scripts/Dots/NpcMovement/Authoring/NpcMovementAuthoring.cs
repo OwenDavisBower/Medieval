@@ -180,7 +180,7 @@ namespace Medieval.NpcMovement
                 AddComponent<NpcMovementTag>(entity);
                 AddComponent<NpcLoiterInitTag>(entity);
                 AddComponent(entity, authoring.ToConfig());
-                uint seed = (uint)authoring.GetInstanceID() ^ 0x9E3779B1u;
+                uint seed = (uint)authoring.GetEntityId().GetHashCode() ^ 0x9E3779B1u;
                 if (seed == 0u)
                     seed = 1u;
                 AddComponent(entity, new NpcMovementState

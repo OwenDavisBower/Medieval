@@ -21,7 +21,7 @@ namespace Medieval.NpcMovement
         {
             var ecb = SystemAPI.GetSingletonRW<BeginInitializationEntityCommandBufferSystem.Singleton>()
                 .ValueRW.CreateCommandBuffer(state.WorldUnmanaged);
-            ecb.RemoveComponent<NpcLoiterInitTag>(_q);
+            ecb.RemoveComponent<NpcLoiterInitTag>(_q, EntityQueryCaptureMode.AtPlayback);
         }
     }
 }

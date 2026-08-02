@@ -8,6 +8,9 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Experimental.AI;
 
+// Experimental.AI NavMeshQuery is obsolete without replacement on Unity 6000.4; still the job-safe API.
+#pragma warning disable CS0618
+
 namespace Medieval.NpcMovement
 {
     /// <summary>
