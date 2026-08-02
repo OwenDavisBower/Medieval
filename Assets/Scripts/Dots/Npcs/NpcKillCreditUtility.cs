@@ -44,7 +44,7 @@ namespace Medieval.Npcs
 
         /// <summary>
         /// Records player-side kill credit. When <paramref name="killer"/> is a living follower,
-        /// stores them so death loot can pay their wallet instead of a world drop.
+        /// stores them so death loot can pay their kill bounty; a world gold drop always spawns too.
         /// </summary>
         public static void TryMarkPlayerSideKill(EntityManager em, Entity victim, bool playerSide, Entity killer)
         {

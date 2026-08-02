@@ -25,10 +25,10 @@ namespace Medieval.NpcMovement
     [BurstCompile]
     internal static class NpcNavMeshPath
     {
-        public const int DefaultNodePoolSize = 2048;
-        public const int MaxPathPolygons = 64;
-        public const int MaxCorners = 16;
-        public const int MaxFindPathIterations = 2048;
+        public const int DefaultNodePoolSize = 4096;
+        public const int MaxPathPolygons = 128;
+        public const int MaxCorners = 32;
+        public const int MaxFindPathIterations = 4096;
 
         /// <summary>
         /// Finds a straight-path corner list from <paramref name="startWorld"/> to a mapped end location.

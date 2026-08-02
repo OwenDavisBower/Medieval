@@ -5,7 +5,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
-using UnityEngine.AI;
 using UnityEngine.Experimental.AI;
 
 // Experimental.AI NavMeshQuery is obsolete without replacement on Unity 6000.4; still the job-safe API.
@@ -16,7 +15,7 @@ namespace Medieval.NpcMovement
     /// <summary>
     /// After horizontal integration, snaps <see cref="LocalTransform.Position"/> to the closest point on the
     /// NavMesh (same mapping rules as pathfinding). Prevents separation / steering from walking NPCs off
-    /// small walkable islands such as tower tops.
+    /// small walkable islands such as tower tops, without pulling bridge traffic down onto river mesh.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(NpcIntegrationSystem))]
@@ -58,23 +57,16 @@ namespace Medieval.NpcMovement
                 if (!math.all(math.isfinite(p)))
                     return;
 
-                if (NpcNavMeshSampling.TryMapStartLocation(NavQuery, p, cfg.NavMeshSampleMaxDistance, out var loc))
+                if (NpcNavMeshSampling.TryMapNearHeight(
+                        NavQuery, p, cfg.NavMeshSampleMaxDistance,
+                        NpcNavMeshSampling.MaxVerticalDrop, NpcNavMeshSampling.MaxVerticalClimb, out var loc))
                 {
                     Vector3 mp = loc.position;
                     tf.Position = new float3(mp.x, mp.y, mp.z);
                     return;
                 }
 
-                // Expanded sample before giving up (brief off-mesh dips / cliffs).
-                float expanded = math.max(cfg.NavMeshSampleMaxDistance * 2.5f, 6f);
-                if (NpcNavMeshSampling.TryMapStartLocation(NavQuery, p, expanded, out loc))
-                {
-                    Vector3 mp = loc.position;
-                    tf.Position = new float3(mp.x, mp.y, mp.z);
-                    return;
-                }
-
-                // Soft damp — avoid permanent freeze while off walkable mesh.
+                // Soft damp — avoid permanent freeze while off walkable mesh; never expand Y onto lower surfaces.
                 float3 v = mstate.CurrentHorizontalVelocity;
                 v.y = 0f;
                 mstate.CurrentHorizontalVelocity = v * 0.85f;

@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FactionDefinition
   factionID: 0
   factionName: Player
-  clothingColor: {r: 0.35, g: 0.55, b: 0.85, a: 1}
+  clothingColor: {r: 0.03, g: 0.06, b: 0.22, a: 1}

@@ -32,7 +32,11 @@ namespace Medieval.NpcMovement
 
             var navQuery = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob,
                 NpcNavMeshPath.DefaultNodePoolSize);
-            var areaCosts = new NativeArray<float>(0, Allocator.TempJob);
+            // Length 32 is required by NavMeshQuery; raise Water so river crossings prefer bridges.
+            var areaCosts = new NativeArray<float>(32, Allocator.TempJob);
+            for (int i = 0; i < areaCosts.Length; i++)
+                areaCosts[i] = 1f;
+            areaCosts[NpcNavMeshSampling.WaterAreaIndex] = 12f;
 
             var workHandle = new PathfindingJob
             {

@@ -10,6 +10,7 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
         [IntRange] _StepCount("Cel Step Count", Range(1, 16)) = 3
         _StepSmoothness("Step Edge Softness", Range(0.001, 0.5)) = 0.001
 
+        [Toggle(_CLOTHING_MASK)] _ClothingMask("Clothing Mask (albedo alpha)", Float) = 0.0
         [ToggleUI] _ReceiveShadows("Receive Shadows", Float) = 1.0
 
         _Surface("__surface", Float) = 0.0
@@ -76,6 +77,7 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
             #pragma fragment StylizedToonPassFragment
 
             #pragma shader_feature_local _RECEIVE_SHADOWS_OFF
+            #pragma shader_feature_local_fragment _CLOTHING_MASK
 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
@@ -257,9 +259,19 @@ Shader "Universal Render Pipeline/Stylized Toon Lit"
                 LODFadeCrossFade(input.positionCS);
 #endif
 
-                half4 albedoA = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv) * _BaseColor;
+                half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv);
+            #if defined(_CLOTHING_MASK)
+                // Match Animatron soldiers: alpha masks cloth; luminance shades _BaseColor.
+                half clothingMask = tex.a;
+                half lum = dot(tex.rgb, half3(0.2126h, 0.7152h, 0.0722h));
+                half shading = saturate(lum / 0.75h);
+                half3 albedo = lerp(tex.rgb, _BaseColor.rgb * shading, clothingMask);
+                half alpha = 1.0h;
+            #else
+                half4 albedoA = tex * _BaseColor;
                 half3 albedo = albedoA.rgb;
                 half alpha = albedoA.a;
+            #endif
 
                 half3 normalWS = NormalizeNormalPerPixel(input.normalWS);
                 half3 viewDirWS = GetWorldSpaceNormalizeViewDir(input.positionWS);

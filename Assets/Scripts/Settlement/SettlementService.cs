@@ -19,8 +19,12 @@ public sealed class SettlementService : MonoBehaviour
     public const float VillageInteractRadius = 18f;
     /// <summary>Must exceed bandit camp min distance from settlements (~120m) so camps link to villages.</summary>
     public const float CampLinkRadius = 180f;
-    /// <summary>Bandit death within this range of a village (or at a linked camp) can grant standing.</summary>
-    public const float BanditKillRepRadius = 160f;
+    /// <summary>Approximate village extent from center (matches outermost structure layer).</summary>
+    const float SettlementPerimeterRadius = 30f;
+    /// <summary>Bandit death within this distance of a village perimeter can grant standing.</summary>
+    public const float BanditKillRepPerimeterMargin = 20f;
+    /// <summary>Max distance from village center for per-kill standing (perimeter + margin).</summary>
+    public static float BanditKillRepRadius => SettlementPerimeterRadius + BanditKillRepPerimeterMargin;
     const float CampKillCreditRadius = 55f;
     const int BanditKillReputation = 2;
 
@@ -698,13 +702,10 @@ public sealed class SettlementService : MonoBehaviour
     {
         CampRecord nearCamp = FindNearestUnclearedCamp(worldPosition, CampKillCreditRadius);
 
-        // Player/follower kills near a village (or its linked camp) improve standing.
+        // Player/follower kills within BanditKillRepPerimeterMargin of a village perimeter improve standing.
         if (byPlayerOrFollower)
         {
             SettlementRecord nearSettle = FindNearestSettlement(worldPosition, BanditKillRepRadius);
-            if (nearSettle == null && nearCamp != null && nearCamp.LinkedSettlementId >= 0)
-                _byId.TryGetValue(nearCamp.LinkedSettlementId, out nearSettle);
-
             if (nearSettle != null && !nearSettle.OwnedByPlayer)
                 AddReputation(nearSettle.Id, BanditKillReputation, "Bandits defeated");
         }

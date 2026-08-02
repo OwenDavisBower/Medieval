@@ -331,6 +331,7 @@ public class WorldGenerationCoordinator : MonoBehaviour
             _rockIndirectRenderer.Initialize(null, null);
 
         Transform bridgeParent = bridgeSpawnParent != null ? bridgeSpawnParent : transform;
+        bool bridgesChanged = false;
         if (bridgePrefab != null && _plannedBridges.Count > 0)
         {
             for (int i = 0; i < _plannedBridges.Count; i++)
@@ -345,6 +346,7 @@ public class WorldGenerationCoordinator : MonoBehaviour
                     {
                         Destroy(br);
                         _streamingBridges.Remove(i);
+                        bridgesChanged = true;
                     }
                 }
                 else if (inWin)
@@ -355,10 +357,24 @@ public class WorldGenerationCoordinator : MonoBehaviour
                         : Quaternion.identity;
                     GameObject spawned = Instantiate(bridgePrefab, planned.WorldPosition, rot, bridgeParent);
                     if (spawned != null)
+                    {
                         _streamingBridges[i] = spawned;
+                        bridgesChanged = true;
+                    }
                 }
             }
         }
+
+        if (bridgesChanged)
+            RequestNavMeshRebuildForBridges(gen);
+    }
+
+    static void RequestNavMeshRebuildForBridges(TerrainGenerator gen)
+    {
+        if (gen == null)
+            return;
+        var builder = gen.GetComponent<TerrainNavMeshBuilder>();
+        builder?.RequestRebuildForWorldContent();
     }
 
     void RunSpawnSequence()

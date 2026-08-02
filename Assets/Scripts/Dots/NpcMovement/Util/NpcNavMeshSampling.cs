@@ -12,34 +12,97 @@ namespace Medieval.NpcMovement
     [BurstCompile]
     internal static class NpcNavMeshSampling
     {
+        /// <summary>Matches Project Settings &gt; AI Navigation Areas index for "Water".</summary>
+        public const int WaterAreaIndex = 3;
+
+        /// <summary>Refuse snaps that drop more than this (bridge deck → river underfoot).</summary>
+        public const float MaxVerticalDrop = 0.85f;
+
+        /// <summary>Allow climbing onto nearby mesh (spawns, ramps, bank→deck).</summary>
+        public const float MaxVerticalClimb = 2.25f;
+
+        const int AreaMaskAll = -1;
+        const int AreaMaskExcludeWater = ~(1 << WaterAreaIndex);
+
         public static Vector3 SampleExtents(float navMeshSampleMaxDistance)
         {
             float halfExtent = math.max(1e-2f, navMeshSampleMaxDistance);
             return new Vector3(halfExtent, halfExtent, halfExtent);
         }
 
+        public static Vector3 SampleExtentsXZ(float halfXZ, float halfY)
+        {
+            halfXZ = math.max(1e-2f, halfXZ);
+            halfY = math.max(1e-2f, halfY);
+            return new Vector3(halfXZ, halfY, halfXZ);
+        }
+
         public static NavMeshLocation MapLocation(NavMeshQuery query, float3 worldPos, float navMeshSampleMaxDistance)
         {
-            return query.MapLocation(ToVector3(worldPos), SampleExtents(navMeshSampleMaxDistance), 0);
+            return MapLocationMasked(query, worldPos, SampleExtents(navMeshSampleMaxDistance),
+                AreaMaskForHeight(worldPos.y));
         }
 
         /// <summary>
-        /// Maps an agent position to the navmesh. Tries a tight vertical extent first so a rooftop / tower
-        /// platform is not snapped down to ground under the same horizontal box (which breaks island raycasts).
-        /// Falls back to full <see cref="SampleExtents"/> for ramps and rough spawn alignment.
+        /// Maps an agent position to the navmesh. Prefers the surface near the query Y (bridge / rooftop)
+        /// and, when above water, excludes Water polys so river mesh under a bridge cannot win.
+        /// Wide XZ with tight Y is tried before expanding Y.
         /// </summary>
         public static bool TryMapStartLocation(NavMeshQuery query, float3 worldPos, float navMeshSampleMaxDistance,
             out NavMeshLocation location)
         {
+            return TryMapNearHeight(query, worldPos, navMeshSampleMaxDistance, MaxVerticalDrop, MaxVerticalClimb,
+                out location);
+        }
+
+        /// <summary>
+        /// Like <see cref="TryMapStartLocation"/> with explicit vertical drop/climb limits (clamp uses a
+        /// tighter drop so bridge traffic cannot fall onto river polys).
+        /// </summary>
+        public static bool TryMapNearHeight(
+            NavMeshQuery query,
+            float3 worldPos,
+            float navMeshSampleMaxDistance,
+            float maxVerticalDrop,
+            float maxVerticalClimb,
+            out NavMeshLocation location)
+        {
+            int mask = AreaMaskForHeight(worldPos.y);
             float halfXZ = math.max(1e-2f, navMeshSampleMaxDistance);
-            float halfY = math.min(0.75f, halfXZ * 0.35f);
-            var tightExtents = new Vector3(halfXZ, halfY, halfXZ);
-            location = query.MapLocation(ToVector3(worldPos), tightExtents, 0);
-            if (query.IsValid(location))
+            float tightY = math.min(0.75f, halfXZ * 0.35f);
+
+            if (TryMapAccept(query, worldPos, SampleExtentsXZ(halfXZ, tightY), mask, maxVerticalDrop,
+                    maxVerticalClimb, out location))
                 return true;
 
-            location = query.MapLocation(ToVector3(worldPos), SampleExtents(navMeshSampleMaxDistance), 0);
-            return query.IsValid(location);
+            // Wider XZ, still tight Y — covers brief off-edge dips without dropping onto lower mesh.
+            float wideXZ = math.max(halfXZ * 2.5f, 6f);
+            if (TryMapAccept(query, worldPos, SampleExtentsXZ(wideXZ, tightY), mask, maxVerticalDrop,
+                    maxVerticalClimb, out location))
+                return true;
+
+            // Last resort: cubic extents, still refuse large vertical drops.
+            if (TryMapAccept(query, worldPos, SampleExtents(halfXZ), mask, maxVerticalDrop, maxVerticalClimb,
+                    out location))
+                return true;
+
+            if (TryMapAccept(query, worldPos, SampleExtents(wideXZ), mask, maxVerticalDrop, maxVerticalClimb,
+                    out location))
+                return true;
+
+            // Above water with no elevated hit: allow Water only as a final fallback (wading).
+            if (mask != AreaMaskAll)
+            {
+                if (TryMapAccept(query, worldPos, SampleExtentsXZ(halfXZ, tightY), AreaMaskAll, maxVerticalDrop,
+                        maxVerticalClimb, out location))
+                    return true;
+                if (TryMapAccept(query, worldPos, SampleExtents(wideXZ), AreaMaskAll, maxVerticalDrop,
+                        maxVerticalClimb, out location))
+                    return true;
+            }
+
+            location = default;
+            return false;
         }
 
         /// <summary>If the goal maps to the navmesh, returns the snapped position; otherwise returns <paramref name="goal"/>.</summary>
@@ -52,7 +115,7 @@ namespace Medieval.NpcMovement
 
         /// <summary>
         /// Maps <paramref name="goal"/> onto the navmesh, then ring-samples outward if the direct map fails
-        /// (tree carve holes, building interiors, etc.).
+        /// (tree carve holes, building interiors, etc.). Prefers hits near the goal's Y (bridges over water).
         /// </summary>
         public static bool TrySnapGoalToWalkable(
             NavMeshQuery query,
@@ -62,18 +125,8 @@ namespace Medieval.NpcMovement
             out NavMeshLocation location)
         {
             snapped = goal;
-            location = MapLocation(query, goal, navMeshSampleMaxDistance);
-            if (query.IsValid(location))
-            {
-                Vector3 gp = location.position;
-                snapped = new float3(gp.x, gp.y, gp.z);
-                return true;
-            }
-
-            // Broader sample before ring search.
-            float expanded = math.max(navMeshSampleMaxDistance * 2.5f, 6f);
-            location = MapLocation(query, goal, expanded);
-            if (query.IsValid(location))
+            if (TryMapNearHeight(query, goal, navMeshSampleMaxDistance, MaxVerticalDrop * 2f, MaxVerticalClimb,
+                    out location))
             {
                 Vector3 gp = location.position;
                 snapped = new float3(gp.x, gp.y, gp.z);
@@ -82,7 +135,12 @@ namespace Medieval.NpcMovement
 
             const int rings = 4;
             const int spokes = 8;
-            float maxRing = math.max(expanded, 8f);
+            float maxRing = math.max(navMeshSampleMaxDistance * 2.5f, 8f);
+            float bestYDelta = float.MaxValue;
+            bool found = false;
+            NavMeshLocation bestLoc = default;
+            float3 bestPos = goal;
+
             for (int r = 1; r <= rings; r++)
             {
                 float radius = maxRing * (r / (float)rings);
@@ -90,22 +148,42 @@ namespace Medieval.NpcMovement
                 {
                     float ang = (s / (float)spokes) * math.PI * 2f;
                     float3 sample = goal + new float3(math.cos(ang) * radius, 0f, math.sin(ang) * radius);
-                    location = MapLocation(query, sample, navMeshSampleMaxDistance);
-                    if (!query.IsValid(location))
+                    if (!TryMapNearHeight(query, sample, navMeshSampleMaxDistance, MaxVerticalDrop * 2f,
+                            MaxVerticalClimb, out var loc))
                         continue;
-                    Vector3 gp = location.position;
-                    snapped = new float3(gp.x, gp.y, gp.z);
-                    return true;
+
+                    Vector3 gp = loc.position;
+                    float3 p = new float3(gp.x, gp.y, gp.z);
+                    float yDelta = math.abs(p.y - goal.y);
+                    // Prefer closer rings; within a ring prefer matching height (bridge deck vs river).
+                    float score = yDelta + r * 0.35f;
+                    if (!found || score < bestYDelta)
+                    {
+                        bestYDelta = score;
+                        bestLoc = loc;
+                        bestPos = p;
+                        found = true;
+                    }
                 }
+
+                if (found && bestYDelta < MaxVerticalDrop)
+                    break;
             }
 
-            location = default;
-            return false;
+            if (!found)
+            {
+                location = default;
+                return false;
+            }
+
+            location = bestLoc;
+            snapped = bestPos;
+            return true;
         }
 
         /// <summary>
         /// Samples walkable points around <paramref name="origin"/> (rings + spokes), preferring points that
-        /// make progress toward <paramref name="towardGoal"/> when provided.
+        /// make progress toward <paramref name="towardGoal"/> when provided, and staying near origin Y.
         /// </summary>
         public static bool TrySampleWalkableNearby(
             NavMeshQuery query,
@@ -139,15 +217,16 @@ namespace Medieval.NpcMovement
                     float ang = (s / (float)spokes) * math.PI * 2f + r * 0.35f;
                     float3 dir = new float3(math.cos(ang), 0f, math.sin(ang));
                     float3 sample = origin + dir * radius;
-                    var loc = MapLocation(query, sample, navMeshSampleMaxDistance);
-                    if (!query.IsValid(loc))
+                    if (!TryMapNearHeight(query, sample, navMeshSampleMaxDistance, MaxVerticalDrop, MaxVerticalClimb,
+                            out var loc))
                         continue;
 
                     Vector3 gp = loc.position;
                     float3 p = new float3(gp.x, gp.y, gp.z);
                     float score = hasPrefer ? math.dot(dir, prefer) : 0f;
-                    // Slight preference for farther samples so we leave the stuck rim.
+                    // Prefer farther samples to leave a stuck rim, but stay on the same elevation band.
                     score += t * 0.15f;
+                    score -= math.abs(p.y - origin.y) * 0.85f;
                     if (!found || score > bestScore)
                     {
                         bestScore = score;
@@ -161,5 +240,32 @@ namespace Medieval.NpcMovement
         }
 
         public static Vector3 ToVector3(float3 p) => new Vector3(p.x, p.y, p.z);
+
+        static int AreaMaskForHeight(float worldY) =>
+            worldY >= NpcMath.WaterSurfaceY ? AreaMaskExcludeWater : AreaMaskAll;
+
+        static bool TryMapAccept(
+            NavMeshQuery query,
+            float3 worldPos,
+            Vector3 extents,
+            int areaMask,
+            float maxVerticalDrop,
+            float maxVerticalClimb,
+            out NavMeshLocation location)
+        {
+            location = MapLocationMasked(query, worldPos, extents, areaMask);
+            if (!query.IsValid(location))
+                return false;
+            float dy = location.position.y - worldPos.y;
+            if (dy < -maxVerticalDrop || dy > maxVerticalClimb)
+                return false;
+            return true;
+        }
+
+        static NavMeshLocation MapLocationMasked(
+            NavMeshQuery query, float3 worldPos, Vector3 extents, int areaMask)
+        {
+            return query.MapLocation(ToVector3(worldPos), extents, 0, areaMask);
+        }
     }
 }

@@ -3,7 +3,7 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
     Properties
     {
         [MainTexture] _BaseMap("Base Map", 2D) = "white" {}
-        [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
+        [MainColor] _BaseColor("Clothing Color", Color) = (1, 1, 1, 1)
 
         _ShadowColor("Shadow Tint", Color) = (0.12549, 0.21176, 0.38824, 1)
 
@@ -307,11 +307,15 @@ Shader "Universal Render Pipeline/Stylized Toon Lit (Animatron)"
                 LODFadeCrossFade(input.positionCS);
             #endif
 
-                // Albedo alpha is a clothing tint mask (neutral gray clothing * clothingColor). Opaque alpha forced to 1.
+                // Alpha = clothing mask. RGB luminance shades _BaseColor (faction cloth color), so dark+saturated hues stay vivid.
+                // Opaque alpha forced to 1 — mask is not transparency.
                 half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv);
                 half clothingMask = tex.a;
-                half4 clothingColor = _BaseColor;
-                half3 albedo = lerp(tex.rgb, tex.rgb * clothingColor.rgb, clothingMask);
+                half lum = dot(tex.rgb, half3(0.2126h, 0.7152h, 0.0722h));
+                // Higher ref than Mecanim player path — DOTS soldiers read brighter; this keeps cloth deep.
+                half shading = saturate(lum / 1.2h);
+                half3 tinted = _BaseColor.rgb * shading;
+                half3 albedo = lerp(tex.rgb, tinted, clothingMask);
                 half alpha = 1.0h;
 
                 half3 normalWS = NormalizeNormalPerPixel(input.normalWS);

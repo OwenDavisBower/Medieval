@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Medieval.Npcs
 {
-    /// <summary>Per-entity clothing tint for Entities Graphics (<c>_BaseColor</c> on tintable NPC materials).</summary>
+    /// <summary>Per-entity clothing color for Entities Graphics (<c>_BaseColor</c> on tintable NPC materials).</summary>
     [MaterialProperty("_BaseColor")]
     public struct NpcClothingBaseColor : IComponentData
     {
@@ -76,8 +76,8 @@ namespace Medieval.Npcs
 
         static Color FallbackClothingColor(int factionId) => factionId switch
         {
-            0 => new Color(0.35f, 0.55f, 0.85f, 1f),
-            1 => new Color(0.55f, 0.22f, 0.18f, 1f),
+            0 => new Color(0.03f, 0.06f, 0.22f, 1f),
+            1 => new Color(0.22f, 0.025f, 0.02f, 1f),
             2 => new Color(0.82f, 0.74f, 0.58f, 1f),
             _ => Color.white
         };

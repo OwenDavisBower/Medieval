@@ -127,6 +127,14 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
         RebuildNavMesh();
     }
 
+    /// <summary>
+    /// Schedule a rebuild after streamed colliders change (bridges, etc.) so NPC pathfinding can cross them.
+    /// </summary>
+    public void RequestRebuildForWorldContent()
+    {
+        RequestNavMeshRebuild();
+    }
+
     bool ShouldRefocusNavMeshAroundCamera(Vector3 camWorld)
     {
         if (float.IsNaN(_lastNavMeshFocusXz.x))

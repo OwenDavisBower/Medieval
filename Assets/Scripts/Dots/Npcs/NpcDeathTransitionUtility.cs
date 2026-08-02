@@ -18,7 +18,11 @@ namespace Medieval.Npcs
             "DeathRight",
         };
 
-        static readonly Color FollowerGoldLabelColor = new Color(1f, 0.88f, 0.28f, 1f);
+        static readonly Color KillGoldLabelColor = new Color(1f, 0.88f, 0.28f, 1f);
+
+        /// <summary>Small instant bounty paid to the killer; corpse also always drops a larger world pickup.</summary>
+        const int KillBountyMin = 1;
+        const int KillBountyMaxInclusive = 3;
 
         public static void TryApply(EntityManager em, Entity npcRoot)
         {
@@ -61,9 +65,14 @@ namespace Medieval.Npcs
                 return;
 
             var combat = em.GetComponentData<NpcCharacterCombatState>(npcRoot);
-            int amount = GoldDrop.RollAmount(GoldDrop.DefaultMinAmount, GoldDrop.DefaultMaxAmountInclusive + 2);
-            if (!TryPayKillGoldToFollower(em, combat.KillCreditKiller, amount, worldPos))
-                GoldDrop.Spawn(worldPos, amount);
+            int dropAmount = GoldDrop.RollAmount(GoldDrop.DefaultMinAmount, GoldDrop.DefaultMaxAmountInclusive + 2);
+            GoldDrop.Spawn(worldPos, dropAmount);
+
+            if (combat.KillCreditPlayerSide != 0)
+            {
+                int bounty = GoldDrop.RollAmount(KillBountyMin, KillBountyMaxInclusive);
+                TryPayKillBounty(em, combat.KillCreditKiller, bounty, worldPos);
+            }
 
             // Occasional food ration from bandit packs.
             if (UnityEngine.Random.value < 0.28f && PlayerInventory.Instance != null)
@@ -79,7 +88,22 @@ namespace Medieval.Npcs
             GameplayEvents.RaiseEnemyKilled(worldPos, WellKnownFactionIds.Bandit, byPlayerOrFollower);
         }
 
-        /// <summary>Follower kills credit gold to their wallet instead of a world pickup.</summary>
+        /// <summary>
+        /// Pays a small kill bounty to a living follower wallet, or to the player when the killer is not a follower.
+        /// </summary>
+        static void TryPayKillBounty(EntityManager em, Entity killer, int amount, Vector3 corpsePos)
+        {
+            if (amount <= 0)
+                return;
+
+            if (TryPayKillGoldToFollower(em, killer, amount, corpsePos))
+                return;
+
+            PlayerWallet.Instance?.Add(amount);
+            FloatingWorldText.Spawn(corpsePos + Vector3.up * 1.9f, $"+{amount} Gold", KillGoldLabelColor);
+        }
+
+        /// <summary>Follower kills credit gold to their wallet.</summary>
         static bool TryPayKillGoldToFollower(EntityManager em, Entity killer, int amount, Vector3 corpsePos)
         {
             if (amount <= 0 || !NpcKillCreditUtility.IsFollower(em, killer) ||
@@ -101,7 +125,7 @@ namespace Medieval.Npcs
             if (TryGetWorldPosition(em, killer, out Vector3 killerPos))
                 labelPos = killerPos + Vector3.up * 1.9f;
 
-            FloatingWorldText.Spawn(labelPos, $"+{amount} Gold", FollowerGoldLabelColor);
+            FloatingWorldText.Spawn(labelPos, $"+{amount} Gold", KillGoldLabelColor);
             return true;
         }
 
