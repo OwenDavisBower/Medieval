@@ -57,12 +57,76 @@ public class SettlementBuilder : MonoBehaviour
     SettlementLayerAnnulus[] _runtimeStructureLayers;
     bool _hasRuntimeStructureLayers;
     readonly List<Bounds> _placementBurnBounds = new List<Bounds>();
+    readonly List<Transform> _structureRoots = new List<Transform>();
     readonly List<Transform> _villagerSpawnAnchors = new List<Transform>();
     readonly List<Vector3> _villagerSpawnPositions = new List<Vector3>();
     readonly List<SettlementBuildingSpawnEntry> _placementJobsScratch = new List<SettlementBuildingSpawnEntry>();
     readonly Dictionary<int, (float inner, float outer)> _layerAnnulusScratch = new Dictionary<int, (float inner, float outer)>();
 
+    public int SettlementId => _settlementId;
+
     public void SetSettlementId(int id) => _settlementId = id;
+
+    /// <summary>
+    /// Picks a structure for recruit emerge: prefers villager houses, else any placed building.
+    /// Weighted toward buildings nearer the player.
+    /// </summary>
+    public bool TryPickRecruitBuilding(Vector3 towardWorldPos, out Vector3 buildingWorldPos, out float buildingFootprintRadius)
+    {
+        buildingWorldPos = default;
+        buildingFootprintRadius = 2f;
+
+        List<Transform> pool = _villagerSpawnAnchors.Count > 0 ? _villagerSpawnAnchors : _structureRoots;
+        if (pool.Count == 0)
+            return false;
+
+        Transform best = null;
+        float bestScore = float.MaxValue;
+        for (int i = 0; i < pool.Count; i++)
+        {
+            Transform t = pool[i];
+            if (t == null)
+                continue;
+
+            float dx = t.position.x - towardWorldPos.x;
+            float dz = t.position.z - towardWorldPos.z;
+            float distSq = dx * dx + dz * dz;
+            // Mild randomness so repeated recruits do not always exit the same door.
+            float score = distSq * UnityEngine.Random.Range(0.75f, 1.25f);
+            if (score >= bestScore)
+                continue;
+
+            bestScore = score;
+            best = t;
+        }
+
+        if (best == null)
+            return false;
+
+        Bounds b = SettlementPathSplatOverlay.CombineRendererBounds(best.gameObject);
+        buildingWorldPos = new Vector3(b.center.x, best.position.y, b.center.z);
+        buildingFootprintRadius = Mathf.Max(1.5f, Mathf.Max(b.extents.x, b.extents.z));
+        return true;
+    }
+
+    public static bool TryFindBySettlementId(int settlementId, out SettlementBuilder builder)
+    {
+        builder = null;
+        if (settlementId == int.MinValue)
+            return false;
+
+        var found = Object.FindObjectsByType<SettlementBuilder>(FindObjectsInactive.Exclude);
+        for (int i = 0; i < found.Length; i++)
+        {
+            if (found[i] != null && found[i]._settlementId == settlementId)
+            {
+                builder = found[i];
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     void OnEnable()
     {
@@ -174,6 +238,7 @@ public class SettlementBuilder : MonoBehaviour
         var structureRoots = new List<GameObject>(capacity);
         float minSepSq = minSeparation * minSeparation;
         float baseH = gen.baseHeight;
+        _structureRoots.Clear();
         _villagerSpawnAnchors.Clear();
         _villagerSpawnPositions.Clear();
 
@@ -196,6 +261,7 @@ public class SettlementBuilder : MonoBehaviour
                 continue;
 
             structureRoots.Add(structure);
+            _structureRoots.Add(structure.transform);
             if (_placementMask != null)
             {
                 var b = SettlementPathSplatOverlay.CombineRendererBounds(structure);

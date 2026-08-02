@@ -42,7 +42,8 @@ namespace Medieval.NpcMovement
                 ComponentType.ReadOnly<NpcMovementTag>(),
                 ComponentType.ReadOnly<NpcSeekOverride>(),
                 ComponentType.ReadOnly<NpcOverrideFacing>(),
-                ComponentType.ReadOnly<NpcCombatTarget>());
+                ComponentType.ReadOnly<NpcCombatTarget>(),
+                ComponentType.Exclude<NpcEmergeLeap>());
         }
 
         protected override void OnUpdate()

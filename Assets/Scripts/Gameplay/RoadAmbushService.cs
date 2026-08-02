@@ -249,7 +249,7 @@ public sealed class RoadAmbushService : MonoBehaviour
                     continue;
                 }
 
-                NpcMovementApi.StartAmbushTreeEmerge(
+                NpcMovementApi.StartEmergeLeap(
                     em, e, landing, outward, LeapImpulseSpeed, LeapDurationSeconds, LeapGroundSnapSmoothTime);
                 spawned++;
                 continue;

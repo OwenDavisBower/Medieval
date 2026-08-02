@@ -192,10 +192,10 @@ namespace Medieval.NpcMovement
     }
 
     /// <summary>
-    /// Short-lived ambush emerge: keep NavMesh clamp off while the bandit leaps out of a tree,
+    /// Short-lived cover emerge: keep NavMesh clamp off while the NPC leaps out of a tree/building,
     /// then restore movement config/mode when <see cref="EndUnityTime"/> elapses.
     /// </summary>
-    public struct NpcAmbushEmerge : IComponentData
+    public struct NpcEmergeLeap : IComponentData
     {
         public float EndUnityTime;
         public byte RestoreUseNavMesh;

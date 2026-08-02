@@ -156,10 +156,10 @@ namespace Medieval.NpcMovement
         }
 
         /// <summary>
-        /// Leap out of a tree: MoveTowards <paramref name="landingPosition"/> with an outward burst,
+        /// Leap out of cover (tree/building): MoveTowards <paramref name="landingPosition"/> with an outward burst,
         /// NavMesh clamp disabled until <paramref name="durationSeconds"/> elapses.
         /// </summary>
-        public static void StartAmbushTreeEmerge(
+        public static void StartEmergeLeap(
             EntityManager em,
             Entity npc,
             float3 landingPosition,
@@ -199,14 +199,14 @@ namespace Medieval.NpcMovement
                 em.SetComponentData(npc, cfg);
             }
 
-            var emerge = new NpcAmbushEmerge
+            var emerge = new NpcEmergeLeap
             {
                 EndUnityTime = UnityEngine.Time.time + math.max(0.05f, durationSeconds),
                 RestoreUseNavMesh = restoreNav,
                 RestoreGroundSnapSmoothTime = restoreSnap,
                 RestoreMode = restoreMode
             };
-            if (em.HasComponent<NpcAmbushEmerge>(npc))
+            if (em.HasComponent<NpcEmergeLeap>(npc))
                 em.SetComponentData(npc, emerge);
             else
                 em.AddComponentData(npc, emerge);

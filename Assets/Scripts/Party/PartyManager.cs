@@ -17,6 +17,12 @@ public sealed class PartyManager : MonoBehaviour
     public const int MaxPartySize = 14;
     public const int DisbandRefund = 8;
 
+    const float RecruitBuildingSpawnHeight = 2.0f;
+    const float RecruitBuildingExitMargin = 1.2f;
+    const float RecruitLeapImpulseSpeed = 9.5f;
+    const float RecruitLeapDurationSeconds = 0.55f;
+    const float RecruitLeapGroundSnapSmoothTime = 0.4f;
+
     [SerializeField] float recruitSpawnRadiusMin = 1.4f;
     [SerializeField] float recruitSpawnRadiusMax = 3.6f;
 
@@ -207,13 +213,16 @@ public sealed class PartyManager : MonoBehaviour
         }
 
         Vector3 leader = player.position;
-        float angle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
-        float rad = UnityEngine.Random.Range(recruitSpawnRadiusMin, recruitSpawnRadiusMax);
-        Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * rad;
-        Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(leader + offset);
+        if (!TryResolveRecruitSpawn(settlement, leader, out Vector3 spawnPos, out float3 landing, out float3 outward,
+                out quaternion face, out bool emergeFromBuilding))
+        {
+            wallet.Add(cost);
+            GameplayEvents.RaiseToast("Recruit failed.");
+            return false;
+        }
 
         NpcWeaponClass wc = UnityEngine.Random.value < 0.5f ? NpcWeaponClass.Melee : NpcWeaponClass.Ranged;
-        Entity e = NpcSpawnApi.SpawnFollower(pos, quaternion.identity, 1f, wc);
+        Entity e = NpcSpawnApi.SpawnFollower(spawnPos, face, 1f, wc);
         if (e == Entity.Null)
         {
             wallet.Add(cost);
@@ -222,15 +231,75 @@ public sealed class PartyManager : MonoBehaviour
         }
 
         var world = World.DefaultGameObjectInjectionWorld;
-        NpcMovementApi.SetAnchorPosition(world.EntityManager, e,
-            new float3(leader.x, leader.y, leader.z));
+        EntityManager em = world.EntityManager;
+        if (emergeFromBuilding)
+        {
+            NpcMovementApi.StartEmergeLeap(
+                em, e, landing, outward, RecruitLeapImpulseSpeed, RecruitLeapDurationSeconds,
+                RecruitLeapGroundSnapSmoothTime);
+        }
+        else
+        {
+            NpcMovementApi.SetAnchorPosition(em, e, new float3(leader.x, leader.y, leader.z));
+        }
 
         if (settlement != null && SettlementService.Instance != null)
             SettlementService.Instance.AddReputation(settlement.Id, 1);
 
-        string recruitName = GetDisplayName(world.EntityManager, e);
+        string recruitName = GetDisplayName(em, e);
         GameplayEvents.RaiseToast($"Recruited {recruitName} (−{cost}g)");
         Changed?.Invoke();
+        return true;
+    }
+
+    bool TryResolveRecruitSpawn(
+        SettlementRecord settlement,
+        Vector3 leader,
+        out Vector3 spawnPos,
+        out float3 landing,
+        out float3 outward,
+        out quaternion face,
+        out bool emergeFromBuilding)
+    {
+        spawnPos = default;
+        landing = default;
+        outward = default;
+        face = quaternion.identity;
+        emergeFromBuilding = false;
+
+        if (settlement != null &&
+            SettlementBuilder.TryFindBySettlementId(settlement.Id, out SettlementBuilder builder) &&
+            builder.TryPickRecruitBuilding(leader, out Vector3 buildingPos, out float footprintRadius))
+        {
+            outward = new float3(leader.x - buildingPos.x, 0f, leader.z - buildingPos.z);
+            if (math.lengthsq(outward) < 1e-4f)
+            {
+                float angle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+                outward = new float3(Mathf.Sin(angle), 0f, Mathf.Cos(angle));
+            }
+
+            outward = math.normalize(outward);
+            float exitDistance = footprintRadius + RecruitBuildingExitMargin;
+            landing = new float3(buildingPos.x, buildingPos.y, buildingPos.z) + outward * exitDistance;
+            landing = new float3(
+                landing.x,
+                TerrainSpawnUtility.GetWorldPositionOnTerrain(new Vector3(landing.x, landing.y, landing.z)).y,
+                landing.z);
+
+            spawnPos = new Vector3(buildingPos.x, buildingPos.y + RecruitBuildingSpawnHeight, buildingPos.z);
+            face = quaternion.LookRotationSafe(outward, new float3(0f, 1f, 0f));
+            emergeFromBuilding = true;
+            return true;
+        }
+
+        // Fallback when the village instance is unloaded or has no structures yet.
+        float fallbackAngle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        float rad = UnityEngine.Random.Range(recruitSpawnRadiusMin, recruitSpawnRadiusMax);
+        Vector3 offset = new Vector3(Mathf.Sin(fallbackAngle), 0f, Mathf.Cos(fallbackAngle)) * rad;
+        Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(leader + offset);
+        spawnPos = pos;
+        landing = new float3(pos.x, pos.y, pos.z);
+        outward = new float3(Mathf.Sin(fallbackAngle), 0f, Mathf.Cos(fallbackAngle));
         return true;
     }
 

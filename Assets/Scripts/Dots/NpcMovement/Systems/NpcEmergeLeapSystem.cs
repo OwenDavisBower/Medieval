@@ -4,15 +4,15 @@ using UnityEngine;
 namespace Medieval.NpcMovement
 {
     /// <summary>
-    /// Holds NavMesh clamping off during a tree-ambush leap, then restores baked movement settings.
+    /// Holds NavMesh clamping off during a cover-emerge leap, then restores baked movement settings.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateBefore(typeof(NpcNavMeshPositionClampSystem))]
-    public partial struct NpcAmbushEmergeSystem : ISystem
+    public partial struct NpcEmergeLeapSystem : ISystem
     {
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<NpcAmbushEmerge>();
+            state.RequireForUpdate<NpcEmergeLeap>();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -22,7 +22,7 @@ namespace Medieval.NpcMovement
             var facingLookup = SystemAPI.GetComponentLookup<NpcOverrideFacing>();
 
             foreach (var (emergeRW, cfgRW, mstateRW, entity) in SystemAPI
-                         .Query<RefRW<NpcAmbushEmerge>, RefRW<NpcMovementConfig>, RefRW<NpcMovementState>>()
+                         .Query<RefRW<NpcEmergeLeap>, RefRW<NpcMovementConfig>, RefRW<NpcMovementState>>()
                          .WithEntityAccess())
             {
                 ref var emerge = ref emergeRW.ValueRW;
@@ -38,7 +38,7 @@ namespace Medieval.NpcMovement
                 mstateRW.ValueRW.Mode = emerge.RestoreMode;
                 if (facingLookup.HasComponent(entity))
                     facingLookup[entity] = default;
-                ecb.RemoveComponent<NpcAmbushEmerge>(entity);
+                ecb.RemoveComponent<NpcEmergeLeap>(entity);
             }
 
             ecb.Playback(state.EntityManager);
