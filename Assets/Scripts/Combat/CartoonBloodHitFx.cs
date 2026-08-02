@@ -57,18 +57,28 @@ public static class CartoonBloodHitFx
         }
 
         int n = s_pendingCount < MaxBurstsPerFlush ? s_pendingCount : MaxBurstsPerFlush;
+        var emit = new ParticleSystem.EmitParams { applyShapeToPosition = true };
         for (int i = 0; i < n; i++)
         {
             Vector3 pos = s_pending[i];
             Quaternion rot = RotationFromImpact(s_pendingDir[i]);
+            emit.position = pos;
 
+            // Shape orientation follows the transform; EmitParams pins the world origin.
             s_dropletXf.SetPositionAndRotation(pos, rot);
             s_splatXf.SetPositionAndRotation(pos, rot);
-            s_droplets.Emit(DropletCount);
-            s_splat.Emit(SplatCount);
+            s_droplets.Emit(emit, DropletCount);
+            s_splat.Emit(emit, SplatCount);
         }
 
-        s_pendingCount = 0;
+        // Keep unprocessed bursts if we hit the per-frame cap.
+        int remaining = s_pendingCount - n;
+        if (remaining > 0)
+        {
+            System.Array.Copy(s_pending, n, s_pending, 0, remaining);
+            System.Array.Copy(s_pendingDir, n, s_pendingDir, 0, remaining);
+        }
+        s_pendingCount = remaining;
     }
 
     static Quaternion RotationFromImpact(Vector3 impactDirection)
@@ -159,11 +169,14 @@ public static class CartoonBloodHitFx
         go.transform.SetParent(parent, false);
 
         var ps = go.AddComponent<ParticleSystem>();
+        // AddComponent starts playback when playOnAwake is true; stop before
+        // mutating main.duration (Unity forbids that while playing).
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var psr = go.GetComponent<ParticleSystemRenderer>();
 
         var main = ps.main;
+        main.playOnAwake = false;
         main.loop = true;
-        main.playOnAwake = true;
         main.duration = 1f;
         main.startLifetime = core
             ? new ParticleSystem.MinMaxCurve(0.28f, 0.55f)
@@ -213,13 +226,20 @@ public static class CartoonBloodHitFx
             new Keyframe(1f, 0.05f));
         sol.size = new ParticleSystem.MinMaxCurve(1f, sizeCurve);
 
-        ps.noise.enabled = false;
-        ps.velocityOverLifetime.enabled = false;
-        ps.collision.enabled = false;
-        ps.trails.enabled = false;
-        ps.lights.enabled = false;
-        ps.subEmitters.enabled = false;
-        ps.textureSheetAnimation.enabled = false;
+        var noise = ps.noise;
+        noise.enabled = false;
+        var vel = ps.velocityOverLifetime;
+        vel.enabled = false;
+        var collision = ps.collision;
+        collision.enabled = false;
+        var trails = ps.trails;
+        trails.enabled = false;
+        var lights = ps.lights;
+        lights.enabled = false;
+        var subEmitters = ps.subEmitters;
+        subEmitters.enabled = false;
+        var texAnim = ps.textureSheetAnimation;
+        texAnim.enabled = false;
 
         psr.renderMode = ParticleSystemRenderMode.Billboard;
         psr.sharedMaterial = s_sharedMat;

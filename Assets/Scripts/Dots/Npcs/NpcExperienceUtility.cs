@@ -12,6 +12,7 @@ namespace Medieval.Npcs
         public const float BaseXpToNextLevel = 50f;
 
         const float HealthGainPerLevel = 12f;
+        const float HealthRestoreFractionOnLevelUp = 0.5f;
         const float MeleeDamageMultPerLevel = 1.06f;
         const float MoveSpeedMultPerLevel = 1.035f;
         const float AimErrorMultPerLevel = 0.94f;
@@ -21,12 +22,14 @@ namespace Medieval.Npcs
 
         public static void GrantDamageXp(EntityManager em, Entity attacker, float damageDealt, bool killed)
         {
-            if (attacker == Entity.Null || damageDealt <= 0f)
+            if (attacker == Entity.Null)
                 return;
 
-            float xp = damageDealt * XpPerDamagePoint;
+            float xp = math.max(0f, damageDealt) * XpPerDamagePoint;
             if (killed)
                 xp += KillBonusXp;
+            if (xp <= 0f)
+                return;
             AddXp(em, attacker, xp);
         }
 
@@ -37,35 +40,41 @@ namespace Medieval.Npcs
         public static void GrantDamageXp(EntityManager em, ref EntityCommandBuffer ecb, Entity attacker,
             float damageDealt, bool killed)
         {
-            if (attacker == Entity.Null || damageDealt <= 0f)
+            if (attacker == Entity.Null)
                 return;
 
-            float xp = damageDealt * XpPerDamagePoint;
+            float xp = math.max(0f, damageDealt) * XpPerDamagePoint;
             if (killed)
                 xp += KillBonusXp;
+            if (xp <= 0f)
+                return;
             AddXp(em, ref ecb, attacker, xp);
         }
 
         public static void GrantBuildingDamageXp(EntityManager em, Entity attacker, float damageDealt, bool destroyed)
         {
-            if (attacker == Entity.Null || damageDealt <= 0f)
+            if (attacker == Entity.Null)
                 return;
 
-            float xp = damageDealt * XpPerDamagePoint;
+            float xp = math.max(0f, damageDealt) * XpPerDamagePoint;
             if (destroyed)
                 xp += BuildingDestroyBonusXp;
+            if (xp <= 0f)
+                return;
             AddXp(em, attacker, xp);
         }
 
         public static void GrantBuildingDamageXp(EntityManager em, ref EntityCommandBuffer ecb, Entity attacker,
             float damageDealt, bool destroyed)
         {
-            if (attacker == Entity.Null || damageDealt <= 0f)
+            if (attacker == Entity.Null)
                 return;
 
-            float xp = damageDealt * XpPerDamagePoint;
+            float xp = math.max(0f, damageDealt) * XpPerDamagePoint;
             if (destroyed)
                 xp += BuildingDestroyBonusXp;
+            if (xp <= 0f)
+                return;
             AddXp(em, ref ecb, attacker, xp);
         }
 
@@ -134,9 +143,9 @@ namespace Medieval.Npcs
             if (em.HasComponent<NpcCharacterCombatState>(npc))
             {
                 var combat = em.GetComponentData<NpcCharacterCombatState>(npc);
-                float healthGain = HealthGainPerLevel;
-                combat.MaxHealth += healthGain;
-                combat.CurrentHealth = math.min(combat.MaxHealth, combat.CurrentHealth + healthGain);
+                combat.MaxHealth += HealthGainPerLevel;
+                float heal = combat.MaxHealth * HealthRestoreFractionOnLevelUp;
+                combat.CurrentHealth = math.min(combat.MaxHealth, combat.CurrentHealth + heal);
                 combat.MeleeDamageMultiplier *= MeleeDamageMultPerLevel;
                 combat.MovementSpeedMultiplier *= MoveSpeedMultPerLevel;
                 combat.RangedAimErrorMultiplier *= AimErrorMultPerLevel;

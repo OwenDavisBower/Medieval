@@ -11,11 +11,13 @@ using UnityEngine.UI;
 /// </summary>
 public sealed class GameplayHUD : MonoBehaviour
 {
-    const float PartyRowHeight = 78f;
+    // Tall enough for name + XP + HP bars (HP bottom at -74) with a few px padding.
+    const float PartyRowHeight = 84f;
     const float PartyPanelWidth = 340f;
     const float PartyPanelMaxHeight = 520f;
 
     static Font s_font;
+    static Sprite s_whiteSprite;
 
     Text _resourcesLabel;
     Text _partyLabel;
@@ -26,6 +28,7 @@ public sealed class GameplayHUD : MonoBehaviour
     Text _partyEmptyLabel;
     RectTransform _villagePanel;
     RectTransform _partyRosterPanel;
+    RectTransform _questPanel;
     RectTransform _partyContent;
     Text _villageTitle;
     readonly List<Button> _actionButtons = new List<Button>();
@@ -244,6 +247,9 @@ public sealed class GameplayHUD : MonoBehaviour
             return;
         bool open = !_partyRosterPanel.gameObject.activeSelf;
         _partyRosterPanel.gameObject.SetActive(open);
+        // Same corner as the quest tracker — keep them mutually exclusive.
+        if (_questPanel != null)
+            _questPanel.gameObject.SetActive(!open);
         if (open)
             RefreshParty();
     }
@@ -378,16 +384,16 @@ public sealed class GameplayHUD : MonoBehaviour
         CreatePartyToggle(canvasRect);
         BuildPartyRosterPanel(canvasRect);
 
-        // Quest panel top-left under party
-        var questPanel = MakePanel(canvasRect, "QuestPanel", new Vector2(0f, 1f), new Vector2(0f, 1f),
+        // Quest panel top-left under party toggle (hidden while party roster is open)
+        _questPanel = MakePanel(canvasRect, "QuestPanel", new Vector2(0f, 1f), new Vector2(0f, 1f),
             new Vector2(18f, -96f), new Vector2(360f, 110f), new Color(0.05f, 0.06f, 0.07f, 0.62f));
-        _questTitle = MakeLabel(questPanel, "QuestTitle", new Vector2(0f, 1f), new Vector2(1f, 1f),
+        _questTitle = MakeLabel(_questPanel, "QuestTitle", new Vector2(0f, 1f), new Vector2(1f, 1f),
             new Vector2(0f, 0f), new Vector2(0f, 32f), 20, TextAnchor.MiddleLeft,
             new Color(1f, 0.86f, 0.45f, 1f));
         var qt = _questTitle.GetComponent<RectTransform>();
         qt.offsetMin = new Vector2(12f, -36f);
         qt.offsetMax = new Vector2(-12f, -6f);
-        _questBody = MakeLabel(questPanel, "QuestBody", new Vector2(0f, 0f), new Vector2(1f, 1f),
+        _questBody = MakeLabel(_questPanel, "QuestBody", new Vector2(0f, 0f), new Vector2(1f, 1f),
             Vector2.zero, Vector2.zero, 16, TextAnchor.UpperLeft,
             new Color(0.9f, 0.9f, 0.88f, 1f));
         var qb = _questBody.GetComponent<RectTransform>();
@@ -582,13 +588,14 @@ public sealed class GameplayHUD : MonoBehaviour
         nr.offsetMin = new Vector2(10f, -28f);
         nr.offsetMax = new Vector2(-10f, -4f);
 
+        // Top-anchored: offsetMin.y is more negative than offsetMax.y. Keep both bars inside the row.
         MakeBar(go.transform, "XpBar", new Vector2(0f, 1f), new Vector2(1f, 1f),
-            new Vector2(10f, -34f), new Vector2(-10f, -52f),
+            new Vector2(10f, -50f), new Vector2(-10f, -34f),
             new Color(0.18f, 0.18f, 0.22f, 0.9f), new Color(0.35f, 0.65f, 1f, 1f),
             out Image xpFill, out Text xpLabel);
 
         MakeBar(go.transform, "HpBar", new Vector2(0f, 1f), new Vector2(1f, 1f),
-            new Vector2(10f, -56f), new Vector2(-10f, -74f),
+            new Vector2(10f, -70f), new Vector2(-10f, -54f),
             new Color(0.18f, 0.18f, 0.22f, 0.9f), new Color(0.75f, 0.25f, 0.22f, 1f),
             out Image hpFill, out Text hpLabel);
 
@@ -610,6 +617,7 @@ public sealed class GameplayHUD : MonoBehaviour
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
         var track = go.AddComponent<Image>();
+        track.sprite = WhiteSprite();
         track.color = trackColor;
         var rect = go.GetComponent<RectTransform>();
         rect.anchorMin = anchorMin;
@@ -620,6 +628,7 @@ public sealed class GameplayHUD : MonoBehaviour
         var fillGo = new GameObject("Fill");
         fillGo.transform.SetParent(go.transform, false);
         fill = fillGo.AddComponent<Image>();
+        fill.sprite = WhiteSprite();
         fill.color = fillColor;
         fill.type = Image.Type.Filled;
         fill.fillMethod = Image.FillMethod.Horizontal;
@@ -641,6 +650,15 @@ public sealed class GameplayHUD : MonoBehaviour
         var lr = label.GetComponent<RectTransform>();
         lr.offsetMin = new Vector2(6f, 0f);
         lr.offsetMax = new Vector2(-4f, 0f);
+    }
+
+    static Sprite WhiteSprite()
+    {
+        if (s_whiteSprite != null)
+            return s_whiteSprite;
+        var tex = Texture2D.whiteTexture;
+        s_whiteSprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+        return s_whiteSprite;
     }
 
     void Start()

@@ -115,9 +115,11 @@ public class RangedCombat : MonoBehaviour
         public override void Bake(RangedCombat authoring)
         {
             Entity entity = GetEntity(authoring, TransformUsageFlags.Dynamic);
+            // Prefabs serialized before the default was added can still carry 0; treat that as unset.
+            float damage = authoring.arrowDamage > 0.01f ? authoring.arrowDamage : 25f;
             AddComponent(entity, new Medieval.Npcs.NpcRangedCombatConfig
             {
-                ArrowDamage = authoring.arrowDamage,
+                ArrowDamage = damage,
                 ArrowMaxLifetime = authoring.arrowMaxLifetime,
                 ArrowHitRadius = authoring.arrowHitRadius,
                 FireInterval = authoring.fireInterval,

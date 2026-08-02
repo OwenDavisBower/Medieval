@@ -74,8 +74,8 @@ namespace Medieval.Npcs
                 {
                     var meleeCfg = em.GetComponentData<NpcMeleeCombatConfig>(entity);
                     var meleeState = em.GetComponentData<NpcMeleeAttackState>(entity);
-                    TryDotsNpcMeleeStrike(em, ref ecb, entity, ref combat, combatTarget.ValueRO, ref meleeState,
-                        in meleeCfg, flatSq, unityTime);
+                    TryDotsNpcMeleeStrike(em, ref ecb, entity, selfFeet, ref combat, combatTarget.ValueRO,
+                        ref meleeState, in meleeCfg, flatSq, unityTime);
                     em.SetComponentData(entity, meleeState);
                     continue;
                 }
@@ -148,6 +148,7 @@ namespace Medieval.Npcs
             EntityManager em,
             ref EntityCommandBuffer ecb,
             Entity attacker,
+            float3 selfFeet,
             ref NpcCharacterCombatState attackerCombat,
             in NpcCombatTarget combatTarget,
             ref NpcMeleeAttackState meleeState,
@@ -202,7 +203,11 @@ namespace Medieval.Npcs
             if (victim.IsDead != 0 || victim.CurrentHealth <= 0f)
                 return;
 
-            float dealt = NpcProjectileDotsNpc.ApplyProjectileDamage(em, tgt, dmg, out bool killed);
+            float3 victimFeet = em.HasComponent<LocalTransform>(tgt)
+                ? em.GetComponentData<LocalTransform>(tgt).Position
+                : selfFeet;
+            float dealt = NpcProjectileDotsNpc.ApplyProjectileDamage(em, tgt, dmg, out bool killed,
+                victimFeet - selfFeet);
             NpcExperienceUtility.GrantDamageXp(em, ref ecb, attacker, dealt, killed);
 
             victim = em.GetComponentData<NpcCharacterCombatState>(tgt);
@@ -234,21 +239,30 @@ namespace Medieval.Npcs
                 return;
 
             float before = victim.CurrentHealth;
-            victim.TakeDamage(damage);
+            if (victim is Character victimCharacter)
+            {
+                float3 attackerPos = em.HasComponent<LocalTransform>(attacker)
+                    ? em.GetComponentData<LocalTransform>(attacker).Position
+                    : default;
+                Vector3 impact = playerTf.position - new Vector3(attackerPos.x, attackerPos.y, attackerPos.z);
+                victimCharacter.TakeDamage(damage, impact);
+                victimCharacter.ApplyAttackStun(hitMeleeStunDuration);
+            }
+            else
+            {
+                victim.TakeDamage(damage);
+            }
             float dealt = math.max(0f, before - victim.CurrentHealth);
             NpcExperienceUtility.GrantDamageXp(em, ref ecb, attacker, dealt, victim.IsDead);
-
-            if (victim is Character victimCharacter)
-                victimCharacter.ApplyAttackStun(hitMeleeStunDuration);
 
             Rigidbody victimRb = PlayerAnchorRegistration.Rigidbody;
             if (victimRb == null || knockbackImpulse <= 0f)
                 return;
 
-            float3 attackerPos = em.HasComponent<LocalTransform>(attacker)
+            float3 atkPos = em.HasComponent<LocalTransform>(attacker)
                 ? em.GetComponentData<LocalTransform>(attacker).Position
                 : default;
-            Vector3 d = playerTf.position - new Vector3(attackerPos.x, attackerPos.y, attackerPos.z);
+            Vector3 d = playerTf.position - new Vector3(atkPos.x, atkPos.y, atkPos.z);
             d.y = 0f;
             Vector3 push = d.sqrMagnitude > 1e-4f ? d.normalized : Vector3.forward;
             Vector3 v = victimRb.linearVelocity;

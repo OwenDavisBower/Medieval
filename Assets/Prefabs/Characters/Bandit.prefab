@@ -82,7 +82,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4e5f678901234567890abcdef4512ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RangedCombat
-  arrowDamage: 0
+  arrowDamage: 25
   arrowMaxLifetime: 12
   arrowHitRadius: 0.08
   fireInterval: 1.15

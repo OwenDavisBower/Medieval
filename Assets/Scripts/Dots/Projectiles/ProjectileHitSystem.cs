@@ -11,8 +11,9 @@ using UnityEngine;
 namespace Medieval.Projectiles
 {
     /// <summary>
-    /// Resolves hits along each projectile segment: ECS tests against DOTS NPCs; physics sphere casts use
-    /// <see cref="ProjectileSimSettings.StaticEnvironmentLayerMask"/> only (terrain, buildings, etc.), not Character.
+    /// Resolves hits along each projectile segment: ECS tests against DOTS NPCs and the player volume;
+    /// physics sphere casts use <see cref="ProjectileSimSettings.StaticEnvironmentLayerMask"/> only
+    /// (terrain, buildings, etc.), not the Character layer.
     /// </summary>
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(ProjectileMovementSystem))]
@@ -127,18 +128,49 @@ namespace Medieval.Projectiles
                     bool hasDots = NpcProjectileDotsNpc.TryFindClosestAlongSegment(in npcCellMap, cellSize,
                         in factionLookup, in combatLookup, in transformLookup, in relBuf, relSize, prev, cur, radius,
                         dotsExclude, shooterFaction.ValueRO.Value, out Entity dotsVictim, out float dotsDist);
-                    bool preferDots = hasDots && (!hasPhys || dotsDist < physBestDist - 1e-4f);
-                    if (preferDots)
+
+                    bool hasPlayer = TryGetPlayerHitAlongSegment(prev, cur, radius, shooterFaction.ValueRO.Value,
+                        legacyRootId, in relBuf, relSize, out float playerDist);
+
+                    float3 impactDir = cur - prev;
+
+                    // Closest of DOTS NPC / player volume / static physics wins.
+                    float bestDist = float.MaxValue;
+                    int winner = 0; // 0 none, 1 dots, 2 player, 3 phys
+                    if (hasDots && dotsDist < bestDist)
+                    {
+                        bestDist = dotsDist;
+                        winner = 1;
+                    }
+                    if (hasPlayer && playerDist < bestDist)
+                    {
+                        bestDist = playerDist;
+                        winner = 2;
+                    }
+                    if (hasPhys && physBestDist < bestDist)
+                    {
+                        bestDist = physBestDist;
+                        winner = 3;
+                    }
+
+                    if (winner == 1)
                     {
                         float dealt = NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim,
-                            damage.ValueRO.Amount, out bool killed);
+                            damage.ValueRO.Amount, out bool killed, impactDir);
                         if (shooterRoot != Entity.Null && shooterRoot != dotsVictim)
                             NpcExperienceUtility.GrantDamageXp(em, ref ecb, shooterRoot, dealt, killed);
                         ecb.DestroyEntity(entity);
                         continue;
                     }
 
-                    if (!hasPhys)
+                    if (winner == 2)
+                    {
+                        ApplyPlayerProjectileDamage(em, ref ecb, shooterRoot, damage.ValueRO.Amount, impactDir);
+                        ecb.DestroyEntity(entity);
+                        continue;
+                    }
+
+                    if (winner != 3)
                         continue;
 
                     pending.Add(new PendingHit
@@ -240,6 +272,65 @@ namespace Medieval.Projectiles
             return true;
         }
 
+        static bool TryGetPlayerHitAlongSegment(
+            float3 prev,
+            float3 cur,
+            float projectileRadius,
+            int projectileShooterFactionId,
+            EntityId legacyShooterRootEntityId,
+            in DynamicBuffer<FactionRelationshipCell> relationshipBuf,
+            int relationshipMatrixSize,
+            out float distanceFromPrev)
+        {
+            distanceFromPrev = float.MaxValue;
+            Transform playerTf = PlayerAnchorRegistration.Transform;
+            if (playerTf == null)
+                return false;
+
+            if (legacyShooterRootEntityId != EntityId.None &&
+                playerTf.root != null &&
+                playerTf.root.GetEntityId() == legacyShooterRootEntityId)
+                return false;
+
+            var health = playerTf.GetComponentInParent<IDamageableHealth>();
+            if (health == null || health.IsDead)
+                return false;
+
+            int playerFaction = PlayerAnchorRegistration.PlayerFactionId;
+            if (projectileShooterFactionId >= 0 && playerFaction >= 0 && relationshipMatrixSize > 0 &&
+                FactionRelationshipBufferUtil.IsAllied(in relationshipBuf, relationshipMatrixSize,
+                    projectileShooterFactionId, playerFaction))
+                return false;
+
+            float3 foot = playerTf.position;
+            return NpcProjectileDotsNpc.TryGetHitDistanceAlongSegment(prev, cur, foot, projectileRadius,
+                out distanceFromPrev);
+        }
+
+        static void ApplyPlayerProjectileDamage(
+            EntityManager em, ref EntityCommandBuffer ecb, Entity shooterRoot, float amount, float3 impactDir)
+        {
+            Transform playerTf = PlayerAnchorRegistration.Transform;
+            if (playerTf == null)
+                return;
+
+            var victim = playerTf.GetComponentInParent<IDamageableHealth>();
+            if (victim == null || victim.IsDead)
+                return;
+
+            float before = victim.CurrentHealth;
+            if (victim is Character character)
+                character.TakeDamage(amount, new Vector3(impactDir.x, impactDir.y, impactDir.z));
+            else
+                victim.TakeDamage(amount);
+
+            if (shooterRoot != Entity.Null)
+            {
+                float dealt = math.max(0f, before - victim.CurrentHealth);
+                NpcExperienceUtility.GrantDamageXp(em, ref ecb, shooterRoot, dealt, victim.IsDead);
+            }
+        }
+
         /// <summary>GameObject archers / towers: do not damage allied <see cref="IDamageableHealth"/> targets.</summary>
         static bool ShouldSuppressAlliedProjectileDamage(EntityId legacyShooterRootEntityId, Collider victimCollider)
         {
@@ -310,7 +401,11 @@ namespace Medieval.Projectiles
                 }
                 else
                 {
-                    victim.TakeDamage(amount);
+                    float3 impactDir = curPos - prevPos;
+                    if (victim is Character character)
+                        character.TakeDamage(amount, new Vector3(impactDir.x, impactDir.y, impactDir.z));
+                    else
+                        victim.TakeDamage(amount);
                     if (shooterRoot != Entity.Null)
                     {
                         float after = victim.CurrentHealth;

@@ -134,7 +134,9 @@ public class Character : MonoBehaviour, IDamageableHealth
         _healthBar?.OnHealthChanged(_current, _rolledMaxHealth);
     }
 
-    public void TakeDamage(float amount)
+    public void TakeDamage(float amount) => TakeDamage(amount, default);
+
+    public void TakeDamage(float amount, Vector3 impactDirection)
     {
         if (_godMode || amount <= 0f || IsDead)
             return;
@@ -142,6 +144,8 @@ public class Character : MonoBehaviour, IDamageableHealth
         _current = Mathf.Max(0f, _current - amount);
         _healthBar ??= GetComponent<CharacterHealthBar>();
         _healthBar?.OnHealthChanged(_current, _rolledMaxHealth);
+
+        CartoonBloodHitFx.SpawnAtNpc(transform.position, impactDirection);
 
         if (_current <= 0f)
             HandleDeath();

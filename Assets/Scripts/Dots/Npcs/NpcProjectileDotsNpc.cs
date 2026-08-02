@@ -188,8 +188,29 @@ namespace Medieval.Npcs
             return p.y >= foot.y - 0.15f && p.y <= foot.y + 2.15f + pr;
         }
 
+        /// <summary>
+        /// Distance along <paramref name="prev"/>→<paramref name="cur"/> where the segment first enters the
+        /// standard NPC/player hit volume (XZ cylinder + Y slab), or false if it misses.
+        /// </summary>
+        public static bool TryGetHitDistanceAlongSegment(
+            float3 prev, float3 cur, float3 foot, float projectileRadius, out float distanceFromPrev)
+        {
+            distanceFromPrev = float.MaxValue;
+            float segLen = math.distance(prev, cur);
+            if (segLen < 1e-6f)
+                return false;
+
+            float t = MinTOnSegmentInNpcVolume(prev, cur, foot, projectileRadius);
+            if (t < 0f || t > 1f)
+                return false;
+
+            distanceFromPrev = t * segLen;
+            return true;
+        }
+
         /// <returns>Damage actually applied to current health (0 if already dead / missing).</returns>
-        public static float ApplyProjectileDamage(EntityManager em, Entity npc, float damageAmount, out bool killed)
+        public static float ApplyProjectileDamage(
+            EntityManager em, Entity npc, float damageAmount, out bool killed, float3 impactDirection = default)
         {
             killed = false;
             if (!em.Exists(npc) || !em.HasComponent<NpcCharacterCombatState>(npc))
@@ -210,11 +231,11 @@ namespace Medieval.Npcs
             em.SetComponentData(npc, c);
             float dealt = math.max(0f, before - c.CurrentHealth);
             if (dealt > 0f)
-                TryEnqueueHitBlood(em, npc);
+                TryEnqueueHitBlood(em, npc, impactDirection);
             return dealt;
         }
 
-        static void TryEnqueueHitBlood(EntityManager em, Entity npc)
+        static void TryEnqueueHitBlood(EntityManager em, Entity npc, float3 impactDirection)
         {
             float3 pos;
             if (em.HasComponent<LocalToWorld>(npc))
@@ -224,7 +245,9 @@ namespace Medieval.Npcs
             else
                 return;
 
-            CartoonBloodHitFx.SpawnAtNpc(new Vector3(pos.x, pos.y, pos.z));
+            CartoonBloodHitFx.SpawnAtNpc(
+                new Vector3(pos.x, pos.y, pos.z),
+                new Vector3(impactDirection.x, impactDirection.y, impactDirection.z));
         }
 
         public static float ApplyProjectileDamage(EntityManager em, Entity npc, float damageAmount)

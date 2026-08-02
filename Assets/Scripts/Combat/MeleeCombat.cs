@@ -56,9 +56,15 @@ public class MeleeCombat : MonoBehaviour
                 float dmg = damage;
                 if (_selfCharacter != null)
                     dmg *= _selfCharacter.MeleeDamageMultiplier;
-                victim.TakeDamage(dmg);
                 if (victim is Character victimCharacter)
+                {
+                    victimCharacter.TakeDamage(dmg, d);
                     victimCharacter.ApplyAttackStun(hitMeleeStunDuration);
+                }
+                else
+                {
+                    victim.TakeDamage(dmg);
+                }
             }
         }
 
