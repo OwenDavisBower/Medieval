@@ -6,7 +6,7 @@ using URandom = UnityEngine.Random;
 
 public class FollowerSpawner : MonoBehaviour
 {
-    [SerializeField] int followerCount = 5;
+    [SerializeField] int followerCount = 2;
     [SerializeField] float spawnRadiusMin = 1.5f;
     [SerializeField] float spawnRadiusMax = 4f;
 

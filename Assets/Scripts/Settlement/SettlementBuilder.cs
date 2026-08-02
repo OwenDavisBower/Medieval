@@ -72,6 +72,8 @@ public class SettlementBuilder : MonoBehaviour
     void OnDisable()
     {
         TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
+        if (_settlementId != int.MinValue && SettlementService.Instance != null)
+            SettlementService.Instance.NotifySettlementInstance(_settlementId, transform.position, false);
     }
 
     void Start() => TryBuildSettlement();
@@ -210,6 +212,9 @@ public class SettlementBuilder : MonoBehaviour
         _built = true;
         if (HasSpawnedVillagersAlready())
             _villagersSpawnedForThisInstance = true;
+
+        if (_settlementId != int.MinValue && SettlementService.Instance != null)
+            SettlementService.Instance.NotifySettlementInstance(_settlementId, transform.position, true);
     }
 
     /// <summary>Releases structure burns from the mask (e.g. when streaming unloads this settlement). Path bits are unchanged.</summary>

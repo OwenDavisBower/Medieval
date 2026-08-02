@@ -8,7 +8,7 @@ public sealed class PlayerWallet : MonoBehaviour
 {
     public static PlayerWallet Instance { get; private set; }
 
-    [SerializeField] int startingGold;
+    [SerializeField] int startingGold = 40;
 
     int _gold;
 

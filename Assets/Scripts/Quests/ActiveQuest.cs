@@ -1,0 +1,43 @@
+using Unity.Entities;
+using Unity.Mathematics;
+using UnityEngine;
+
+/// <summary>Active quest payload.</summary>
+public sealed class ActiveQuest
+{
+    public QuestType Type;
+    public QuestStatus Status = QuestStatus.Active;
+    public int OriginSettlementId = -1;
+    public int TargetSettlementId = -1;
+    public int TargetCampId = -1;
+    public int RequiredWood;
+    public int ProgressKills;
+    public int RequiredKills = 3;
+    public Vector3 TargetPosition;
+    public Entity EscortEntity;
+    public string Title;
+    public string Description;
+    public int GoldReward;
+    public int ReputationReward;
+
+    public string ProgressText
+    {
+        get
+        {
+            switch (Type)
+            {
+                case QuestType.ClearCamp:
+                    return $"Bandits slain near camp: {ProgressKills}/{RequiredKills}";
+                case QuestType.DeliverWood:
+                {
+                    int have = PlayerInventory.Instance != null ? PlayerInventory.Instance.Wood : 0;
+                    return $"Wood: {have}/{RequiredWood}";
+                }
+                case QuestType.Escort:
+                    return "Escort the villager to the marked village.";
+                default:
+                    return string.Empty;
+            }
+        }
+    }
+}

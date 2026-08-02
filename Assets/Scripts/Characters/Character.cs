@@ -182,6 +182,48 @@ public class Character : MonoBehaviour, IDamageableHealth
         }
     }
 
+    /// <summary>Restores full health and re-enables controls after a death/respawn sequence.</summary>
+    public void ReviveFull()
+    {
+        _deathHandled = false;
+        _godMode = false;
+        _attackStunUntil = 0f;
+        _current = Mathf.Max(1f, _rolledMaxHealth);
+        _healthBar ??= GetComponent<CharacterHealthBar>();
+        _healthBar?.OnHealthChanged(_current, _rolledMaxHealth);
+
+        foreach (var col in GetComponentsInChildren<Collider>(true))
+        {
+            if (col != null)
+                col.enabled = true;
+        }
+
+        var rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.detectCollisions = true;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        foreach (var d in GetComponents<LocomotionAnimatorDriver>())
+            d.enabled = true;
+
+        var ranged = GetComponent<RangedCombat>();
+        if (ranged != null)
+            ranged.enabled = true;
+
+        var melee = GetComponent<MeleeCombat>();
+        if (melee != null)
+            melee.enabled = true;
+
+        var player = GetComponent<PlayerController>();
+        if (player != null)
+            player.enabled = true;
+
+    }
+
     Animator ResolveAnimatorForDeath()
     {
         return AnimatorUtil.ResolvePreferredAnimator(this);

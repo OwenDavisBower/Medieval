@@ -136,7 +136,10 @@ public class BanditCamp : MonoBehaviour
 
         var occupied = new List<Vector3>();
         PlaceCampStructures(occupied);
-        SpawnBanditsAround(occupied);
+        int spawned = SpawnBanditsAround(occupied);
+
+        if (campId != int.MinValue && SettlementService.Instance != null)
+            SettlementService.Instance.NotifyCampInstance(campId, transform.position, true, spawned);
     }
 
     void PlaceCampStructures(List<Vector3> occupied)
@@ -248,14 +251,15 @@ public class BanditCamp : MonoBehaviour
         return instance;
     }
 
-    void SpawnBanditsAround(List<Vector3> occupied)
+    int SpawnBanditsAround(List<Vector3> occupied)
     {
         if (banditCount <= 0)
-            return;
+            return 0;
 
         float minR = Mathf.Max(0f, spawnRadiusMin);
         float maxR = Mathf.Max(minR, spawnRadiusMax);
         const float banditClearanceSq = 2.25f;
+        int spawned = 0;
 
         for (int i = 0; i < banditCount; i++)
         {
@@ -289,10 +293,19 @@ public class BanditCamp : MonoBehaviour
                 continue;
             }
 
+            spawned++;
             var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
             var em = world.EntityManager;
             NpcMovementApi.SetAnchorPosition(em, e, new float3(transform.position.x, transform.position.y, transform.position.z));
         }
+
+        return spawned;
+    }
+
+    void OnDestroy()
+    {
+        if (campId != int.MinValue && SettlementService.Instance != null)
+            SettlementService.Instance.NotifyCampInstance(campId, transform.position, false);
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

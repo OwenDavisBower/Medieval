@@ -45,11 +45,11 @@ namespace Medieval.Npcs
             if (em.HasComponent<NpcMovementTag>(npcRoot))
                 em.RemoveComponent<NpcMovementTag>(npcRoot);
 
-            TrySpawnGoldDrop(em, npcRoot);
+            TrySpawnLootAndSignal(em, npcRoot);
             TryPlayDeathAnim(em, npcRoot);
         }
 
-        static void TrySpawnGoldDrop(EntityManager em, Entity npcRoot)
+        static void TrySpawnLootAndSignal(EntityManager em, Entity npcRoot)
         {
             if (!IsEnemyNpc(em, npcRoot))
                 return;
@@ -62,7 +62,17 @@ namespace Medieval.Npcs
             else
                 return;
 
-            GoldDrop.SpawnRandom(new Vector3(pos.x, pos.y, pos.z));
+            var worldPos = new Vector3(pos.x, pos.y, pos.z);
+            GoldDrop.SpawnRandom(worldPos, GoldDrop.DefaultMinAmount, GoldDrop.DefaultMaxAmountInclusive + 2);
+
+            // Occasional food ration from bandit packs.
+            if (UnityEngine.Random.value < 0.28f && PlayerInventory.Instance != null)
+            {
+                PlayerInventory.Instance.AddFood(1);
+                GameplayEvents.RaiseToast("+1 Food");
+            }
+
+            GameplayEvents.RaiseEnemyKilled(worldPos, WellKnownFactionIds.Bandit);
         }
 
         static bool IsEnemyNpc(EntityManager em, Entity npcRoot)

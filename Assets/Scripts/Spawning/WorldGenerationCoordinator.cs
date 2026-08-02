@@ -50,6 +50,9 @@ public class WorldGenerationCoordinator : MonoBehaviour
     /// <summary>Planned village centers in world space (XZ); populated after each spawn sequence.</summary>
     public IReadOnlyList<Vector3> PlannedSettlementCenters => _plannedSettlementCenters;
 
+    /// <summary>Planned bandit camp centers in world space (XZ); populated after each spawn sequence.</summary>
+    public IReadOnlyList<Vector3> PlannedBanditCenters => _plannedBanditCenters;
+
     readonly List<TreeInstanceData> _plannedTrees = new List<TreeInstanceData>();
     readonly List<TreeInstanceData> _streamingTreesScratch = new List<TreeInstanceData>();
     TreeIndirectRenderer _treeIndirectRenderer;
