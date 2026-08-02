@@ -10,3 +10,4 @@ When you broaden a type, method, or file beyond what its name describes, rename 
 - Prefer a name that matches current responsibility, not the original use case.
 - Example: a level-up-only billboard reused for gold/food pickups should become something like `FloatingWorldText`, not stay `NpcLevelUpFloatingText`.
 - Do not leave misleading names as follow-up work unless the user explicitly asks to defer the rename.
+- Always rename files with `git mv` (not delete + recreate) so Git tracks the rename; move the `.meta` the same way.
