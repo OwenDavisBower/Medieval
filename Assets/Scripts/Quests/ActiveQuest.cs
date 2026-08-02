@@ -34,7 +34,15 @@ public sealed class ActiveQuest
                     return $"Wood: {have}/{RequiredWood}";
                 }
                 case QuestType.Escort:
-                    return "Escort the villager to the marked village.";
+                {
+                    string where = "the marked village";
+                    if (TargetSettlementId >= 0 &&
+                        SettlementService.Instance != null &&
+                        SettlementService.Instance.TryGetSettlement(TargetSettlementId, out SettlementRecord dest) &&
+                        dest != null)
+                        where = dest.DisplayName;
+                    return $"Escort the villager to {where}.";
+                }
                 default:
                     return string.Empty;
             }

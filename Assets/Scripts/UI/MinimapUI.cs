@@ -30,6 +30,8 @@ public class MinimapUI : MonoBehaviour
     [SerializeField] Color waterColor = new Color(0.22f, 0.42f, 0.72f, 1f);
     [SerializeField] Color villageColor = new Color(0.92f, 0.72f, 0.22f, 1f);
     [SerializeField] Color playerColor = new Color(0.95f, 0.25f, 0.2f, 1f);
+    [SerializeField] Color questTargetColor = new Color(0.3f, 0.95f, 1f, 1f);
+    [SerializeField] float questMarkerSizePixels = 16f;
 
     [SerializeField] TerrainGenerator terrainGenerator;
     [SerializeField] WorldGenerationCoordinator worldGeneration;
@@ -37,10 +39,15 @@ public class MinimapUI : MonoBehaviour
     RectTransform _mapRect;
     RawImage _mapImage;
     RectTransform _playerMarker;
+    RectTransform _questMarker;
+    Image _questMarkerImage;
     Texture2D _mapTexture;
     Color32[] _pixels;
     Texture2D _circleTexture;
     Sprite _circleSprite;
+    Texture2D _diamondTexture;
+    Sprite _diamondSprite;
+    float _questPulse;
 
     bool _rebuildQueued;
     TerrainGenerator _boundTerrain;
@@ -82,6 +89,10 @@ public class MinimapUI : MonoBehaviour
             Destroy(_circleSprite);
         if (_circleTexture != null)
             Destroy(_circleTexture);
+        if (_diamondSprite != null)
+            Destroy(_diamondSprite);
+        if (_diamondTexture != null)
+            Destroy(_diamondTexture);
     }
 
     void LateUpdate()
@@ -92,7 +103,9 @@ public class MinimapUI : MonoBehaviour
             RebuildMapTexture();
         }
 
+        _questPulse += Time.deltaTime;
         UpdatePlayerMarker();
+        UpdateQuestMarker();
     }
 
     void OnTerrainGenerated(TerrainGenerator _) => QueueRebuild();
@@ -163,6 +176,21 @@ public class MinimapUI : MonoBehaviour
         _playerMarker.sizeDelta = new Vector2(playerMarkerSizePixels, playerMarkerSizePixels);
         _playerMarker.gameObject.SetActive(false);
 
+        var questGo = new GameObject("QuestTargetMarker");
+        questGo.transform.SetParent(_mapRect, false);
+        _questMarkerImage = questGo.AddComponent<Image>();
+        _questMarkerImage.sprite = EnsureDiamondSprite();
+        _questMarkerImage.color = questTargetColor;
+        _questMarkerImage.raycastTarget = false;
+        _questMarker = questGo.GetComponent<RectTransform>();
+        _questMarker.anchorMin = _questMarker.anchorMax = new Vector2(0.5f, 0.5f);
+        _questMarker.pivot = new Vector2(0.5f, 0.5f);
+        _questMarker.sizeDelta = new Vector2(questMarkerSizePixels, questMarkerSizePixels);
+        questGo.SetActive(false);
+
+        // Player sits above the quest pin so both stay readable when overlapping.
+        _playerMarker.SetAsLastSibling();
+
         EnsureMapTexture();
     }
 
@@ -201,6 +229,42 @@ public class MinimapUI : MonoBehaviour
             new Vector2(0.5f, 0.5f), 100f, 0u, SpriteMeshType.Tight);
         _circleSprite.name = "MinimapPlayerCircleSprite";
         return _circleSprite;
+    }
+
+    Sprite EnsureDiamondSprite()
+    {
+        if (_diamondSprite != null)
+            return _diamondSprite;
+
+        const int res = 64;
+        var tex = new Texture2D(res, res, TextureFormat.RGBA32, false)
+        {
+            name = "MinimapQuestDiamondTex",
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp
+        };
+
+        float cx = (res - 1) * 0.5f;
+        float cy = (res - 1) * 0.5f;
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float dx = Mathf.Abs(x - cx) / (res * 0.5f);
+                float dy = Mathf.Abs(y - cy) / (res * 0.5f);
+                float d = dx + dy;
+                float a = Mathf.Clamp01((1.05f - d) * res * 0.35f);
+                if (d < 0.22f)
+                    a *= 0.2f;
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+
+        tex.Apply(false, false);
+        _diamondTexture = tex;
+        _diamondSprite = Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), 100f);
+        _diamondSprite.name = "MinimapQuestDiamondSprite";
+        return _diamondSprite;
     }
 
     void EnsureMapTexture()
@@ -366,6 +430,53 @@ public class MinimapUI : MonoBehaviour
         Vector2 size = _mapRect.rect.size;
         _playerMarker.anchoredPosition = new Vector2((u - 0.5f) * size.x, (v - 0.5f) * size.y);
         _playerMarker.gameObject.SetActive(true);
+    }
+
+    void UpdateQuestMarker()
+    {
+        if (_questMarker == null || _mapRect == null)
+            return;
+
+        var quests = QuestService.Instance;
+        ActiveQuest q = quests != null ? quests.Active : null;
+        if (q == null || q.Status != QuestStatus.Active)
+        {
+            _questMarker.gameObject.SetActive(false);
+            return;
+        }
+
+        var gen = _boundTerrain != null ? _boundTerrain : ResolveTerrain();
+        if (gen == null || !gen.IsTerrainReady)
+        {
+            _questMarker.gameObject.SetActive(false);
+            return;
+        }
+
+        Vector3 origin = gen.transform.position;
+        float viewSize = GetViewSize(gen.worldSize);
+        Vector3 target = q.TargetPosition;
+        float u = (target.x - origin.x) / viewSize + 0.5f;
+        float v = (target.z - origin.z) / viewSize + 0.5f;
+        if (u < 0f || u > 1f || v < 0f || v > 1f)
+        {
+            _questMarker.gameObject.SetActive(false);
+            return;
+        }
+
+        Vector2 size = _mapRect.rect.size;
+        _questMarker.anchoredPosition = new Vector2((u - 0.5f) * size.x, (v - 0.5f) * size.y);
+
+        float pulse = 0.8f + 0.2f * Mathf.Sin(_questPulse * 4f);
+        if (_questMarkerImage != null)
+        {
+            Color c = questTargetColor;
+            c.a = pulse;
+            _questMarkerImage.color = c;
+        }
+
+        float scale = 1f + 0.12f * Mathf.Sin(_questPulse * 4f);
+        _questMarker.sizeDelta = new Vector2(questMarkerSizePixels * scale, questMarkerSizePixels * scale);
+        _questMarker.gameObject.SetActive(true);
     }
 
     TerrainGenerator ResolveTerrain() =>
