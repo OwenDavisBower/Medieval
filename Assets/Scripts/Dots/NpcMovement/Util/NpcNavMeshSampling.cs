@@ -303,7 +303,7 @@ namespace Medieval.NpcMovement
         public static Vector3 ToVector3(float3 p) => new Vector3(p.x, p.y, p.z);
 
         static int AreaMaskForHeight(float worldY) =>
-            worldY >= NpcMath.WaterSurfaceY ? AreaMaskExcludeWater : AreaMaskAll;
+            worldY > NpcMath.NavMeshWaterTopY ? AreaMaskExcludeWater : AreaMaskAll;
 
         static bool TryMapAccept(
             NavMeshQuery query,

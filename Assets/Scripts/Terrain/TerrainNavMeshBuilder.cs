@@ -40,7 +40,7 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
     [SerializeField] float navMeshCameraRefocusMoveDistance = 42f;
     [Tooltip("Delay after chunk LOD mesh changes before rebuilding (coalesces rapid camera moves). 0 = immediate.")]
     [SerializeField] float navMeshRebuildDebounceSeconds = 0.35f;
-    [Tooltip("World Y for sea level; NavMesh below this in the volume uses the 'Water' area.")]
+    [Tooltip("World Y for sea level; NavMesh below this in the volume uses the 'Water' area. Keep in sync with NpcMath.NavMeshWaterTopY.")]
     [SerializeField] float navMeshWaterLevelY = -0.1f;
     [Tooltip("Depth of the under-water tag volume in world Y.")]
     [SerializeField] float navMeshWaterVolumeDepth = 20000f;
@@ -286,6 +286,23 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
         modifier.area = waterArea;
     }
 
+    /// <summary>
+    /// Ford boxes exist only so NavMesh bake can collect them. Leaving them enabled blocks the
+    /// player Rigidbody and steals NPC ground-snap rays at sea level.
+    /// </summary>
+    void SetRiverFordCollidersEnabled(bool enabled)
+    {
+        if (_riverFordRoot == null)
+            return;
+
+        for (int i = 0; i < _riverFordRoot.childCount; i++)
+        {
+            var box = _riverFordRoot.GetChild(i).GetComponent<BoxCollider>();
+            if (box != null)
+                box.enabled = enabled;
+        }
+    }
+
     void EnsureNavMeshSurface()
     {
         if (navMeshSurface == null)
@@ -341,6 +358,14 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
         if (terrain == null || !terrain.IsTerrainReady)
             return;
 
+        // Don't recreate ford colliders while an async bake is in flight — that would leave them
+        // enabled (blocking the player) until the queued rebuild runs.
+        if (Application.isPlaying && _navMeshUpdateOp != null && !_navMeshUpdateOp.isDone)
+        {
+            _navMeshRebuildQueuedAfterAsync = true;
+            return;
+        }
+
         EnsureNavMeshWaterLevelAreaVolume();
         EnsureNavMeshRiverFordColliders();
         EnsureNavMeshSurface();
@@ -351,6 +376,8 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
         if (!Application.isPlaying)
         {
             surface.BuildNavMesh();
+            // CollectSources already ran; disable so Scene view physics / play-mode handoff stays clear.
+            SetRiverFordCollidersEnabled(false);
             var cam = terrain.CameraTransform;
             if (cam != null)
                 _lastNavMeshFocusXz = new Vector2(cam.position.x, cam.position.z);
@@ -361,19 +388,16 @@ public sealed class TerrainNavMeshBuilder : MonoBehaviour
         if (surface.navMeshData == null)
         {
             surface.BuildNavMesh();
+            SetRiverFordCollidersEnabled(false);
             var cam = terrain.CameraTransform;
             if (cam != null)
                 _lastNavMeshFocusXz = new Vector2(cam.position.x, cam.position.z);
             return;
         }
 
-        if (_navMeshUpdateOp != null && !_navMeshUpdateOp.isDone)
-        {
-            _navMeshRebuildQueuedAfterAsync = true;
-            return;
-        }
-
+        // UpdateNavMesh collects collider sources synchronously before returning the async op.
         _navMeshUpdateOp = surface.UpdateNavMesh(surface.navMeshData);
+        SetRiverFordCollidersEnabled(false);
         if (_navMeshUpdateCoroutine != null)
             StopCoroutine(_navMeshUpdateCoroutine);
         _navMeshUpdateCoroutine = StartCoroutine(WaitForNavMeshUpdateCoroutine());

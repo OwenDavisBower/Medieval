@@ -6,6 +6,12 @@ namespace Medieval.NpcMovement
     public static class NpcMath
     {
         public const float WaterSurfaceY = -0.249f;
+        /// <summary>
+        /// Top of NavMesh Water tagging / river ford colliders. Must match
+        /// <c>TerrainNavMeshBuilder</c> sea level. Above this Y, sampling excludes Water so bridge
+        /// traffic is not pulled onto the river; at or below, Water (fording) is allowed.
+        /// </summary>
+        public const float NavMeshWaterTopY = -0.1f;
         public const float InWaterSpeedMultiplier = 0.5f;
 
         /// <summary>Squared distance on XZ only; Y is ignored.</summary>

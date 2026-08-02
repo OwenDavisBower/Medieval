@@ -93,7 +93,8 @@ namespace Medieval.NpcMovement
                 for (int i = start; i < corners.Length; i++)
                 {
                     float3 cornerPos = corners[i].Value;
-                    if (cornerPos.y < NpcMath.WaterSurfaceY)
+                    // Ford corners sit near NavMeshWaterTopY (above visual WaterSurfaceY).
+                    if (cornerPos.y <= NpcMath.NavMeshWaterTopY)
                         return true;
                     if ((selfPos.y - cornerPos.y) > NpcNavMeshSampling.MaxVerticalDrop)
                         return true;
