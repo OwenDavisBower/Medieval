@@ -50,8 +50,8 @@ public class SettlementBuilder : MonoBehaviour
     [SerializeField] float pathWobbleAmplitude = 1.1f;
 
     [Header("Garrison")]
-    [SerializeField, Min(0)] int minGarrisonSoldiers = 4;
-    [SerializeField, Min(0)] int maxGarrisonSoldiers = 6;
+    [SerializeField, Min(0)] int minGarrisonSoldiers = 6;
+    [SerializeField, Min(0)] int maxGarrisonSoldiers = 9;
     [SerializeField] float garrisonPerimeterInnerRadius = 24f;
     [SerializeField] float garrisonPerimeterOuterRadius = 28f;
 
@@ -280,6 +280,7 @@ public class SettlementBuilder : MonoBehaviour
             if (structure == null)
                 continue;
 
+            ApplyOwnerAffiliation(structure);
             structureRoots.Add(structure);
             _structureRoots.Add(structure.transform);
             if (_placementMask != null)
@@ -441,6 +442,28 @@ public class SettlementBuilder : MonoBehaviour
         instance.transform.localScale = ls * uniformScale;
         HierarchyLayers.SetRecursiveByLayerName(instance.transform, "Building");
         return instance;
+    }
+
+    /// <summary>
+    /// Aligns building <see cref="Affiliation"/> (e.g. watchtowers) with the settlement owner so
+    /// defenses treat the player as Enemy after a war declaration.
+    /// </summary>
+    void ApplyOwnerAffiliation(GameObject structure)
+    {
+        if (structure == null)
+            return;
+
+        var aff = structure.GetComponentInChildren<Affiliation>(true);
+        if (aff == null)
+            return;
+
+        int ownerFaction = ResolveOwnerFactionId();
+        if (FactionManager.Instance == null ||
+            !FactionManager.Instance.TryGetDefinition(ownerFaction, out FactionDefinition def) ||
+            def == null)
+            return;
+
+        aff.Faction = def;
     }
 
     int ResolveOwnerFactionId()

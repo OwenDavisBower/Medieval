@@ -36,8 +36,8 @@ public sealed class GameplayHUD : MonoBehaviour
     Text _healLabel;
     readonly List<Button> _actionButtons = new List<Button>();
     readonly List<Text> _actionLabels = new List<Text>();
-    readonly List<PartyRowUi> _partyRows = new List<PartyRowUi>(PartyManager.MaxPartySize + 1);
-    readonly List<Entity> _partyScratch = new List<Entity>(PartyManager.MaxPartySize);
+    readonly List<PartyRowUi> _partyRows = new List<PartyRowUi>(16);
+    readonly List<Entity> _partyScratch = new List<Entity>(16);
     readonly List<QuestOffer> _questOfferScratch = new List<QuestOffer>(4);
     PartyRowUi _playerRow;
 
@@ -47,6 +47,7 @@ public sealed class GameplayHUD : MonoBehaviour
     PlayerInventory _inventory;
     PartyManager _party;
     QuestService _quests;
+    SettlementService _settlements;
     VillageInteractionController _village;
 
     sealed class PartyRowUi
@@ -122,6 +123,12 @@ public sealed class GameplayHUD : MonoBehaviour
             _quests.Changed += RefreshQuest;
         }
 
+        if (_settlements == null && SettlementService.Instance != null)
+        {
+            _settlements = SettlementService.Instance;
+            _settlements.Changed += RefreshVillagePanel;
+        }
+
         if (_village == null && VillageInteractionController.Instance != null)
         {
             _village = VillageInteractionController.Instance;
@@ -139,12 +146,15 @@ public sealed class GameplayHUD : MonoBehaviour
             _party.Changed -= RefreshParty;
         if (_quests != null)
             _quests.Changed -= RefreshQuest;
+        if (_settlements != null)
+            _settlements.Changed -= RefreshVillagePanel;
         if (_village != null)
             _village.NearbyChanged -= RefreshVillagePanel;
         _wallet = null;
         _inventory = null;
         _party = null;
         _quests = null;
+        _settlements = null;
         _village = null;
     }
 
@@ -164,7 +174,7 @@ public sealed class GameplayHUD : MonoBehaviour
         if (_partyLabel == null)
             return;
         int count = PartyManager.Instance != null ? PartyManager.Instance.CountLivingFollowers() : 0;
-        _partyLabel.text = $"Party {count}/{PartyManager.MaxPartySize}";
+        _partyLabel.text = $"Party {count}";
 
         if (_partyRosterPanel == null || !_partyRosterPanel.gameObject.activeSelf)
             return;
@@ -399,6 +409,8 @@ public sealed class GameplayHUD : MonoBehaviour
             string claim;
             if (nearby.OwnedByPlayer)
                 claim = "Your land — taxes trickle in";
+            else if (nearby.IsAtWarWithPlayer)
+                claim = $"{nearby.StandingLabel} — Standing {nearby.Reputation}";
             else if (nearby.IsOwnedByNeutralKingdom)
                 claim = $"Ruled by {nearby.StandingLabel} — Standing {nearby.Reputation}";
             else
@@ -437,6 +449,13 @@ public sealed class GameplayHUD : MonoBehaviour
             ? "8  Already owned"
             : $"8  Claim village ({SettlementService.ClaimGoldCost}g)";
         SetAction(7, claimLabel, () => VillageInteractionController.Instance?.Claim());
+
+        string attackLabel = nearby.OwnedByPlayer
+            ? "9  —"
+            : nearby.IsAtWarWithPlayer
+                ? "9  At war"
+                : "9  Attack settlement";
+        SetAction(8, attackLabel, () => VillageInteractionController.Instance?.Attack());
 
         if (_healLabel != null)
         {
@@ -562,7 +581,7 @@ public sealed class GameplayHUD : MonoBehaviour
         st.offsetMin = new Vector2(12f, -62f);
         st.offsetMax = new Vector2(-12f, -38f);
 
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 9; i++)
         {
             float y = -70f - i * 34f;
             CreateActionButton(_villagePanel, i, y);
@@ -590,8 +609,8 @@ public sealed class GameplayHUD : MonoBehaviour
         sf.offsetMin = new Vector2(10f, 8f);
         sf.offsetMax = new Vector2(-10f, 40f);
 
-        // Tall enough for 8 actions + heal / dismiss / sell-food rows
-        _villagePanel.sizeDelta = new Vector2(420f, 450f);
+        // Tall enough for 9 actions + heal / dismiss / sell-food rows
+        _villagePanel.sizeDelta = new Vector2(420f, 490f);
 
         _villagePanel.gameObject.SetActive(false);
         RefreshResources();

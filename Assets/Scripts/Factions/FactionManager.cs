@@ -52,6 +52,16 @@ public sealed class FactionManager : MonoBehaviour
     public bool TryGetFactionName(int factionId, out string factionName)
     {
         factionName = null;
+        if (!TryGetDefinition(factionId, out FactionDefinition def))
+            return false;
+        factionName = def.FactionName;
+        return !string.IsNullOrEmpty(factionName);
+    }
+
+    /// <summary>Registered <see cref="FactionDefinition"/> for <paramref name="factionId"/>, if any.</summary>
+    public bool TryGetDefinition(int factionId, out FactionDefinition definition)
+    {
+        definition = null;
         if (registeredFactions == null)
             return false;
         for (int i = 0; i < registeredFactions.Count; i++)
@@ -59,8 +69,8 @@ public sealed class FactionManager : MonoBehaviour
             FactionDefinition def = registeredFactions[i];
             if (def == null || def.FactionID != factionId)
                 continue;
-            factionName = def.FactionName;
-            return !string.IsNullOrEmpty(factionName);
+            definition = def;
+            return true;
         }
 
         return false;

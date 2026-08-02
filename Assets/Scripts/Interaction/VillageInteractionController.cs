@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Near-village actions: recruit, trade, heal party, quests, claim, disband.
-/// Keyboard: E opens/advances hub focus; number keys 1–8 / H heal party / C sell food when in range.
+/// Near-village actions: recruit, trade, heal party, quests, claim, attack, disband.
+/// Keyboard: E opens/advances hub focus; number keys 1–9 / H heal party / C sell food when in range.
 /// </summary>
 public sealed class VillageInteractionController : MonoBehaviour
 {
@@ -109,6 +109,8 @@ public sealed class VillageInteractionController : MonoBehaviour
             QuestSlot(2);
         else if (kb.digit8Key.wasPressedThisFrame || kb.numpad8Key.wasPressedThisFrame)
             Claim();
+        else if (kb.digit9Key.wasPressedThisFrame || kb.numpad9Key.wasPressedThisFrame)
+            Attack();
         else if (kb.xKey.wasPressedThisFrame)
             Disband();
         else if (kb.eKey.wasPressedThisFrame)
@@ -120,7 +122,7 @@ public sealed class VillageInteractionController : MonoBehaviour
         if (_toastGate > 0f)
             return;
         _toastGate = 1.2f;
-        GameplayEvents.RaiseToast("1 Recruit  2/3 Wood  4/C Food  H Heal party  5–7 Quests  8 Claim  X Dismiss  J Journal");
+        GameplayEvents.RaiseToast("1 Recruit  2/3 Wood  4/C Food  H Heal party  5–7 Quests  8 Claim  9 Attack  X Dismiss  J Journal");
     }
 
     public void Recruit() => PartyManager.Instance?.TryRecruit(_nearby);
@@ -138,6 +140,8 @@ public sealed class VillageInteractionController : MonoBehaviour
     public void Disband() => PartyManager.Instance?.TryDisbandOne();
 
     public void Claim() => SettlementService.Instance?.TryClaim(_nearby);
+
+    public void Attack() => SettlementService.Instance?.TryAttack(_nearby);
 
     /// <summary>Village keys 5/6/7 — turn-in takes slot 0 when available.</summary>
     public void QuestSlot(int slotIndex)

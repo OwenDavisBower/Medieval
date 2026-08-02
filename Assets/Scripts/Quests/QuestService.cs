@@ -170,6 +170,9 @@ public sealed class QuestService : MonoBehaviour
             return false;
         }
 
+        if (SettlementService.Instance != null && SettlementService.Instance.RefuseIfHostile(settlement))
+            return false;
+
         GetOffers(settlement, _offerScratch);
         if (offerIndex < 0 || offerIndex >= _offerScratch.Count)
         {
@@ -183,6 +186,9 @@ public sealed class QuestService : MonoBehaviour
     public bool TryTurnInAt(SettlementRecord settlement)
     {
         if (settlement == null)
+            return false;
+
+        if (SettlementService.Instance != null && SettlementService.Instance.RefuseIfHostile(settlement))
             return false;
 
         for (int i = 0; i < _active.Count; i++)
@@ -302,6 +308,9 @@ public sealed class QuestService : MonoBehaviour
             GameplayEvents.RaiseToast("No village nearby.");
             return false;
         }
+
+        if (SettlementService.Instance != null && SettlementService.Instance.RefuseIfHostile(settlement))
+            return false;
 
         GetOffers(settlement, _offerScratch);
         for (int i = 0; i < _offerScratch.Count; i++)

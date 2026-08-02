@@ -156,9 +156,9 @@ public class SettlementSpawnConfig : ScriptableObject
 
     [Header("Garrison")]
     [Tooltip("Minimum faction soldiers spawned on the settlement perimeter when the player approaches.")]
-    [SerializeField, Min(0)] int minGarrisonSoldiers = 4;
+    [SerializeField, Min(0)] int minGarrisonSoldiers = 6;
     [Tooltip("Maximum faction soldiers spawned on the settlement perimeter when the player approaches.")]
-    [SerializeField, Min(0)] int maxGarrisonSoldiers = 6;
+    [SerializeField, Min(0)] int maxGarrisonSoldiers = 9;
     [Tooltip("Inner orbit radius for perimeter guards (world meters from settlement center).")]
     [SerializeField] float garrisonPerimeterInnerRadius = 24f;
     [Tooltip("Outer orbit radius for perimeter guards (world meters from settlement center).")]

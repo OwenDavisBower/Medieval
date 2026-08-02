@@ -14,7 +14,6 @@ public sealed class PartyManager : MonoBehaviour
     public static PartyManager Instance { get; private set; }
 
     public const int BaseRecruitCost = 15;
-    public const int MaxPartySize = 14;
     public const int DisbandRefund = 8;
 
     const float RecruitBuildingSpawnHeight = 2.0f;
@@ -170,9 +169,9 @@ public sealed class PartyManager : MonoBehaviour
             return false;
         }
 
-        if (CountLivingFollowers() >= MaxPartySize)
+        if (settlement != null && settlement.IsAtWarWithPlayer)
         {
-            failReason = "Party is full.";
+            failReason = "This village is at war with you.";
             return false;
         }
 

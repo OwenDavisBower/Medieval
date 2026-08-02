@@ -18,6 +18,8 @@ public sealed class SettlementService : MonoBehaviour
     public const int MinReputation = -100;
     public const int ClaimReputationRequired = 35;
     public const int ClaimGoldCost = 40;
+    /// <summary>Standing applied at the attacked village when declaring war.</summary>
+    public const int AttackSettlementReputationHit = -80;
     public const float VillageInteractRadius = 18f;
     /// <summary>Must exceed bandit camp min distance from settlements (~120m) so camps link to villages.</summary>
     public const float CampLinkRadius = 180f;
@@ -47,7 +49,7 @@ public sealed class SettlementService : MonoBehaviour
     readonly List<CampRecord> _camps = new List<CampRecord>();
     readonly Dictionary<int, SettlementRecord> _byId = new Dictionary<int, SettlementRecord>();
     readonly Dictionary<int, CampRecord> _campById = new Dictionary<int, CampRecord>();
-    readonly List<Entity> _healFollowersScratch = new List<Entity>(PartyManager.MaxPartySize);
+    readonly List<Entity> _healFollowersScratch = new List<Entity>(16);
     readonly List<string> _nameScratch = new List<string>(32);
 
     public IReadOnlyList<SettlementRecord> Settlements => _settlements;
@@ -401,7 +403,7 @@ public sealed class SettlementService : MonoBehaviour
     /// </summary>
     public bool TryAutoHealFollowers(SettlementRecord settlement)
     {
-        if (settlement == null)
+        if (settlement == null || IsOwnerHostileToPlayer(settlement))
             return false;
 
         int fullCost = GetDiscountedHealFullCost(settlement);
@@ -416,6 +418,8 @@ public sealed class SettlementService : MonoBehaviour
     public bool TryHealParty(SettlementRecord settlement)
     {
         if (settlement == null)
+            return false;
+        if (RefuseIfHostile(settlement))
             return false;
 
         var character = PlayerReference.TryGetCharacter();
@@ -590,6 +594,99 @@ public sealed class SettlementService : MonoBehaviour
         }
     }
 
+    public bool IsOwnerHostileToPlayer(SettlementRecord settlement) =>
+        settlement != null && settlement.IsAtWarWithPlayer;
+
+    /// <summary>Toasts and returns true when peaceful village actions should be refused.</summary>
+    public bool RefuseIfHostile(SettlementRecord settlement)
+    {
+        if (!IsOwnerHostileToPlayer(settlement))
+            return false;
+        GameplayEvents.RaiseToast("This village is at war with you.");
+        return true;
+    }
+
+    public bool CanAttack(SettlementRecord settlement, out string failReason)
+    {
+        failReason = null;
+        if (settlement == null)
+        {
+            failReason = "No village nearby.";
+            return false;
+        }
+
+        if (settlement.OwnedByPlayer)
+        {
+            failReason = "You cannot attack your own village.";
+            return false;
+        }
+
+        if (FactionManager.Instance == null)
+        {
+            failReason = "Factions not ready.";
+            return false;
+        }
+
+        if (settlement.IsAtWarWithPlayer)
+        {
+            failReason = "Already at war with this faction.";
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Declares war on the settlement's owning faction. Garrison soldiers and other NPCs of that
+    /// faction treat the player as Enemy and begin seeking combat.
+    /// </summary>
+    public bool TryAttack(SettlementRecord settlement)
+    {
+        if (!CanAttack(settlement, out string fail))
+        {
+            GameplayEvents.RaiseToast(fail);
+            return false;
+        }
+
+        var fm = FactionManager.Instance;
+        int enemyFaction = settlement.OwnerFactionId;
+        fm.SetRelationship(WellKnownFactionIds.Player, enemyFaction, Relationship.Enemy);
+
+        ApplyAttackStandingHit(settlement);
+
+        string foeName = "this faction";
+        if (fm.TryGetFactionName(enemyFaction, out string factionName))
+            foeName = factionName;
+
+        GameplayEvents.RaiseToast($"War with {foeName}! Their soldiers will attack you.");
+        Changed?.Invoke();
+        return true;
+    }
+
+    void ApplyAttackStandingHit(SettlementRecord attacked)
+    {
+        int prev = attacked.Reputation;
+        attacked.Reputation = Mathf.Clamp(
+            attacked.Reputation + AttackSettlementReputationHit, MinReputation, MaxReputation);
+        if (attacked.Reputation != prev)
+            GameplayEvents.RaiseReputationChanged(attacked.Id, attacked.Reputation);
+
+        // Other villages of the same faction turn cold without extra toasts.
+        for (int i = 0; i < _settlements.Count; i++)
+        {
+            SettlementRecord s = _settlements[i];
+            if (s == null || s.Id == attacked.Id || s.OwnedByPlayer)
+                continue;
+            if (s.OwnerFactionId != attacked.OwnerFactionId)
+                continue;
+
+            int before = s.Reputation;
+            s.Reputation = Mathf.Min(s.Reputation, -40);
+            if (s.Reputation != before)
+                GameplayEvents.RaiseReputationChanged(s.Id, s.Reputation);
+        }
+    }
+
     public bool CanClaim(SettlementRecord settlement, out string failReason)
     {
         failReason = null;
@@ -602,6 +699,12 @@ public sealed class SettlementService : MonoBehaviour
         if (settlement.OwnedByPlayer)
         {
             failReason = "You already own this village.";
+            return false;
+        }
+
+        if (settlement.IsAtWarWithPlayer)
+        {
+            failReason = "Cannot claim a village at war with you.";
             return false;
         }
 
@@ -648,6 +751,8 @@ public sealed class SettlementService : MonoBehaviour
     {
         if (settlement == null || amount <= 0)
             return false;
+        if (RefuseIfHostile(settlement))
+            return false;
         int cost = BuyWoodPrice * amount;
         if (settlement.WoodStock < amount)
         {
@@ -674,6 +779,8 @@ public sealed class SettlementService : MonoBehaviour
     {
         if (settlement == null || amount <= 0)
             return false;
+        if (RefuseIfHostile(settlement))
+            return false;
         var inv = PlayerInventory.Instance;
         var wallet = PlayerWallet.Instance;
         if (inv == null || wallet == null || !inv.TrySpendWood(amount))
@@ -695,6 +802,8 @@ public sealed class SettlementService : MonoBehaviour
     public bool TryBuyFood(SettlementRecord settlement, int amount = 1)
     {
         if (settlement == null || amount <= 0)
+            return false;
+        if (RefuseIfHostile(settlement))
             return false;
         int cost = BuyFoodPrice * amount;
         if (settlement.FoodStock < amount)
@@ -721,6 +830,8 @@ public sealed class SettlementService : MonoBehaviour
     public bool TrySellFood(SettlementRecord settlement, int amount = 1)
     {
         if (settlement == null || amount <= 0)
+            return false;
+        if (RefuseIfHostile(settlement))
             return false;
         var inv = PlayerInventory.Instance;
         var wallet = PlayerWallet.Instance;

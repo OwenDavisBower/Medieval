@@ -81,7 +81,7 @@ MonoBehaviour:
   pathRingOutsideFootprint: 0
   pathSegmentStepMeters: 3
   pathWobbleAmplitude: 1.1
-  minGarrisonSoldiers: 4
-  maxGarrisonSoldiers: 6
+  minGarrisonSoldiers: 6
+  maxGarrisonSoldiers: 9
   garrisonPerimeterInnerRadius: 24
   garrisonPerimeterOuterRadius: 28

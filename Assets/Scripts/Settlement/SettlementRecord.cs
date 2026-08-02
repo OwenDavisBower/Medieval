@@ -31,6 +31,19 @@ public sealed class SettlementRecord
     public bool IsOwnedByNeutralKingdom =>
         !OwnedByPlayer && WellKnownFactionIds.IsNeutralKingdom(OwnerFactionId);
 
+    /// <summary>True when the player faction is Enemy with this settlement's owner.</summary>
+    public bool IsAtWarWithPlayer
+    {
+        get
+        {
+            if (OwnedByPlayer)
+                return false;
+            var fm = FactionManager.Instance;
+            return fm != null &&
+                   fm.GetRelationship(WellKnownFactionIds.Player, OwnerFactionId) == Relationship.Enemy;
+        }
+    }
+
     public string DisplayName
     {
         get
@@ -52,6 +65,14 @@ public sealed class SettlementRecord
         {
             if (OwnedByPlayer)
                 return "Owned";
+            if (IsAtWarWithPlayer)
+            {
+                if (FactionManager.Instance != null &&
+                    FactionManager.Instance.TryGetFactionName(OwnerFactionId, out string warFaction))
+                    return $"At war ({warFaction})";
+                return "At war";
+            }
+
             if (IsOwnedByNeutralKingdom &&
                 FactionManager.Instance != null &&
                 FactionManager.Instance.TryGetFactionName(OwnerFactionId, out string factionName))
