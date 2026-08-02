@@ -86,6 +86,10 @@ namespace Medieval.NpcMovement
             static bool ShouldPreferWade(
                 float3 selfPos, in NpcPathState pathState, DynamicBuffer<NpcPathCorner> corners)
             {
+                // Already fording — keep Water preference even if string-pull corners sit on the bank.
+                if (selfPos.y <= NpcMath.NavMeshWaterTopY)
+                    return true;
+
                 if (pathState.PathValid == 0 || corners.Length == 0)
                     return false;
 

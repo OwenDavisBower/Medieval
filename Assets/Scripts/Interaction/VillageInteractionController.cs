@@ -76,6 +76,8 @@ public sealed class VillageInteractionController : MonoBehaviour
             return;
         _nearby = next;
         NearbyChanged?.Invoke();
+        if (next != null)
+            SettlementService.Instance?.TryAutoHealFollowers(next);
     }
 
     void HandleInput()

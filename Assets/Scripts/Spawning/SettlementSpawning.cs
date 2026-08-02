@@ -81,6 +81,11 @@ public class SettlementSpawning
         var builder = go.AddComponent<SettlementBuilder>();
         builder.SetSettlementId(planIndex);
         builder.ConfigurePathOverlay(config.PathRingOutsideFootprint, config.PathSegmentStepMeters, config.PathWobbleAmplitude);
+        builder.ConfigureGarrison(
+            config.MinGarrisonSoldiers,
+            config.MaxGarrisonSoldiers,
+            config.GarrisonPerimeterInnerRadius,
+            config.GarrisonPerimeterOuterRadius);
 
         var prev = Random.state;
         try

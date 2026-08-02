@@ -49,9 +49,15 @@ public class SettlementBuilder : MonoBehaviour
     [Tooltip("Max lateral wobble for organic corridors (world meters).")]
     [SerializeField] float pathWobbleAmplitude = 1.1f;
 
+    [Header("Garrison")]
+    [SerializeField, Min(0)] int minGarrisonSoldiers = 4;
+    [SerializeField, Min(0)] int maxGarrisonSoldiers = 6;
+    [SerializeField] float garrisonPerimeterInnerRadius = 24f;
+    [SerializeField] float garrisonPerimeterOuterRadius = 28f;
+
     ProceduralPlacementMask _placementMask;
     bool _built;
-    bool _villagersSpawnedForThisInstance;
+    bool _npcsSpawnedForThisInstance;
     int _settlementId = int.MinValue;
     SettlementBuildingSpawnEntry[] _runtimeBuildingEntries;
     SettlementLayerAnnulus[] _runtimeStructureLayers;
@@ -146,9 +152,9 @@ public class SettlementBuilder : MonoBehaviour
 
     void Update()
     {
-        if (!_built || _villagersSpawnedForThisInstance || HasSpawnedVillagersAlready())
+        if (!_built || _npcsSpawnedForThisInstance || HasSpawnedNpcsAlready())
             return;
-        if (_villagerSpawnAnchors.Count == 0)
+        if (_villagerSpawnAnchors.Count == 0 && MaxGarrisonCount() <= 0)
             return;
 
         Transform player = GetPlayerTransform();
@@ -163,7 +169,7 @@ public class SettlementBuilder : MonoBehaviour
         if (!NpcSpawnApi.IsPrefabRegistryReady())
             return;
 
-        SpawnDeferredVillagersNow();
+        SpawnDeferredNpcsNow();
     }
 
     /// <summary>Used when prefabs are assigned at runtime (e.g. from <see cref="SettlementSpawning"/>).</summary>
@@ -203,6 +209,20 @@ public class SettlementBuilder : MonoBehaviour
         pathRingOutsideFootprint = Mathf.Max(0f, ringOutsideFootprintMeters);
         pathSegmentStepMeters = Mathf.Max(0.05f, segmentStepMeters);
         pathWobbleAmplitude = Mathf.Max(0f, wobbleAmplitudeMeters);
+    }
+
+    public void ConfigureGarrison(
+        int minSoldiers,
+        int maxSoldiers,
+        float perimeterInnerRadius,
+        float perimeterOuterRadius)
+    {
+        minGarrisonSoldiers = Mathf.Max(0, minSoldiers);
+        maxGarrisonSoldiers = Mathf.Max(minGarrisonSoldiers, maxSoldiers);
+        float inner = perimeterInnerRadius > 0f ? perimeterInnerRadius : 24f;
+        float outer = perimeterOuterRadius > 0f ? perimeterOuterRadius : 28f;
+        garrisonPerimeterInnerRadius = Mathf.Min(inner, outer);
+        garrisonPerimeterOuterRadius = Mathf.Max(inner, outer);
     }
 
     void TryBuildSettlement()
@@ -287,8 +307,8 @@ public class SettlementBuilder : MonoBehaviour
         SettlementPathSplatOverlay.ApplyToTerrain(gen, transform, structureRoots, pathRingOutsideFootprint, pathSegmentStepMeters, pathWobbleAmplitude);
 
         _built = true;
-        if (HasSpawnedVillagersAlready())
-            _villagersSpawnedForThisInstance = true;
+        if (HasSpawnedNpcsAlready())
+            _npcsSpawnedForThisInstance = true;
 
         if (_settlementId != int.MinValue && SettlementService.Instance != null)
             SettlementService.Instance.NotifySettlementInstance(_settlementId, transform.position, true);
@@ -423,19 +443,23 @@ public class SettlementBuilder : MonoBehaviour
         return instance;
     }
 
-    void SpawnVillagersNearBuilding(Transform anchor, Vector3 worldPos)
+    int ResolveOwnerFactionId()
     {
-        int ownerFaction = WellKnownFactionIds.Villager;
         if (_settlementId != int.MinValue &&
             SettlementService.Instance != null &&
             SettlementService.Instance.TryGetSettlement(_settlementId, out SettlementRecord settlement) &&
             settlement != null)
         {
-            ownerFaction = settlement.OwnedByPlayer
+            return settlement.OwnedByPlayer
                 ? WellKnownFactionIds.Villager
                 : settlement.OwnerFactionId;
         }
 
+        return WellKnownFactionIds.Villager;
+    }
+
+    void SpawnVillagersNearBuilding(Transform anchor, Vector3 worldPos, int ownerFaction)
+    {
         int count = Random.Range(2, 4);
         for (int v = 0; v < count; v++)
         {
@@ -462,15 +486,70 @@ public class SettlementBuilder : MonoBehaviour
         }
     }
 
-    void SpawnDeferredVillagersNow()
+    void SpawnPerimeterGarrison(int ownerFaction)
     {
-        _villagersSpawnedForThisInstance = true;
-        SpawnedSettlementIds.Add(GetSettlementSpawnKey());
-        for (int i = 0; i < _villagerSpawnAnchors.Count; i++)
-            SpawnVillagersNearBuilding(_villagerSpawnAnchors[i], _villagerSpawnPositions[i]);
+        int rollMax = MaxGarrisonCount();
+        if (rollMax <= 0)
+            return;
+
+        int count = Random.Range(minGarrisonSoldiers, rollMax + 1);
+        if (count <= 0)
+            return;
+
+        float minR = Mathf.Min(garrisonPerimeterInnerRadius, garrisonPerimeterOuterRadius);
+        float maxR = Mathf.Max(garrisonPerimeterInnerRadius, garrisonPerimeterOuterRadius);
+        if (maxR <= 0f)
+        {
+            maxR = SettlementService.SettlementPerimeterRadius - 2f;
+            minR = maxR - 4f;
+        }
+
+        Vector3 center = transform.position;
+        float3 centerF3 = new float3(center.x, center.y, center.z);
+        float angleOffset = Random.Range(0f, Mathf.PI * 2f);
+        var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
+        if (world == null || !world.IsCreated)
+            return;
+
+        var em = world.EntityManager;
+        for (int i = 0; i < count; i++)
+        {
+            float angle = angleOffset + (Mathf.PI * 2f * i) / count;
+            float radius = Random.Range(minR, maxR);
+            Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * radius;
+            Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(center + offset);
+            if (pos.y < minSurfaceY)
+                continue;
+
+            var wc = NpcSpawnApi.WeaponClassForHalfMeleeHalfRangedSplit(i, count);
+            quaternion face = quaternion.LookRotationSafe(
+                new float3(offset.x, 0f, offset.z),
+                new float3(0f, 1f, 0f));
+            var e = NpcSpawnApi.SpawnFactionSoldier(pos, face, ownerFaction, 1f, wc);
+            if (e == Unity.Entities.Entity.Null)
+            {
+                Debug.LogWarning(
+                    "SettlementBuilder: NpcSpawnApi.SpawnFactionSoldier failed (is NpcPrefabRegistryAuthoring in a loaded subscene with Bandit prefab assigned?).");
+                continue;
+            }
+
+            NpcMovementApi.ConfigurePerimeterGuard(em, e, centerF3, angle, minR, maxR);
+        }
     }
 
-    bool HasSpawnedVillagersAlready() => SpawnedSettlementIds.Contains(GetSettlementSpawnKey());
+    int MaxGarrisonCount() => Mathf.Max(0, Mathf.Max(minGarrisonSoldiers, maxGarrisonSoldiers));
+
+    void SpawnDeferredNpcsNow()
+    {
+        _npcsSpawnedForThisInstance = true;
+        SpawnedSettlementIds.Add(GetSettlementSpawnKey());
+        int ownerFaction = ResolveOwnerFactionId();
+        for (int i = 0; i < _villagerSpawnAnchors.Count; i++)
+            SpawnVillagersNearBuilding(_villagerSpawnAnchors[i], _villagerSpawnPositions[i], ownerFaction);
+        SpawnPerimeterGarrison(ownerFaction);
+    }
+
+    bool HasSpawnedNpcsAlready() => SpawnedSettlementIds.Contains(GetSettlementSpawnKey());
 
     int GetSettlementSpawnKey()
     {

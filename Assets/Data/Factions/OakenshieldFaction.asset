@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FactionDefinition
   factionID: 4
   factionName: Oakenshield
-  clothingColor: {r: 0.22, g: 0.38, b: 0.16, a: 1}
+  clothingColor: {r: 0.05, g: 0.12, b: 0.03, a: 1}

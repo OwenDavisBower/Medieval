@@ -33,7 +33,7 @@ public class DayNightCycle : MonoBehaviour
     [SerializeField] float dayIntensity = 2f;
     [SerializeField] float nightIntensity = 0.5f;
     [SerializeField] float dayColorTemperature = 5000f;
-    [SerializeField] float nightColorTemperature = 2800f;
+    [SerializeField] float nightColorTemperature = 4200f;
     [Tooltip("Fixed sun altitude for shadows (never rotates with the cycle).")]
     [SerializeField] [Range(25f, 75f)] float shadowElevationDegrees = 55f;
     [Tooltip("Fixed sun azimuth for shadows. 0.5 = south (noon).")]

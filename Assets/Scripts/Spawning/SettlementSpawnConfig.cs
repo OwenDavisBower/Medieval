@@ -154,6 +154,16 @@ public class SettlementSpawnConfig : ScriptableObject
     [Tooltip("Max lateral wobble for organic corridors (world meters).")]
     [SerializeField] float pathWobbleAmplitude = 1.1f;
 
+    [Header("Garrison")]
+    [Tooltip("Minimum faction soldiers spawned on the settlement perimeter when the player approaches.")]
+    [SerializeField, Min(0)] int minGarrisonSoldiers = 4;
+    [Tooltip("Maximum faction soldiers spawned on the settlement perimeter when the player approaches.")]
+    [SerializeField, Min(0)] int maxGarrisonSoldiers = 6;
+    [Tooltip("Inner orbit radius for perimeter guards (world meters from settlement center).")]
+    [SerializeField] float garrisonPerimeterInnerRadius = 24f;
+    [Tooltip("Outer orbit radius for perimeter guards (world meters from settlement center).")]
+    [SerializeField] float garrisonPerimeterOuterRadius = 28f;
+
     public IReadOnlyList<SettlementBuildingSpawnEntry> Buildings => buildings;
     public IReadOnlyList<SettlementLayerAnnulus> StructureLayers => structureLayers;
     public int SettlementsPerLogicalChunk => settlementsPerLogicalChunk;
@@ -169,4 +179,14 @@ public class SettlementSpawnConfig : ScriptableObject
     public float PathRingOutsideFootprint => pathRingOutsideFootprint > 0f ? pathRingOutsideFootprint : 1.25f;
     public float PathSegmentStepMeters => pathSegmentStepMeters > 0f ? pathSegmentStepMeters : 1.4f;
     public float PathWobbleAmplitude => pathWobbleAmplitude >= 0f ? pathWobbleAmplitude : 1.1f;
+
+    public int MinGarrisonSoldiers => Mathf.Max(0, minGarrisonSoldiers);
+    public int MaxGarrisonSoldiers =>
+        Mathf.Max(MinGarrisonSoldiers, maxGarrisonSoldiers);
+    public float GarrisonPerimeterInnerRadius =>
+        garrisonPerimeterInnerRadius > 0f ? garrisonPerimeterInnerRadius : 24f;
+    public float GarrisonPerimeterOuterRadius =>
+        garrisonPerimeterOuterRadius > 0f
+            ? Mathf.Max(GarrisonPerimeterInnerRadius, garrisonPerimeterOuterRadius)
+            : Mathf.Max(GarrisonPerimeterInnerRadius, 28f);
 }

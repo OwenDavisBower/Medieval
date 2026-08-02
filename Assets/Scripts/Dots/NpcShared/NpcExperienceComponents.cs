@@ -10,7 +10,7 @@ namespace Medieval.Npcs
         public float XpToNextLevel;
     }
 
-    /// <summary>Gold carried by an NPC (followers earn from kills; spend to heal in town; drop on death).</summary>
+    /// <summary>Gold carried by an NPC (followers earn from kills; auto-spend to heal on settlement arrival; drop on death).</summary>
     public struct NpcWallet : IComponentData
     {
         public int Gold;

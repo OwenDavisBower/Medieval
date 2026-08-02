@@ -443,12 +443,8 @@ public sealed class GameplayHUD : MonoBehaviour
             int healCost = SettlementService.Instance != null
                 ? SettlementService.Instance.GetHealCost(nearby)
                 : 0;
-            bool followersNeed = SettlementService.Instance != null &&
-                                 SettlementService.Instance.FollowersNeedHeal();
             if (healCost > 0)
                 _healLabel.text = $"H  Heal party ({healCost}g)";
-            else if (followersNeed)
-                _healLabel.text = "H  Heal party";
             else
                 _healLabel.text = "H  Heal party (full)";
         }

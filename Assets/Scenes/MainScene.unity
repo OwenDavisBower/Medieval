@@ -308,7 +308,7 @@ MonoBehaviour:
   dayIntensity: 2
   nightIntensity: 0.5
   dayColorTemperature: 5000
-  nightColorTemperature: 2800
+  nightColorTemperature: 4200
   shadowElevationDegrees: 55
   shadowCycle01: 0.5
   nightThreshold: 0.35

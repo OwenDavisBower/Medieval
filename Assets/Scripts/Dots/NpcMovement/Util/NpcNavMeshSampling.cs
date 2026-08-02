@@ -81,7 +81,8 @@ namespace Medieval.NpcMovement
         /// <param name="preferWade">
         /// When true (path corner is in/below water), try Water before a wide land search so the clamp
         /// does not pull agents back onto the bank while fording. When false, wide Walkable is preferred
-        /// so bridge traffic is not dropped onto the river.
+        /// so bridge traffic is not dropped onto the river. Agents already at/below water only map to
+        /// Water — never Walkable (shoreline bank polys share nearly the same Y as the ford plane).
         /// </param>
         public static bool TryMapNearHeight(
             NavMeshQuery query,
@@ -93,15 +94,29 @@ namespace Medieval.NpcMovement
             out NavMeshLocation location)
         {
             int mask = AreaMaskForHeight(worldPos.y);
+            bool inWater = worldPos.y <= NpcMath.NavMeshWaterTopY;
+            bool wading = preferWade || inWater;
             float halfXZ = math.max(1e-2f, navMeshSampleMaxDistance);
             float tightY = math.min(0.75f, halfXZ * 0.35f);
             float wideXZ = math.max(halfXZ * 2.5f, 6f);
 
-            // Fording: try local Water first so clamp does not keep snapping XZ back onto the bank poly.
-            // Tight extents only — wide search here would yank agents sideways into the river from the bank.
-            if (preferWade && mask != AreaMaskAll &&
+            // Fording / already in water: try Water before land so bank polys cannot yank the agent out.
+            // From the bank, keep the first try local — a wide Water search would sideways-yank into the river.
+            // Once underwater, also allow a wider Water search before any land climb.
+            if (wading &&
                 TryMapWaterWadeLocal(query, worldPos, halfXZ, tightY, maxVerticalClimb, out location))
                 return true;
+            if (inWater &&
+                TryMapWaterWade(query, worldPos, halfXZ, wideXZ, tightY, maxVerticalClimb, out location))
+                return true;
+
+            // Already fording: never fall through to Walkable. Shoreline bank polys sit at nearly the same
+            // Y as the ford plane, so even a tiny climb allowance + wide XZ yanks agents out of the river.
+            if (inWater)
+            {
+                location = default;
+                return false;
+            }
 
             // Local elevated / dry surface (bridge deck, bank underfoot).
             if (TryMapAccept(query, worldPos, SampleExtentsXZ(halfXZ, tightY), mask, maxVerticalDrop,
@@ -121,7 +136,7 @@ namespace Medieval.NpcMovement
                     out location))
                 return true;
 
-            // No elevated hit: Water-only fallback (wading / fording without a bridge).
+            // No elevated hit: Water-only fallback when approaching a ford from dry land.
             if (mask != AreaMaskAll &&
                 TryMapWaterWade(query, worldPos, halfXZ, wideXZ, tightY, maxVerticalClimb, out location))
                 return true;

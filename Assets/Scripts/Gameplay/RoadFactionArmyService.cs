@@ -14,7 +14,7 @@ public sealed class RoadFactionArmyService : MonoBehaviour
 
     const int MinSoldiers = 2;
     const int MaxSoldiers = 4;
-    const float SpawnDistanceAhead = 18f;
+    const float SpawnDistanceAhead = 55f;
     const float SpawnLateralJitter = 3.5f;
     const float SoldierSpacing = 2.8f;
     const float OpenCooldownSeconds = 70f;
@@ -115,13 +115,10 @@ public sealed class RoadFactionArmyService : MonoBehaviour
             return;
 
         int factionId = PickPatrolFaction(playerPos);
-        if (!SpawnPatrol(playerPos, _travelForward, factionId, out string factionName))
+        if (!SpawnPatrol(playerPos, _travelForward, factionId))
             return;
 
         _lastPatrolTime = Time.time;
-        GameplayEvents.RaiseToast(string.IsNullOrEmpty(factionName)
-            ? "A patrol approaches."
-            : $"{factionName} patrol ahead.");
     }
 
     static int PickPatrolFaction(Vector3 playerPos)
@@ -164,12 +161,8 @@ public sealed class RoadFactionArmyService : MonoBehaviour
         return true;
     }
 
-    bool SpawnPatrol(Vector3 playerPos, Vector3 forward, int factionId, out string factionName)
+    bool SpawnPatrol(Vector3 playerPos, Vector3 forward, int factionId)
     {
-        factionName = null;
-        if (FactionManager.Instance != null)
-            FactionManager.Instance.TryGetFactionName(factionId, out factionName);
-
         forward.y = 0f;
         if (forward.sqrMagnitude < 0.0001f)
             forward = Vector3.forward;
@@ -193,7 +186,7 @@ public sealed class RoadFactionArmyService : MonoBehaviour
                 : Mathf.Lerp(-1f, 1f, i / (float)(count - 1));
             float lateral = side * SoldierSpacing * Mathf.Max(1f, (count - 1) * 0.5f);
             lateral += UnityEngine.Random.Range(-SpawnLateralJitter, SpawnLateralJitter);
-            float ahead = SpawnDistanceAhead + UnityEngine.Random.Range(-1.2f, 1.2f);
+            float ahead = SpawnDistanceAhead + UnityEngine.Random.Range(-3f, 3f);
             Vector3 offset = forward * ahead + right * lateral;
             Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(playerPos + offset);
 

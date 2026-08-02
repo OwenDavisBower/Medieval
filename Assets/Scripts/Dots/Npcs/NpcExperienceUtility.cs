@@ -13,7 +13,7 @@ namespace Medieval.Npcs
         public const int MaxLevel = 99;
 
         public const float HealthGainPerLevel = 12f;
-        public const float HealthRestoreFractionOnLevelUp = 0.5f;
+        public const float HealthRestoreFractionOnLevelUp = 0.2f;
         public const float MeleeDamageMultPerLevel = 1.06f;
         public const float MoveSpeedMultPerLevel = 1.035f;
         public const float AimErrorMultPerLevel = 0.94f;

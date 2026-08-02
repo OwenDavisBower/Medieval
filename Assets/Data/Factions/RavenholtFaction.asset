@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FactionDefinition
   factionID: 3
   factionName: Ravenholt
-  clothingColor: {r: 0.18, g: 0.22, b: 0.45, a: 1}
+  clothingColor: {r: 0.04, g: 0.05, b: 0.16, a: 1}

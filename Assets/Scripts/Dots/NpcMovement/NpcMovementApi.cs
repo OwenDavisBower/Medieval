@@ -71,6 +71,70 @@ namespace Medieval.NpcMovement
             }
         }
 
+        /// <summary>
+        /// Hold a slot on a static annulus around <paramref name="center"/> (settlement perimeter guard).
+        /// Uses <see cref="NpcMovementMode.Orbit"/> with no trail-behind; removes pending loiter init so
+        /// <paramref name="slotAngleRadians"/> / radius stick.
+        /// </summary>
+        public static void ConfigurePerimeterGuard(
+            EntityManager em,
+            Entity npc,
+            float3 center,
+            float slotAngleRadians,
+            float minLoiterRadius,
+            float maxLoiterRadius,
+            float angleWobbleDegrees = 16f,
+            float radiusWobble = 1.25f)
+        {
+            if (!em.Exists(npc) || !em.HasComponent<NpcMovementState>(npc))
+                return;
+
+            float minR = math.max(0f, minLoiterRadius);
+            float maxR = math.max(minR, maxLoiterRadius);
+
+            if (em.HasComponent<NpcMovementConfig>(npc))
+            {
+                var cfg = em.GetComponentData<NpcMovementConfig>(npc);
+                cfg.MinLoiterRadius = minR;
+                cfg.MaxLoiterRadius = maxR;
+                cfg.TrailBehindStrength = 0f;
+                cfg.MaxTrailOffset = 0f;
+                cfg.AngleWobbleDegrees = math.max(0f, angleWobbleDegrees);
+                cfg.RadiusWobble = math.max(0f, radiusWobble);
+                em.SetComponentData(npc, cfg);
+            }
+
+            uint seed = math.max(1u, math.hash(new float2(center.x + slotAngleRadians, center.z)) ^ (uint)npc.Index);
+            var rng = new Unity.Mathematics.Random(seed);
+            float radius = rng.NextFloat(minR, maxR);
+
+            var state = em.GetComponentData<NpcMovementState>(npc);
+            state.Mode = NpcMovementMode.Orbit;
+            state.RangedMovementLock = 0;
+            state.MeleeEngageMovementLock = 0;
+            state.BaseAngle = slotAngleRadians;
+            state.BaseRadius = radius;
+            state.NoiseA = rng.NextFloat(0f, 100f);
+            state.NoiseB = rng.NextFloat(0f, 100f);
+            state.Rng = rng;
+            em.SetComponentData(npc, state);
+
+            if (em.HasComponent<NpcLoiterInitTag>(npc))
+                em.RemoveComponent<NpcLoiterInitTag>(npc);
+
+            if (em.HasComponent<NpcSeekOverride>(npc))
+            {
+                em.SetComponentData(npc, new NpcSeekOverride
+                {
+                    Position = default,
+                    SeekHoldDistance = 0f,
+                    HasOverride = 0
+                });
+            }
+
+            SetAnchorPosition(em, npc, center);
+        }
+
         public static void SetAnchorPosition(EntityManager em, Entity npc, float3 position, float3 linearVelocity = default)
         {
             if (!em.Exists(npc) || !em.HasComponent<NpcAnchorTarget>(npc))
