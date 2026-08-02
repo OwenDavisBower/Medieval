@@ -202,5 +202,17 @@ namespace Medieval.NpcMovement
         public float LastPathTime;
         public float3 LastPathGoal;
         public byte PathValid;
+
+        /// <summary>XZ position when progress was last recorded (stuck detection).</summary>
+        public float3 LastProgressPosition;
+        /// <summary>Seconds without meaningful XZ progress toward the goal.</summary>
+        public float StuckTimer;
+        /// <summary>How many stuck-triggered repaths have fired without clearing the jam.</summary>
+        public byte ConsecutiveStuckRepaths;
+        /// <summary>When non-zero, pathfinding routes to <see cref="RecoveryWaypoint"/> once.</summary>
+        public byte HasRecoveryWaypoint;
+        public float3 RecoveryWaypoint;
+        /// <summary>0 until stuck recovery has seeded <see cref="LastProgressPosition"/>.</summary>
+        public byte ProgressInitialized;
     }
 }

@@ -28,33 +28,48 @@ namespace Medieval.NpcMovement
         const float TeleportMinRadialDistance = 3f;
         const int TeleportRadialSteps = 10;
 
+        EntityQuery _followersQuery;
+
+        protected override void OnCreate()
+        {
+            _followersQuery = GetEntityQuery(
+                ComponentType.ReadWrite<LocalTransform>(),
+                ComponentType.ReadOnly<NpcCombatSeekConfig>(),
+                ComponentType.ReadOnly<NpcMovementConfig>(),
+                ComponentType.ReadWrite<NpcMovementState>(),
+                ComponentType.ReadWrite<NpcPathState>(),
+                ComponentType.ReadWrite<NpcPathCorner>(),
+                ComponentType.ReadOnly<NpcMovementTag>(),
+                ComponentType.ReadOnly<NpcSeekOverride>(),
+                ComponentType.ReadOnly<NpcOverrideFacing>(),
+                ComponentType.ReadOnly<NpcCombatTarget>());
+        }
+
         protected override void OnUpdate()
         {
             if (!SystemAPI.TryGetSingleton(out NpcPlayerAnchor player) || player.HasPlayer == 0)
                 return;
 
+            if (_followersQuery.IsEmptyIgnoreFilter)
+                return;
+
             float3 leader = player.Position;
             var navQuery = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob, 64);
 
-            // SystemAPI.Query arity max is 7; seek/facing/combat target are WithAll + EntityManager.
-            foreach (var (tfRW, cfgRO, mcfgRO, stateRW, pathRW, corners, entity) in SystemAPI
-                         .Query<RefRW<LocalTransform>, RefRO<NpcCombatSeekConfig>, RefRO<NpcMovementConfig>,
-                             RefRW<NpcMovementState>, RefRW<NpcPathState>, DynamicBuffer<NpcPathCorner>>()
-                         .WithAll<NpcMovementTag>()
-                         .WithAll<NpcSeekOverride>()
-                         .WithAll<NpcOverrideFacing>()
-                         .WithAll<NpcCombatTarget>()
-                         .WithEntityAccess())
+            using var entities = _followersQuery.ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < entities.Length; i++)
             {
-                var cfg = cfgRO.ValueRO;
+                Entity entity = entities[i];
+                var cfg = EntityManager.GetComponentData<NpcCombatSeekConfig>(entity);
                 if (cfg.FollowerTeleportBackDistance <= 0f || cfg.FollowerTeleportBackTargetDistance < 0f)
                     continue;
 
-                ref NpcMovementState move = ref stateRW.ValueRW;
+                var move = EntityManager.GetComponentData<NpcMovementState>(entity);
                 if (move.Group != NpcSeparationGroup.Followers)
                     continue;
 
-                float3 self = tfRW.ValueRO.Position;
+                var tf = EntityManager.GetComponentData<LocalTransform>(entity);
+                float3 self = tf.Position;
                 float dx = self.x - leader.x;
                 float dz = self.z - leader.z;
                 float flatSq = dx * dx + dz * dz;
@@ -69,11 +84,12 @@ namespace Medieval.NpcMovement
                 else
                     away = math.normalize(away);
 
-                var mcfg = mcfgRO.ValueRO;
+                var mcfg = EntityManager.GetComponentData<NpcMovementConfig>(entity);
                 float3 placed = ResolveTeleportPosition(
                     navQuery, leader, away, self.y, cfg.FollowerTeleportBackTargetDistance, mcfg);
 
-                tfRW.ValueRW.Position = placed;
+                tf.Position = placed;
+                EntityManager.SetComponentData(entity, tf);
 
                 move.CurrentHorizontalVelocity = float3.zero;
                 move.SeparationAccum = float3.zero;
@@ -86,15 +102,23 @@ namespace Medieval.NpcMovement
                 move.RangedCombatSeparationBoost = 0;
                 move.CombatLeashBlocked = 0;
                 move.HasSmoothTarget = 0;
+                EntityManager.SetComponentData(entity, move);
 
                 EntityManager.SetComponentData(entity, default(NpcSeekOverride));
                 EntityManager.SetComponentData(entity, default(NpcOverrideFacing));
                 EntityManager.SetComponentData(entity, default(NpcCombatTarget));
 
+                var corners = EntityManager.GetBuffer<NpcPathCorner>(entity);
                 corners.Clear();
-                ref NpcPathState path = ref pathRW.ValueRW;
+                var path = EntityManager.GetComponentData<NpcPathState>(entity);
                 path.PathValid = 0;
                 path.CurrentCorner = 0;
+                path.StuckTimer = 0f;
+                path.ConsecutiveStuckRepaths = 0;
+                path.HasRecoveryWaypoint = 0;
+                path.ProgressInitialized = 0;
+                path.LastProgressPosition = placed;
+                EntityManager.SetComponentData(entity, path);
             }
 
             navQuery.Dispose();
@@ -125,7 +149,6 @@ namespace Medieval.NpcMovement
                 }
             }
 
-            // Last resort: beside the leader, then raw ground if still off-mesh.
             float3 nearLeader = leader + away * minDist;
             float3 nearGrounded = GroundAt(nearLeader, fallbackY, mcfg);
             if (NpcNavMeshSampling.TryMapStartLocation(navQuery, nearGrounded, sampleDist, out var nearLoc))

@@ -13,10 +13,8 @@ using UnityEngine.Experimental.AI;
 namespace Medieval.NpcMovement
 {
     /// <summary>
-    /// Per-frame pathfinding using <see cref="NavMeshQuery"/>. Each qualifying NPC re-runs a simplified
-    /// pathfind toward its current goal (seek override or anchor) every <c>RepathInterval</c> seconds, or
-    /// earlier if the goal has moved by more than <c>RepathGoalShiftSqr</c>. Paths are stored as a single
-    /// next corner in <see cref="NpcPathCorner"/>; the steering system advances to that corner.
+    /// Per-NPC NavMesh polygon pathfinding via <see cref="NavMeshQuery"/>. Repaths on interval, goal shift,
+    /// invalid path, or stuck recovery. Writes a multi-corner <see cref="NpcPathCorner"/> buffer for steering.
     /// Uses sequential <see cref="IJobEntity"/> so a single <see cref="NavMeshQuery"/> is safe across entities.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
@@ -32,7 +30,8 @@ namespace Medieval.NpcMovement
         {
             float elapsed = (float)SystemAPI.Time.ElapsedTime;
 
-            var navQuery = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob, 128);
+            var navQuery = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob,
+                NpcNavMeshPath.DefaultNodePoolSize);
             var areaCosts = new NativeArray<float>(0, Allocator.TempJob);
 
             var workHandle = new PathfindingJob
@@ -68,130 +67,139 @@ namespace Medieval.NpcMovement
             {
                 if (cfg.UseNavMeshWhenAvailable == 0)
                 {
-                    corners.Clear();
-                    pathStateRW.PathValid = 0;
+                    ClearPath(ref pathStateRW, corners);
                     return;
                 }
 
                 if (!TryResolveGoal(stateRW, cfg, seek, anchor, transformRO.Position, ElapsedTime, out float3 goal))
                 {
-                    corners.Clear();
-                    pathStateRW.PathValid = 0;
+                    ClearPath(ref pathStateRW, corners);
                     return;
                 }
+
+                bool useRecovery = pathStateRW.HasRecoveryWaypoint != 0;
+                if (useRecovery)
+                    goal = pathStateRW.RecoveryWaypoint;
 
                 float goalShiftSq = math.lengthsq(goal - pathStateRW.LastPathGoal);
                 bool timeElapsed = (ElapsedTime - pathStateRW.LastPathTime) >= cfg.RepathInterval;
                 bool goalShifted = goalShiftSq > cfg.RepathGoalShiftSqr;
                 bool noPath = pathStateRW.PathValid == 0;
-                if (!(timeElapsed || goalShifted || noPath))
+                if (!(timeElapsed || goalShifted || noPath || useRecovery))
                     return;
 
                 float3 origin = transformRO.Position;
                 if (!math.all(math.isfinite(origin)) || !math.all(math.isfinite(goal)))
                 {
-                    corners.Clear();
-                    pathStateRW.PathValid = 0;
+                    ClearPath(ref pathStateRW, corners);
                     return;
                 }
 
                 if (!NpcNavMeshSampling.TryMapStartLocation(NavQuery, origin, cfg.NavMeshSampleMaxDistance,
                         out var startLoc))
                 {
-                    corners.Clear();
-                    pathStateRW.PathValid = 0;
+                    ClearPath(ref pathStateRW, corners);
                     return;
                 }
 
-                float3 endPoint = NpcNavMeshSampling.SnapGoalToNavMeshOrRaw(NavQuery, goal, cfg.NavMeshSampleMaxDistance);
-
-                const int allAreas = -1;
-                var raycastStatus = NavQuery.Raycast(out NavMeshHit hit, startLoc,
-                    NpcNavMeshSampling.ToVector3(endPoint), allAreas, AreaCosts);
-
-                corners.Clear();
-                if ((raycastStatus & PathQueryStatus.Success) != 0)
+                if (!NpcNavMeshSampling.TrySnapGoalToWalkable(NavQuery, goal, cfg.NavMeshSampleMaxDistance,
+                        out float3 endPoint, out var endLoc))
                 {
-                    float3 corner;
-                    float fullDist = math.distance(origin, endPoint);
-                    if (hit.distance < 0f || hit.distance >= fullDist - 1e-4f)
-                    {
-                        corner = endPoint;
-                    }
-                    else
-                    {
-                        float3 diff = endPoint - origin;
-                        float len = math.length(diff);
-                        if (len < 1e-4f)
-                        {
-                            corner = endPoint;
-                        }
-                        else
-                        {
-                            float3 unit = diff / len;
-                            float backoff = math.min(0.25f, cfg.MinCornerAdvanceDistance);
-                            float hitDist = math.max(0f, hit.distance - backoff);
-                            corner = origin + unit * hitDist;
-                        }
-                    }
-                    corners.Add(new NpcPathCorner { Value = corner });
-                    pathStateRW.PathValid = 1;
+                    ClearPath(ref pathStateRW, corners);
+                    return;
                 }
-                else
+
+                // Same poly / already there: trivial path.
+                float3 toEnd = endPoint - origin;
+                toEnd.y = 0f;
+                if (math.lengthsq(toEnd) <= cfg.ArriveThreshold * cfg.ArriveThreshold)
                 {
-                    // Raycast blocked / failed: still provide a direct corner so steering does not freeze.
+                    corners.Clear();
                     corners.Add(new NpcPathCorner { Value = endPoint });
                     pathStateRW.PathValid = 1;
+                    pathStateRW.CurrentCorner = 0;
+                    pathStateRW.LastPathTime = ElapsedTime;
+                    pathStateRW.LastPathGoal = goal;
+                    if (useRecovery)
+                        pathStateRW.HasRecoveryWaypoint = 0;
+                    return;
                 }
 
+                var tempCorners = new NativeList<float3>(NpcNavMeshPath.MaxCorners, Allocator.Temp);
+                bool ok = NpcNavMeshPath.TryFindCorners(
+                    NavQuery, startLoc, endLoc, origin, endPoint, AreaCosts, tempCorners, NpcNavMeshPath.MaxCorners);
+
+                if (!ok)
+                {
+                    tempCorners.Dispose();
+                    ClearPath(ref pathStateRW, corners);
+                    return;
+                }
+
+                corners.Clear();
+                for (int i = 0; i < tempCorners.Length; i++)
+                    corners.Add(new NpcPathCorner { Value = tempCorners[i] });
+                tempCorners.Dispose();
+
+                pathStateRW.PathValid = 1;
                 pathStateRW.CurrentCorner = 0;
                 pathStateRW.LastPathTime = ElapsedTime;
                 pathStateRW.LastPathGoal = goal;
+                if (useRecovery)
+                    pathStateRW.HasRecoveryWaypoint = 0;
             }
-        }
 
-        static bool TryResolveGoal(in NpcMovementState state, in NpcMovementConfig cfg, in NpcSeekOverride seek,
-            in NpcAnchorTarget anchor, in float3 selfPos, float elapsedTime, out float3 goal)
-        {
-            if (seek.HasOverride != 0)
+            static void ClearPath(ref NpcPathState pathState, DynamicBuffer<NpcPathCorner> corners)
             {
-                if (seek.SeekHoldDistance > 0f)
+                corners.Clear();
+                pathState.PathValid = 0;
+                pathState.CurrentCorner = 0;
+            }
+
+            static bool TryResolveGoal(in NpcMovementState state, in NpcMovementConfig cfg, in NpcSeekOverride seek,
+                in NpcAnchorTarget anchor, in float3 selfPos, float elapsedTime, out float3 goal)
+            {
+                if (seek.HasOverride != 0)
                 {
-                    float3 toEnemy = seek.Position - selfPos;
-                    toEnemy.y = 0f;
-                    float distSq = math.lengthsq(toEnemy);
-                    float hold = seek.SeekHoldDistance;
-                    if (distSq <= hold * hold)
+                    if (seek.SeekHoldDistance > 0f)
                     {
-                        goal = selfPos;
+                        float3 toEnemy = seek.Position - selfPos;
+                        toEnemy.y = 0f;
+                        float distSq = math.lengthsq(toEnemy);
+                        float hold = seek.SeekHoldDistance;
+                        if (distSq <= hold * hold)
+                        {
+                            goal = selfPos;
+                            return true;
+                        }
+
+                        float dist = math.sqrt(distSq);
+                        goal = seek.Position - (toEnemy / dist) * hold;
                         return true;
                     }
 
-                    float dist = math.sqrt(distSq);
-                    goal = seek.Position - (toEnemy / dist) * hold;
+                    goal = seek.Position;
                     return true;
                 }
 
-                goal = seek.Position;
-                return true;
-            }
-            if (anchor.HasAnchor == 0)
-            {
-                goal = selfPos;
-                return false;
-            }
+                if (anchor.HasAnchor == 0)
+                {
+                    goal = selfPos;
+                    return false;
+                }
 
-            switch (state.Mode)
-            {
-                case NpcMovementMode.Orbit:
-                    goal = NpcLoiterKernels.ComputeOrbit(in state, in cfg, in anchor, elapsedTime);
-                    return true;
-                case NpcMovementMode.WanderAroundTarget:
-                    goal = NpcLoiterKernels.ComputeWanderPosition(in state, in cfg, in anchor, elapsedTime);
-                    return true;
-                default:
-                    goal = anchor.Position;
-                    return true;
+                switch (state.Mode)
+                {
+                    case NpcMovementMode.Orbit:
+                        goal = NpcLoiterKernels.ComputeOrbit(in state, in cfg, in anchor, elapsedTime);
+                        return true;
+                    case NpcMovementMode.WanderAroundTarget:
+                        goal = NpcLoiterKernels.ComputeWanderPosition(in state, in cfg, in anchor, elapsedTime);
+                        return true;
+                    default:
+                        goal = anchor.Position;
+                        return true;
+                }
             }
         }
     }

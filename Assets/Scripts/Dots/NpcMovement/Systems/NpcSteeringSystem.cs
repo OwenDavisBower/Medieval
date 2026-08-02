@@ -58,6 +58,7 @@ namespace Medieval.NpcMovement
                 in NpcSeekOverride seek,
                 DynamicBuffer<NpcPathCorner> corners,
                 ref NpcMovementState mstate,
+                ref NpcPathState pathState,
                 Entity entity)
             {
                 float3 selfPos = tf.Position;
@@ -100,13 +101,14 @@ namespace Medieval.NpcMovement
                 }
 
                 float3 seekPoint = mstate.SmoothTarget;
-                if (cfg.UseNavMeshWhenAvailable != 0 && corners.Length > 0)
+                if (cfg.UseNavMeshWhenAvailable != 0 && pathState.PathValid != 0 && corners.Length > 0)
                 {
                     float min = cfg.MinCornerAdvanceDistance;
                     float minSq = min * min;
-                    for (int i = 0; i < corners.Length; i++)
+                    int corner = math.clamp(pathState.CurrentCorner, 0, corners.Length - 1);
+                    while (corner < corners.Length)
                     {
-                        float3 c = corners[i].Value;
+                        float3 c = corners[corner].Value;
                         float3 diff = c - selfPos;
                         diff.y = 0f;
                         if (math.lengthsq(diff) > minSq)
@@ -114,9 +116,17 @@ namespace Medieval.NpcMovement
                             seekPoint = c;
                             break;
                         }
-                        if (i == corners.Length - 1)
-                            seekPoint = c;
+
+                        corner++;
                     }
+
+                    if (corner >= corners.Length)
+                    {
+                        corner = corners.Length - 1;
+                        seekPoint = corners[corner].Value;
+                    }
+
+                    pathState.CurrentCorner = corner;
                 }
 
                 if (anchor.HasAnchor != 0 && seek.HasOverride == 0)
@@ -133,7 +143,12 @@ namespace Medieval.NpcMovement
                 {
                     float3 desiredDir = math.normalize(flat);
                     if (math.lengthsq(mstate.ObstacleDeflectDir) > 1e-4f)
+                    {
                         desiredDir = math.normalizesafe(desiredDir * 0.35f + mstate.ObstacleDeflectDir * 0.65f, desiredDir);
+                        // Separation often pushes agents into carved edges; damp it while deflecting.
+                        mstate.SeparationAccum *= 0.25f;
+                    }
+
                     float3 desired = desiredDir * mstate.EffectiveMoveSpeed;
                     desired += mstate.SeparationAccum;
                     float maxHoriz = mstate.EffectiveMoveSpeed;

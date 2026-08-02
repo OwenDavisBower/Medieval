@@ -80,7 +80,8 @@ namespace Medieval.NpcMovement
                         task.TargetTreePosition = treePos;
                         task.HasTargetTree = 1;
                         move.Mode = NpcMovementMode.MoveTowards;
-                        anchor.Position = treePos;
+                        // Walk to an approach point outside the trunk/carve hole; interact still uses tree center.
+                        anchor.Position = ComputeTreeApproach(self, treePos, cfg.ChopInteractDistance);
                         anchor.LinearVelocity = default;
                         anchor.HasAnchor = 1;
 
@@ -188,6 +189,21 @@ namespace Medieval.NpcMovement
                 }
 
                 return found;
+            }
+
+            /// <summary>
+            /// Point on the ring around the tree at ~85% of interact distance, toward the NPC.
+            /// Keeps MoveTowards goals off carved trunk centers.
+            /// </summary>
+            static float3 ComputeTreeApproach(float3 self, float3 treePos, float interactDistance)
+            {
+                float ring = math.max(0.35f, interactDistance * 0.85f);
+                float3 away = self - treePos;
+                away.y = 0f;
+                float lenSq = math.lengthsq(away);
+                if (lenSq < 1e-4f)
+                    return treePos + new float3(ring, 0f, 0f);
+                return treePos + (away * math.rsqrt(lenSq)) * ring;
             }
 
             static float DistanceSqXZ(float3 a, float3 b)

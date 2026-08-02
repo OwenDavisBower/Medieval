@@ -5,6 +5,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace Medieval.Npcs
 {
@@ -295,7 +296,7 @@ namespace Medieval.Npcs
 
                 move.MeleeEngageMovementLock = (byte)(meleeEngaged ? 1 : 0);
 
-                seek.Position = bestPos;
+                seek.Position = SnapSeekToNavMesh(bestPos);
                 seek.SeekHoldDistance = holdDist;
                 seek.HasOverride = 1;
 
@@ -332,6 +333,19 @@ namespace Medieval.Npcs
                 else
                     facing = default;
             }
+        }
+
+        /// <summary>
+        /// Snaps hostile feet onto walkable mesh so pathfinding does not aim into carved holes.
+        /// Falls back to the raw position when no nearby navmesh sample exists.
+        /// </summary>
+        static float3 SnapSeekToNavMesh(float3 raw)
+        {
+            const float sampleMax = 4f;
+            if (NavMesh.SamplePosition(new Vector3(raw.x, raw.y, raw.z), out NavMeshHit hit, sampleMax,
+                    NavMesh.AllAreas))
+                return new float3(hit.position.x, hit.position.y, hit.position.z);
+            return raw;
         }
 
         static bool HasLos(float3 selfFeet, float3 targetFeet, in NpcCombatSeekConfig cfg) =>
