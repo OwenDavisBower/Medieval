@@ -302,7 +302,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7b3c9d1e5f204863758291a3b4c5d6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DayNightCycle
-  cycleDurationSeconds: 150
+  cycleDurationSeconds: 225
   startCycle01: 0.4
   sun: {fileID: 410087040}
   dayIntensity: 2

@@ -24,7 +24,7 @@ public class DayNightCycle : MonoBehaviour
     public static event Action<bool> NightChanged;
 
     [Header("Timing")]
-    [SerializeField] float cycleDurationSeconds = 150f;
+    [SerializeField] float cycleDurationSeconds = 225f;
     [Tooltip("0 midnight, 0.25 sunrise, 0.5 noon, 0.75 sunset.")]
     [SerializeField] [Range(0f, 1f)] float startCycle01 = 0.4f;
 
