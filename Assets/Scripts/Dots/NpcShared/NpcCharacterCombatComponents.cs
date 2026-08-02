@@ -98,6 +98,8 @@ namespace Medieval.Npcs
         public float Damage;
         public float KnockbackImpulse;
         public float HitMeleeStunDuration;
+        /// <summary>Seconds after SwordSlash starts before damage/knockback apply.</summary>
+        public float HitAnimationLeadSeconds;
     }
 
     /// <summary>Runtime ranged cadence and release scheduling (Unity time).</summary>
@@ -113,9 +115,15 @@ namespace Medieval.Npcs
         public byte ShotInProgress;
     }
 
-    /// <summary>Runtime melee cooldown (Unity time).</summary>
+    /// <summary>Runtime melee cooldown and deferred hit scheduling (Unity time).</summary>
     public struct NpcMeleeAttackState : IComponentData
     {
         public float NextAttackAllowedUnityTime;
+        public float ApplyHitAtUnityTime;
+        public Entity PendingTargetNpcEntity;
+        public float PendingDamage;
+        /// <summary>1 when pending target is the GameObject player (<see cref="PendingTargetNpcEntity"/> is Null).</summary>
+        public byte PendingTargetIsPlayer;
+        public byte HitInProgress;
     }
 }

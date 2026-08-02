@@ -54,6 +54,19 @@ namespace Medieval.Npcs
                     }
                 }
 
+                if (em.HasComponent<NpcMeleeAttackState>(entity) && em.HasComponent<NpcMeleeCombatConfig>(entity))
+                {
+                    var meleeStateEarly = em.GetComponentData<NpcMeleeAttackState>(entity);
+                    if (meleeStateEarly.HitInProgress != 0)
+                    {
+                        var meleeCfgEarly = em.GetComponentData<NpcMeleeCombatConfig>(entity);
+                        TickInProgressMeleeHit(em, ref ecb, entity, selfFeet, in meleeCfgEarly, unityTime,
+                            ref meleeStateEarly);
+                        em.SetComponentData(entity, meleeStateEarly);
+                        continue;
+                    }
+                }
+
                 if (seek.ValueRO.HasOverride == 0)
                     continue;
 
@@ -185,12 +198,62 @@ namespace Medieval.Npcs
 
             float dmg = meleeCfg.Damage * attackerCombat.MeleeDamageMultiplier;
             Entity tgt = combatTarget.TargetNpcEntity;
+            bool targetIsPlayer = tgt == Entity.Null && combatTarget.HasCombatTarget != 0;
+            if (!targetIsPlayer && tgt == Entity.Null)
+                return;
 
-            // HasCombatTarget + Null entity = GameObject player (see NpcCombatSeekSystem).
-            if (tgt == Entity.Null)
+            float lead = math.max(0f, meleeCfg.HitAnimationLeadSeconds);
+            if (lead <= 1e-4f)
             {
-                if (combatTarget.HasCombatTarget == 0)
-                    return;
+                ApplyMeleeHit(em, ref ecb, attacker, selfFeet, tgt, targetIsPlayer, dmg, in meleeCfg, unityTime);
+                return;
+            }
+
+            meleeState.ApplyHitAtUnityTime = unityTime + lead;
+            meleeState.PendingTargetNpcEntity = tgt;
+            meleeState.PendingDamage = dmg;
+            meleeState.PendingTargetIsPlayer = targetIsPlayer ? (byte)1 : (byte)0;
+            meleeState.HitInProgress = 1;
+        }
+
+        static void TickInProgressMeleeHit(
+            EntityManager em,
+            ref EntityCommandBuffer ecb,
+            Entity attacker,
+            float3 selfFeet,
+            in NpcMeleeCombatConfig meleeCfg,
+            float unityTime,
+            ref NpcMeleeAttackState meleeState)
+        {
+            if (unityTime < meleeState.ApplyHitAtUnityTime)
+                return;
+
+            bool targetIsPlayer = meleeState.PendingTargetIsPlayer != 0;
+            Entity tgt = meleeState.PendingTargetNpcEntity;
+            float dmg = meleeState.PendingDamage;
+
+            meleeState.HitInProgress = 0;
+            meleeState.PendingTargetNpcEntity = Entity.Null;
+            meleeState.PendingDamage = 0f;
+            meleeState.PendingTargetIsPlayer = 0;
+
+            ApplyMeleeHit(em, ref ecb, attacker, selfFeet, tgt, targetIsPlayer, dmg, in meleeCfg, unityTime);
+        }
+
+        static void ApplyMeleeHit(
+            EntityManager em,
+            ref EntityCommandBuffer ecb,
+            Entity attacker,
+            float3 selfFeet,
+            Entity tgt,
+            bool targetIsPlayer,
+            float dmg,
+            in NpcMeleeCombatConfig meleeCfg,
+            float unityTime)
+        {
+            // HasCombatTarget + Null entity = GameObject player (see NpcCombatSeekSystem).
+            if (targetIsPlayer)
+            {
                 TryMeleeDamagePlayer(em, ref ecb, attacker, dmg, meleeCfg.KnockbackImpulse,
                     meleeCfg.HitMeleeStunDuration);
                 return;

@@ -110,6 +110,7 @@ MonoBehaviour:
   damage: 14
   knockbackImpulse: 4.2
   hitMeleeStunDuration: 0.28
+  hitAnimationLeadSeconds: 0.45
 --- !u!114 &991191335029085902
 MonoBehaviour:
   m_ObjectHideFlags: 0

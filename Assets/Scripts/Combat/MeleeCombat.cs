@@ -1,3 +1,4 @@
+using System.Collections;
 using Unity.Entities;
 using UnityEngine;
 
@@ -10,17 +11,26 @@ public class MeleeCombat : MonoBehaviour
     [SerializeField] float damage = 14f;
     [SerializeField] float knockbackImpulse = 4.2f;
     [SerializeField] float hitMeleeStunDuration = 0.28f;
+    [Tooltip("Seconds after the attack starts before damage/knockback apply (sync with SwordSlash impact).")]
+    [SerializeField] float hitAnimationLeadSeconds = 0.45f;
 
     Rigidbody _selfRb;
     Transform _selfRoot;
     Character _selfCharacter;
     float _nextAttackTime;
+    bool _hitInProgress;
 
     void Awake()
     {
         _selfRb = GetComponent<Rigidbody>();
         _selfRoot = transform.root;
         _selfCharacter = GetComponentInParent<Character>();
+    }
+
+    void OnDisable()
+    {
+        StopAllCoroutines();
+        _hitInProgress = false;
     }
 
     /// <returns>True if an attack swing was attempted this frame (hit or miss).</returns>
@@ -35,6 +45,8 @@ public class MeleeCombat : MonoBehaviour
             return false;
         if (Time.time < _nextAttackTime)
             return false;
+        if (_hitInProgress)
+            return false;
 
         if (SpatialMath.FlatSqrDistance(transform.position, target.position) > meleeRange * meleeRange)
             return false;
@@ -44,6 +56,32 @@ public class MeleeCombat : MonoBehaviour
         if (Random.value > hitChance)
             return true;
 
+        float lead = Mathf.Max(0f, hitAnimationLeadSeconds);
+        if (lead <= 0f)
+        {
+            ApplyHit(target);
+            return true;
+        }
+
+        _hitInProgress = true;
+        StartCoroutine(ApplyHitAfterLead(target, lead));
+        return true;
+    }
+
+    IEnumerator ApplyHitAfterLead(Transform target, float lead)
+    {
+        yield return new WaitForSeconds(lead);
+        if (target != null && (_selfCharacter == null || _selfCharacter.CanAttack))
+        {
+            var h = target.GetComponentInParent<IDamageableHealth>();
+            if (h == null || !h.IsDead)
+                ApplyHit(target);
+        }
+        _hitInProgress = false;
+    }
+
+    void ApplyHit(Transform target)
+    {
         Vector3 d = target.position - transform.position;
         d.y = 0f;
 
@@ -78,8 +116,6 @@ public class MeleeCombat : MonoBehaviour
             v.z += deltaV.z;
             victimRb.linearVelocity = v;
         }
-
-        return true;
     }
 
     Vector3 FlatForward()
@@ -101,7 +137,8 @@ public class MeleeCombat : MonoBehaviour
                 HitChance = authoring.hitChance,
                 Damage = authoring.damage,
                 KnockbackImpulse = authoring.knockbackImpulse,
-                HitMeleeStunDuration = authoring.hitMeleeStunDuration
+                HitMeleeStunDuration = authoring.hitMeleeStunDuration,
+                HitAnimationLeadSeconds = authoring.hitAnimationLeadSeconds
             });
             AddComponent(entity, new Medieval.Npcs.NpcMeleeAttackState());
         }
