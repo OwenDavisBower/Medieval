@@ -3,9 +3,12 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Top-center gold + player level/XP readout. Follows the runtime uGUI pattern of <see cref="MinimapUI"/>.
+/// Click the panel to cheat +50 gold (debug).
 /// </summary>
 public sealed class GoldHUD : MonoBehaviour
 {
+    const int CheatGoldAmount = 50;
+
     [SerializeField] float marginPixels = 18f;
     [SerializeField] float panelWidth = 260f;
     [SerializeField] float panelHeight = 64f;
@@ -97,6 +100,8 @@ public sealed class GoldHUD : MonoBehaviour
 
     void OnGoldChanged(int gold) => RefreshGold(gold);
 
+    void OnCheatGoldClicked() => PlayerWallet.Instance?.Add(CheatGoldAmount);
+
     void RefreshGold(int gold)
     {
         if (_goldLabel != null)
@@ -120,6 +125,7 @@ public sealed class GoldHUD : MonoBehaviour
         var canvas = canvasGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 95;
+        canvasGo.AddComponent<GraphicRaycaster>();
 
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -136,6 +142,10 @@ public sealed class GoldHUD : MonoBehaviour
         panelGo.transform.SetParent(canvasRect, false);
         var panelImage = panelGo.AddComponent<Image>();
         panelImage.color = panelColor;
+        var panelBtn = panelGo.AddComponent<Button>();
+        panelBtn.transition = Selectable.Transition.None;
+        panelBtn.targetGraphic = panelImage;
+        panelBtn.onClick.AddListener(OnCheatGoldClicked);
         var panelRect = panelGo.GetComponent<RectTransform>();
         panelRect.anchorMin = panelRect.anchorMax = new Vector2(0.5f, 1f);
         panelRect.pivot = new Vector2(0.5f, 1f);
