@@ -19,6 +19,10 @@ public sealed class ActiveQuest
     public string Description;
     public int GoldReward;
     public int ReputationReward;
+    /// <summary>Horizontal origin→destination length when escort was accepted.</summary>
+    public float EscortRouteLength;
+    /// <summary>True after the mid-route road ambush has fired for this escort.</summary>
+    public bool AmbushTriggered;
 
     public string ProgressText
     {

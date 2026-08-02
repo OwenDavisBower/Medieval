@@ -169,6 +169,10 @@ public sealed class QuestService : MonoBehaviour
             return false;
         }
 
+        float routeDx = dest.Center.x - settlement.Center.x;
+        float routeDz = dest.Center.z - settlement.Center.z;
+        float routeLength = Mathf.Sqrt(routeDx * routeDx + routeDz * routeDz);
+
         Active = new ActiveQuest
         {
             Type = QuestType.Escort,
@@ -179,7 +183,9 @@ public sealed class QuestService : MonoBehaviour
             Title = "Escort Villager",
             Description = $"Safely bring the villager to {dest.DisplayName}.",
             GoldReward = 40,
-            ReputationReward = 16
+            ReputationReward = 16,
+            EscortRouteLength = routeLength,
+            AmbushTriggered = false
         };
 
         GameplayEvents.RaiseToast($"Quest: Escort to {dest.DisplayName}");
