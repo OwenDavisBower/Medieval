@@ -6,6 +6,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.AI;
 
 /// <summary>Recruit, count, and disband player followers (DOTS).</summary>
 public sealed class PartyManager : MonoBehaviour
@@ -107,7 +108,10 @@ public sealed class PartyManager : MonoBehaviour
         int count = 0;
         for (int i = 0; i < entities.Length; i++)
         {
-            if (em.GetComponentData<NpcProfile>(entities[i]).Role == NpcRole.Follower)
+            Entity e = entities[i];
+            if (em.HasComponent<EscortNpcTag>(e))
+                continue;
+            if (em.GetComponentData<NpcProfile>(e).Role == NpcRole.Follower)
                 count++;
         }
 
@@ -223,8 +227,11 @@ public sealed class PartyManager : MonoBehaviour
         var toDestroy = new List<Entity>(entities.Length);
         for (int i = 0; i < entities.Length; i++)
         {
-            if (em.GetComponentData<NpcProfile>(entities[i]).Role == NpcRole.Follower)
-                toDestroy.Add(entities[i]);
+            Entity e = entities[i];
+            if (em.HasComponent<EscortNpcTag>(e))
+                continue;
+            if (em.GetComponentData<NpcProfile>(e).Role == NpcRole.Follower)
+                toDestroy.Add(e);
         }
 
         for (int i = 0; i < toDestroy.Count; i++)
@@ -235,18 +242,41 @@ public sealed class PartyManager : MonoBehaviour
         return toDestroy.Count;
     }
 
+    /// <summary>
+    /// Spawns a villager that orbits the player like a party follower for the escort quest.
+    /// </summary>
     public Entity SpawnEscortFollower(Vector3 nearPlayer)
     {
         if (!NpcSpawnApi.IsPrefabRegistryReady())
             return Entity.Null;
 
-        Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(nearPlayer + UnityEngine.Random.insideUnitSphere * 2f);
-        Entity e = NpcSpawnApi.SpawnFollower(pos, quaternion.identity, 1f, NpcWeaponClass.Melee);
+        float angle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        float rad = UnityEngine.Random.Range(recruitSpawnRadiusMin, recruitSpawnRadiusMax);
+        Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * rad;
+        Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(nearPlayer + offset);
+        if (NavMesh.SamplePosition(pos, out NavMeshHit hit, 8f, NavMesh.AllAreas))
+            pos = hit.position;
+
+        Entity e = NpcSpawnApi.SpawnVillager(pos, quaternion.identity, 1f);
         if (e == Entity.Null)
             return Entity.Null;
 
         var world = World.DefaultGameObjectInjectionWorld;
         var em = world.EntityManager;
+
+        if (em.HasComponent<NpcChopWoodTaskTag>(e))
+            em.RemoveComponent<NpcChopWoodTaskTag>(e);
+
+        NpcMovementApi.ConfigureAsPlayerFollower(em, e, seeksCombat: false);
+        if (!em.HasComponent<EscortNpcTag>(e))
+            em.AddComponent<EscortNpcTag>(e);
+
+        // Travel with the player party for hostility / friendly-fire purposes.
+        if (em.HasComponent<NpcFactionId>(e))
+            em.SetComponentData(e, new NpcFactionId { Value = WellKnownFactionIds.Player });
+        else
+            em.AddComponentData(e, new NpcFactionId { Value = WellKnownFactionIds.Player });
+
         NpcMovementApi.SetAnchorPosition(em, e, new float3(nearPlayer.x, nearPlayer.y, nearPlayer.z));
         return e;
     }
@@ -264,7 +294,8 @@ public sealed class PartyManager : MonoBehaviour
         using var q = em.CreateEntityQuery(
             ComponentType.ReadOnly<NpcProfile>(),
             ComponentType.ReadOnly<LocalTransform>(),
-            ComponentType.Exclude<NpcDeadTag>());
+            ComponentType.Exclude<NpcDeadTag>(),
+            ComponentType.Exclude<EscortNpcTag>());
 
         using var entities = q.ToEntityArray(Unity.Collections.Allocator.Temp);
         float3 playerPos = new float3(player.position.x, player.position.y, player.position.z);

@@ -30,6 +30,14 @@ namespace Medieval.Npcs
     }
 
     /// <summary>
+    /// Escort-quest civilian: orbits the player like a party follower via <see cref="Medieval.NpcMovement.NpcSeparationGroup.Followers"/>,
+    /// but is excluded from recruit party count/dismiss.
+    /// </summary>
+    public struct EscortNpcTag : IComponentData
+    {
+    }
+
+    /// <summary>
     /// Marks a hand-attachment entity as a melee or ranged weapon mesh.
     /// Stripped at spawn when <see cref="NpcProfile.WeaponClass"/> does not match (archers keep bows only, melee keeps swords only).
     /// </summary>
