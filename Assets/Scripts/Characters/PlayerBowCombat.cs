@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// Auto-fires the player's bow at the nearest enemy while standing still.
-/// Movement is blocked for the duration of each shot via <see cref="RangedCombat.IsMovementLocked"/>.
+/// Move input during a shot cancels it via <see cref="RangedCombat.CancelShot"/> (see <see cref="PlayerController"/>).
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(RangedCombat))]

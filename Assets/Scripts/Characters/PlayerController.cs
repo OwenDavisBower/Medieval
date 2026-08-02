@@ -77,17 +77,24 @@ public class PlayerController : MonoBehaviour
         if (_character != null && _character.IsDead)
             return;
 
-        // Hold still while drawing/releasing the bow (PlayerBowCombat aims via transform rotation).
+        ReadMoveAxes(out float h, out float v);
+
+        // Drawing/releasing: stay planted with no input; move input cancels the shot instead of blocking.
         if (_ranged != null && _ranged.IsMovementLocked)
         {
-            Vector3 locked = _rb.linearVelocity;
-            locked.x = 0f;
-            locked.z = 0f;
-            _rb.linearVelocity = locked;
-            return;
+            if (h * h + v * v > 0.01f)
+            {
+                _ranged.CancelShot();
+            }
+            else
+            {
+                Vector3 locked = _rb.linearVelocity;
+                locked.x = 0f;
+                locked.z = 0f;
+                _rb.linearVelocity = locked;
+                return;
+            }
         }
-
-        ReadMoveAxes(out float h, out float v);
 
         Vector3 move;
         if (_cam != null)

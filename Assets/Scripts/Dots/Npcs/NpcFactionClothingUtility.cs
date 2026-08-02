@@ -73,7 +73,7 @@ namespace Medieval.Npcs
         {
             0 => new Color(0.35f, 0.55f, 0.85f, 1f),
             1 => new Color(0.55f, 0.22f, 0.18f, 1f),
-            2 => new Color(0.714f, 0.891f, 0.587f, 1f),
+            2 => new Color(0.82f, 0.74f, 0.58f, 1f),
             _ => Color.white
         };
     }

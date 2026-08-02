@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FactionDefinition
   factionID: 2
   factionName: Villager
-  clothingColor: {r: 0.714, g: 0.891, b: 0.587, a: 1}
+  clothingColor: {r: 0.82, g: 0.74, b: 0.58, a: 1}

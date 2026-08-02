@@ -8,6 +8,7 @@ using Medieval.Projectiles;
 public class RangedCombat : MonoBehaviour
 {
     static readonly int ShootArrowHash = Animator.StringToHash("ShootArrow");
+    static readonly int IdleHash = Animator.StringToHash("Idle");
 
     [SerializeField] float arrowDamage = 25f;
     [SerializeField] float arrowMaxLifetime = 12f;
@@ -19,7 +20,7 @@ public class RangedCombat : MonoBehaviour
     [SerializeField] float verticalAimError = 0.35f;
     [Tooltip("Seconds after the shoot animation trigger before the arrow is spawned. Aim is recomputed at release.")]
     [SerializeField] float fireAnimationLeadSeconds = 0.12f;
-    [Tooltip("No horizontal movement from steering while drawing/releasing (approx. shoot animation length).")]
+    [Tooltip("While standing still after firing, hold position for this long (approx. shoot animation length). Move input cancels.")]
     [SerializeField] float movementLockDuration = 0.85f;
 
     Collider _ownerCollider;
@@ -33,12 +34,29 @@ public class RangedCombat : MonoBehaviour
 
     public float TargetAimHeight => targetAimHeight;
 
-    public void CancelMovementLock() => _movementLockUntilTime = 0f;
+    /// <summary>Aborts an in-progress draw/release (no arrow), clears the movement lock, and leaves the shoot clip.</summary>
+    public void CancelShot()
+    {
+        if (!_shotInProgress && !IsMovementLocked)
+            return;
+
+        StopAllCoroutines();
+        _shotInProgress = false;
+        _movementLockUntilTime = 0f;
+
+        _animator ??= AnimatorUtil.ResolvePreferredAnimator(this);
+        if (_animator == null)
+            return;
+
+        _animator.ResetTrigger(ShootArrowHash);
+        _animator.CrossFade(IdleHash, 0.1f, 0);
+    }
 
     void OnDisable()
     {
         StopAllCoroutines();
         _shotInProgress = false;
+        _movementLockUntilTime = 0f;
     }
 
     void Awake()
