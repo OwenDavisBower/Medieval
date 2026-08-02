@@ -3,7 +3,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEngine;
 
 namespace Medieval.Npcs
 {
@@ -64,7 +63,7 @@ namespace Medieval.Npcs
             if (explicitWeaponClass == NpcWeaponClass.Melee || explicitWeaponClass == NpcWeaponClass.Ranged)
                 resolved = explicitWeaponClass;
             else if ((role == NpcRole.Follower || role == NpcRole.Bandit) && inferred == NpcWeaponClass.Both)
-                resolved = UnityEngine.Random.value < 0.5f ? NpcWeaponClass.Melee : NpcWeaponClass.Ranged;
+                resolved = CoinFlipWeapon(em, npc);
             else
                 resolved = inferred;
 
@@ -84,10 +83,25 @@ namespace Medieval.Npcs
                 profile.WeaponClass = resolved;
             else if ((role == NpcRole.Follower || role == NpcRole.Bandit) &&
                      profile.WeaponClass == NpcWeaponClass.Both)
-                profile.WeaponClass = UnityEngine.Random.value < 0.5f ? NpcWeaponClass.Melee : NpcWeaponClass.Ranged;
+                profile.WeaponClass = CoinFlipWeapon(em, npc);
             em.SetComponentData(npc, profile);
             ApplyFactionForSpawnRole(em, npc, role);
             ApplyWeaponLoadoutVisuals(em, npc);
+        }
+
+        static NpcWeaponClass CoinFlipWeapon(EntityManager em, Entity npc)
+        {
+            uint seed = 1u;
+            if (em.HasComponent<LocalTransform>(npc))
+            {
+                float3 p = em.GetComponentData<LocalTransform>(npc).Position;
+                seed = math.max(1u, math.hash(p) ^ (uint)npc.Index ^ 0x85EBCA6Bu);
+            }
+            else
+                seed = math.max(1u, (uint)npc.Index ^ 0x85EBCA6Bu);
+
+            var rng = new Unity.Mathematics.Random(seed);
+            return rng.NextFloat() < 0.5f ? NpcWeaponClass.Melee : NpcWeaponClass.Ranged;
         }
 
         /// <summary>

@@ -17,6 +17,24 @@ namespace Medieval.Npcs
         /// </summary>
         const float MeleeFacingYawCompensationDegrees = 15f;
 
+        /// <summary>Keep current target while within AggroRadius * this (exit hysteresis).</summary>
+        const float StickyAggroMul = 1.15f;
+
+        /// <summary>
+        /// Switch from sticky only when challenger distance-sq is below stickySq * this
+        /// (challenger clearly closer; ~0.8 ≈ ~10% nearer in linear distance).
+        /// </summary>
+        const float StickSwitchRatio = 0.8f;
+
+        /// <summary>Frames of failed LOS before dropping a sticky target.</summary>
+        const byte LosMissGraceFrames = 3;
+
+        /// <summary>Exit melee lock beyond MeleeRange * this; enter at MeleeRange.</summary>
+        const float MeleeEngageExitMul = 1.2f;
+
+        /// <summary>After leash clear, must return within MaxDistanceFromLeader * this to re-engage.</summary>
+        const float LeashReenterMul = 0.85f;
+
         EntityQuery _candidateQuery;
 
         public void OnCreate(ref SystemState state)
@@ -43,10 +61,13 @@ namespace Medieval.Npcs
             var em = state.EntityManager;
             var combatLookup = SystemAPI.GetComponentLookup<NpcCharacterCombatState>(true);
             var factionLookup = SystemAPI.GetComponentLookup<NpcFactionId>(true);
+            var transformLookup = SystemAPI.GetComponentLookup<LocalTransform>(true);
             combatLookup.Update(ref state);
             factionLookup.Update(ref state);
+            transformLookup.Update(ref state);
 
             int matrixSize = relState.MatrixSize;
+            bool playerAlive = hasPlayer && IsPlayerAlive();
 
             foreach (var (seekRw, facingRw, moveRw, combatTargetRw, selfTf, profile, cfg, entity) in SystemAPI
                          .Query<RefRW<NpcSeekOverride>, RefRW<NpcOverrideFacing>, RefRW<NpcMovementState>,
@@ -80,15 +101,34 @@ namespace Medieval.Npcs
                     hasPlayer)
                 {
                     float3 p = playerAnchor.Position;
-                    float maxSq = cfg.ValueRO.MaxDistanceFromLeader * cfg.ValueRO.MaxDistanceFromLeader;
-                    if (NpcMath.DistanceSqXZ(selfFeet, p) > maxSq)
+                    float maxDist = cfg.ValueRO.MaxDistanceFromLeader;
+                    float exitSq = maxDist * maxDist;
+                    float enterDist = maxDist * LeashReenterMul;
+                    float enterSq = enterDist * enterDist;
+                    float leaderSq = NpcMath.DistanceSqXZ(selfFeet, p);
+
+                    if (move.CombatLeashBlocked != 0)
                     {
+                        if (leaderSq > enterSq)
+                        {
+                            ClearSeek(ref seek, ref facing, ref move, ref combatTarget);
+                            continue;
+                        }
+
+                        move.CombatLeashBlocked = 0;
+                    }
+                    else if (leaderSq > exitSq)
+                    {
+                        move.CombatLeashBlocked = 1;
                         ClearSeek(ref seek, ref facing, ref move, ref combatTarget);
                         continue;
                     }
                 }
 
-                float aggroSq = cfg.ValueRO.AggroRadius * cfg.ValueRO.AggroRadius;
+                float aggro = cfg.ValueRO.AggroRadius;
+                float aggroSq = aggro * aggro;
+                float stickyAggroSq = (aggro * StickyAggroMul) * (aggro * StickyAggroMul);
+
                 float bestSq = float.MaxValue;
                 float3 bestPos = default;
                 Entity bestHostileNpc = Entity.Null;
@@ -111,13 +151,7 @@ namespace Medieval.Npcs
                     if (sq > aggroSq || sq >= bestSq)
                         continue;
 
-                    if (!LineOfSightUtility.HasClearLineOfSightWorldPoints(
-                            new Vector3(selfFeet.x, selfFeet.y, selfFeet.z),
-                            new Vector3(op.x, op.y, op.z),
-                            cfg.ValueRO.EyeHeight,
-                            cfg.ValueRO.TargetAimHeight,
-                            cfg.ValueRO.ObstacleLayerMask,
-                            null))
+                    if (!HasLos(selfFeet, op, in cfg.ValueRO))
                         continue;
 
                     bestSq = sq;
@@ -126,26 +160,97 @@ namespace Medieval.Npcs
                     found = true;
                 }
 
-                if (hasPlayer && playerAnchor.PlayerFactionId >= 0 && selfFaction >= 0 &&
+                if (playerAlive && playerAnchor.PlayerFactionId >= 0 && selfFaction >= 0 &&
                     FactionRelationshipBufferUtil.IsHostile(in relBuf, matrixSize, selfFaction,
                         playerAnchor.PlayerFactionId))
                 {
                     float3 op = playerAnchor.Position;
                     float sq = NpcMath.DistanceSqXZ(op, selfFeet);
-                    if (sq <= aggroSq && sq < bestSq &&
-                        LineOfSightUtility.HasClearLineOfSightWorldPoints(
-                            new Vector3(selfFeet.x, selfFeet.y, selfFeet.z),
-                            new Vector3(op.x, op.y, op.z),
-                            cfg.ValueRO.EyeHeight,
-                            cfg.ValueRO.TargetAimHeight,
-                            cfg.ValueRO.ObstacleLayerMask,
-                            null))
+                    if (sq <= aggroSq && sq < bestSq && HasLos(selfFeet, op, in cfg.ValueRO))
                     {
                         bestSq = sq;
                         bestPos = op;
                         bestHostileNpc = Entity.Null;
                         found = true;
                     }
+                }
+
+                // Sticky: prefer current target unless invalid or a challenger is clearly closer.
+                if (combatTarget.HasCombatTarget != 0)
+                {
+                    bool stickyIsPlayer = combatTarget.TargetNpcEntity == Entity.Null;
+                    bool stickyOkExceptLos = false;
+                    bool stickyLosOk = false;
+                    float stickySq = float.MaxValue;
+                    float3 stickyPos = default;
+                    Entity stickyHostile = Entity.Null;
+
+                    if (stickyIsPlayer)
+                    {
+                        if (playerAlive && playerAnchor.PlayerFactionId >= 0 && selfFaction >= 0 &&
+                            FactionRelationshipBufferUtil.IsHostile(in relBuf, matrixSize, selfFaction,
+                                playerAnchor.PlayerFactionId))
+                        {
+                            stickyPos = playerAnchor.Position;
+                            stickySq = NpcMath.DistanceSqXZ(stickyPos, selfFeet);
+                            stickyHostile = Entity.Null;
+                            if (stickySq <= stickyAggroSq)
+                            {
+                                stickyOkExceptLos = true;
+                                stickyLosOk = HasLos(selfFeet, stickyPos, in cfg.ValueRO);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Entity stickyEnt = combatTarget.TargetNpcEntity;
+                        if (stickyEnt != entity &&
+                            em.Exists(stickyEnt) &&
+                            combatLookup.HasComponent(stickyEnt) &&
+                            transformLookup.HasComponent(stickyEnt) &&
+                            factionLookup.HasComponent(stickyEnt))
+                        {
+                            NpcCharacterCombatState sc = combatLookup[stickyEnt];
+                            if (sc.IsDead == 0 && sc.CurrentHealth > 0f)
+                            {
+                                int otherFaction = factionLookup[stickyEnt].Value;
+                                if (selfFaction >= 0 && otherFaction >= 0 &&
+                                    FactionRelationshipBufferUtil.IsHostile(in relBuf, matrixSize, selfFaction,
+                                        otherFaction))
+                                {
+                                    stickyPos = transformLookup[stickyEnt].Position;
+                                    stickySq = NpcMath.DistanceSqXZ(stickyPos, selfFeet);
+                                    stickyHostile = stickyEnt;
+                                    if (stickySq <= stickyAggroSq)
+                                    {
+                                        stickyOkExceptLos = true;
+                                        stickyLosOk = HasLos(selfFeet, stickyPos, in cfg.ValueRO);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    bool stickyValid = stickyOkExceptLos &&
+                        (stickyLosOk || combatTarget.LosMissFrames < LosMissGraceFrames);
+
+                    if (stickyValid)
+                    {
+                        bool switchToChallenger = found && bestSq < stickySq * StickSwitchRatio;
+                        if (!switchToChallenger)
+                        {
+                            bestPos = stickyPos;
+                            bestHostileNpc = stickyHostile;
+                            found = true;
+                            combatTarget.LosMissFrames = stickyLosOk
+                                ? (byte)0
+                                : (byte)(combatTarget.LosMissFrames + 1);
+                        }
+                        else
+                            combatTarget.LosMissFrames = 0;
+                    }
+                    else
+                        combatTarget.LosMissFrames = 0;
                 }
 
                 if (!found)
@@ -172,14 +277,20 @@ namespace Medieval.Npcs
                     move.RangedCombatSeparationBoost = 1;
                 }
                 else
-                    move.RangedCombatSeparationBoost = 1;
+                    move.RangedCombatSeparationBoost = 0;
 
                 bool meleeEngaged = false;
                 if (!useRangedHold && em.HasComponent<NpcMeleeCombatConfig>(entity))
                 {
                     var meleeCfg = em.GetComponentData<NpcMeleeCombatConfig>(entity);
                     float meleeR = math.max(0.25f, meleeCfg.MeleeRange);
-                    meleeEngaged = flatSq <= meleeR * meleeR;
+                    float enterSq = meleeR * meleeR;
+                    float exitR = meleeR * MeleeEngageExitMul;
+                    float exitSq = exitR * exitR;
+                    if (move.MeleeEngageMovementLock != 0)
+                        meleeEngaged = flatSq <= exitSq;
+                    else
+                        meleeEngaged = flatSq <= enterSq;
                 }
 
                 move.MeleeEngageMovementLock = (byte)(meleeEngaged ? 1 : 0);
@@ -221,6 +332,24 @@ namespace Medieval.Npcs
                 else
                     facing = default;
             }
+        }
+
+        static bool HasLos(float3 selfFeet, float3 targetFeet, in NpcCombatSeekConfig cfg) =>
+            LineOfSightUtility.HasClearLineOfSightWorldPoints(
+                new Vector3(selfFeet.x, selfFeet.y, selfFeet.z),
+                new Vector3(targetFeet.x, targetFeet.y, targetFeet.z),
+                cfg.EyeHeight,
+                cfg.TargetAimHeight,
+                cfg.ObstacleLayerMask,
+                null);
+
+        static bool IsPlayerAlive()
+        {
+            Transform playerTf = PlayerAnchorRegistration.Transform;
+            if (playerTf == null)
+                return false;
+            var health = playerTf.GetComponentInParent<IDamageableHealth>();
+            return health == null || !health.IsDead;
         }
 
         static void ClearSeek(ref NpcSeekOverride seek, ref NpcOverrideFacing facing, ref NpcMovementState move,

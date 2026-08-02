@@ -8,6 +8,7 @@ namespace Medieval.NpcMovement
     /// Keeps followers orbiting/chasing the player without any GameObject companion.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateAfter(typeof(NpcFollowerTeleportBackSystem))]
     public partial struct NpcFollowersAnchorSystem : ISystem
     {
         public void OnCreate(ref SystemState state)

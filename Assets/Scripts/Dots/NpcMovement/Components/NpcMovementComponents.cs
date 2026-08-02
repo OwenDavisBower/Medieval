@@ -100,6 +100,10 @@ namespace Medieval.NpcMovement
         public byte MeleeEngageMovementLock;
         /// <summary>Set by combat seek while pursuing with ranged standoff; scales neighbor separation.</summary>
         public byte RangedCombatSeparationBoost;
+        /// <summary>
+        /// Follower left combat leash; must return within re-enter radius before seeking again.
+        /// </summary>
+        public byte CombatLeashBlocked;
         public byte DodgeImpulseThisFrame;
 
         public float BaseAngle;
@@ -167,6 +171,11 @@ namespace Medieval.NpcMovement
         /// <summary>Entity.Null when the current seek goal is not an ECS NPC (e.g. player).</summary>
         public Entity TargetNpcEntity;
         public byte HasCombatTarget;
+        /// <summary>
+        /// Consecutive frames the sticky target failed LOS while otherwise valid.
+        /// Seek clears after grace (see <c>NpcCombatSeekSystem</c>).
+        /// </summary>
+        public byte LosMissFrames;
     }
 
     public struct NpcOverrideFacing : IComponentData

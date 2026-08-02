@@ -56,7 +56,6 @@ namespace Medieval.NpcMovement
                 in NpcMovementConfig cfg,
                 in NpcAnchorTarget anchor,
                 in NpcSeekOverride seek,
-                in NpcPathState pathState,
                 DynamicBuffer<NpcPathCorner> corners,
                 ref NpcMovementState mstate,
                 Entity entity)
@@ -83,14 +82,6 @@ namespace Medieval.NpcMovement
                 {
                     DecelerateHorizontal(ref mstate, cfg, DeltaTime);
                     mstate.HasSmoothTarget = 0;
-                    return;
-                }
-
-                if (cfg.UseNavMeshWhenAvailable != 0 && seek.HasOverride != 0 &&
-                    (pathState.PathValid == 0 || corners.Length == 0))
-                {
-                    mstate.HasSmoothTarget = 0;
-                    DecelerateHorizontal(ref mstate, cfg, DeltaTime);
                     return;
                 }
 
@@ -181,13 +172,21 @@ namespace Medieval.NpcMovement
                 {
                     if (seek.SeekHoldDistance > 0f)
                     {
-                        float3 flat = seek.Position - selfPos;
-                        flat.y = 0f;
-                        if (math.lengthsq(flat) <= seek.SeekHoldDistance * seek.SeekHoldDistance)
+                        float3 toEnemy = seek.Position - selfPos;
+                        toEnemy.y = 0f;
+                        float distSq = math.lengthsq(toEnemy);
+                        float hold = seek.SeekHoldDistance;
+                        float holdSq = hold * hold;
+                        if (distSq <= holdSq)
                         {
                             arrivedHold = true;
                             return true;
                         }
+
+                        // Path/steer to the standoff ring point, not enemy feet (avoids orbit stutter).
+                        float dist = math.sqrt(distSq);
+                        rawGoal = seek.Position - (toEnemy / dist) * hold;
+                        return true;
                     }
                     rawGoal = seek.Position;
                     return true;

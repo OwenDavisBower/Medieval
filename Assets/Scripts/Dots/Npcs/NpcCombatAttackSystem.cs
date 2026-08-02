@@ -117,6 +117,8 @@ namespace Medieval.Npcs
                 rangedState.MovementLockUntilUnityTime = lockUntil;
                 rangedState.ReleaseShotAtUnityTime = releaseAt;
                 rangedState.PendingTargetNpcEntity = combatTarget.ValueRO.TargetNpcEntity;
+                rangedState.PendingGoalFeet = goal;
+                rangedState.HasPendingGoalFeet = 1;
                 rangedState.ShotInProgress = 1;
 
                 move.RangedMovementLock = 1;
@@ -127,9 +129,12 @@ namespace Medieval.Npcs
 
                 if (lead <= 1e-4f)
                 {
-                    ReleaseRangedShot(ref ecb, entity, selfFeet, goal, in rangedCfg, combat.RangedAimErrorMultiplier);
+                    ReleaseRangedShot(em, ref ecb, entity, selfFeet, goal, in rangedCfg,
+                        combat.RangedAimErrorMultiplier);
                     rangedState.ShotInProgress = 0;
                     rangedState.PendingTargetNpcEntity = Entity.Null;
+                    rangedState.PendingGoalFeet = default;
+                    rangedState.HasPendingGoalFeet = 0;
                 }
 
                 em.SetComponentData(entity, rangedState);
@@ -159,27 +164,44 @@ namespace Medieval.Npcs
 
             meleeState.NextAttackAllowedUnityTime = unityTime + meleeCfg.AttackInterval;
             TryPlayAnimOnNpcRoot(em, attacker, k_SwordSlash);
+
+            bool hitRollPassed = true;
             if (em.HasComponent<NpcMovementState>(attacker))
             {
                 var move = em.GetComponentData<NpcMovementState>(attacker);
                 float suppressUntil = unityTime + k_SwordSlashLocomotionSuppressSeconds;
                 if (suppressUntil > move.ShootGestureSuppressLocomotionUntilUnityTime)
                     move.ShootGestureSuppressLocomotionUntilUnityTime = suppressUntil;
+
+                var rng = EnsureNpcRng(ref move, attacker);
+                hitRollPassed = rng.NextFloat() <= meleeCfg.HitChance;
+                move.Rng = rng;
                 em.SetComponentData(attacker, move);
             }
 
-            if (UnityEngine.Random.value > meleeCfg.HitChance)
+            if (!hitRollPassed)
                 return;
 
+            float dmg = meleeCfg.Damage * attackerCombat.MeleeDamageMultiplier;
             Entity tgt = combatTarget.TargetNpcEntity;
-            if (tgt == Entity.Null || !em.Exists(tgt) || !em.HasComponent<NpcCharacterCombatState>(tgt))
+
+            // HasCombatTarget + Null entity = GameObject player (see NpcCombatSeekSystem).
+            if (tgt == Entity.Null)
+            {
+                if (combatTarget.HasCombatTarget == 0)
+                    return;
+                TryMeleeDamagePlayer(em, ref ecb, attacker, dmg, meleeCfg.KnockbackImpulse,
+                    meleeCfg.HitMeleeStunDuration);
+                return;
+            }
+
+            if (!em.Exists(tgt) || !em.HasComponent<NpcCharacterCombatState>(tgt))
                 return;
 
             var victim = em.GetComponentData<NpcCharacterCombatState>(tgt);
             if (victim.IsDead != 0 || victim.CurrentHealth <= 0f)
                 return;
 
-            float dmg = meleeCfg.Damage * attackerCombat.MeleeDamageMultiplier;
             float dealt = NpcProjectileDotsNpc.ApplyProjectileDamage(em, tgt, dmg, out bool killed);
             NpcExperienceUtility.GrantDamageXp(em, ref ecb, attacker, dealt, killed);
 
@@ -193,6 +215,46 @@ namespace Medieval.Npcs
                 victim.AttackStunUntilUnityTime = stunEnd;
                 em.SetComponentData(tgt, victim);
             }
+        }
+
+        static void TryMeleeDamagePlayer(
+            EntityManager em,
+            ref EntityCommandBuffer ecb,
+            Entity attacker,
+            float damage,
+            float knockbackImpulse,
+            float hitMeleeStunDuration)
+        {
+            Transform playerTf = PlayerAnchorRegistration.Transform;
+            if (playerTf == null)
+                return;
+
+            var victim = playerTf.GetComponentInParent<IDamageableHealth>();
+            if (victim == null || victim.IsDead)
+                return;
+
+            float before = victim.CurrentHealth;
+            victim.TakeDamage(damage);
+            float dealt = math.max(0f, before - victim.CurrentHealth);
+            NpcExperienceUtility.GrantDamageXp(em, ref ecb, attacker, dealt, victim.IsDead);
+
+            if (victim is Character victimCharacter)
+                victimCharacter.ApplyAttackStun(hitMeleeStunDuration);
+
+            Rigidbody victimRb = PlayerAnchorRegistration.Rigidbody;
+            if (victimRb == null || knockbackImpulse <= 0f)
+                return;
+
+            float3 attackerPos = em.HasComponent<LocalTransform>(attacker)
+                ? em.GetComponentData<LocalTransform>(attacker).Position
+                : default;
+            Vector3 d = playerTf.position - new Vector3(attackerPos.x, attackerPos.y, attackerPos.z);
+            d.y = 0f;
+            Vector3 push = d.sqrMagnitude > 1e-4f ? d.normalized : Vector3.forward;
+            Vector3 v = victimRb.linearVelocity;
+            v.x += push.x * knockbackImpulse;
+            v.z += push.z * knockbackImpulse;
+            victimRb.linearVelocity = v;
         }
 
         /// <summary>
@@ -230,18 +292,26 @@ namespace Medieval.Npcs
                     goalFeet = em.GetComponentData<LocalTransform>(rangedState.PendingTargetNpcEntity).Position;
                     haveGoal = true;
                 }
+                else if (rangedState.HasPendingGoalFeet != 0)
+                {
+                    goalFeet = rangedState.PendingGoalFeet;
+                    haveGoal = true;
+                }
 
                 if (haveGoal)
-                    ReleaseRangedShot(ref ecb, entity, selfFeet, goalFeet, in rangedCfg, aimErrorMultiplier);
+                    ReleaseRangedShot(em, ref ecb, entity, selfFeet, goalFeet, in rangedCfg, aimErrorMultiplier);
 
                 rangedState.ShotInProgress = 0;
                 rangedState.PendingTargetNpcEntity = Entity.Null;
+                rangedState.PendingGoalFeet = default;
+                rangedState.HasPendingGoalFeet = 0;
             }
 
             em.SetComponentData(entity, rangedState);
         }
 
         static void ReleaseRangedShot(
+            EntityManager em,
             ref EntityCommandBuffer ecb,
             Entity shooterRoot,
             float3 selfFeet,
@@ -254,13 +324,37 @@ namespace Medieval.Npcs
 
             float aimY = goalFeet.y + cfg.TargetAimHeight;
             Vector3 aim = new Vector3(goalFeet.x, aimY, goalFeet.z);
-            Vector2 xz = UnityEngine.Random.insideUnitCircle * (cfg.HorizontalAimError * aimScale);
-            aim += new Vector3(xz.x, UnityEngine.Random.Range(-cfg.VerticalAimError, cfg.VerticalAimError) * aimScale,
-                xz.y);
+
+            float horiz = cfg.HorizontalAimError * aimScale;
+            float vert = cfg.VerticalAimError * aimScale;
+            if (em.HasComponent<NpcMovementState>(shooterRoot))
+            {
+                var move = em.GetComponentData<NpcMovementState>(shooterRoot);
+                var rng = EnsureNpcRng(ref move, shooterRoot);
+                // Uniform disk in XZ (matches UnityEngine.Random.insideUnitCircle distribution).
+                float2 dir = rng.NextFloat2Direction();
+                float rad = math.sqrt(rng.NextFloat()) * horiz;
+                float yErr = rng.NextFloat(-vert, vert);
+                move.Rng = rng;
+                em.SetComponentData(shooterRoot, move);
+                aim += new Vector3(dir.x * rad, yErr, dir.y * rad);
+            }
 
             Vector3 velocity = ProjectileBallistics.LobbedLaunchVelocity(origin, aim);
             ProjectileSpawnApi.SpawnFromDotsNpcShooterDeferred(ref ecb, origin, velocity, cfg.ArrowDamage,
                 cfg.ArrowMaxLifetime, shooterRoot, cfg.ArrowHitRadius);
+        }
+
+        static Unity.Mathematics.Random EnsureNpcRng(ref NpcMovementState move, Entity entity)
+        {
+            var rng = move.Rng;
+            if (rng.state == 0)
+            {
+                uint seed = math.max(1u, (uint)entity.Index ^ (uint)entity.Version * 0x9E3779B9u ^ 0xA341316Cu);
+                rng = new Unity.Mathematics.Random(seed);
+            }
+
+            return rng;
         }
 
         static void TryPlayShootAnim(EntityManager em, Entity npcRoot)

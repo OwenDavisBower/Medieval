@@ -139,8 +139,9 @@ namespace Medieval.NpcMovement
                 }
                 else
                 {
-                    pathStateRW.PathValid = 0;
-                    return;
+                    // Raycast blocked / failed: still provide a direct corner so steering does not freeze.
+                    corners.Add(new NpcPathCorner { Value = endPoint });
+                    pathStateRW.PathValid = 1;
                 }
 
                 pathStateRW.CurrentCorner = 0;
@@ -154,6 +155,23 @@ namespace Medieval.NpcMovement
         {
             if (seek.HasOverride != 0)
             {
+                if (seek.SeekHoldDistance > 0f)
+                {
+                    float3 toEnemy = seek.Position - selfPos;
+                    toEnemy.y = 0f;
+                    float distSq = math.lengthsq(toEnemy);
+                    float hold = seek.SeekHoldDistance;
+                    if (distSq <= hold * hold)
+                    {
+                        goal = selfPos;
+                        return true;
+                    }
+
+                    float dist = math.sqrt(distSq);
+                    goal = seek.Position - (toEnemy / dist) * hold;
+                    return true;
+                }
+
                 goal = seek.Position;
                 return true;
             }

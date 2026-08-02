@@ -16,10 +16,11 @@ namespace Medieval.NpcMovement
     /// player in XZ, snaps it to <see cref="NpcCombatSeekConfig.FollowerTeleportBackTargetDistance"/> on the
     /// same radial line, grounds with a raycast, then maps onto the NavMesh (walking inward toward the player
     /// if the preferred radius is off-mesh) so clamp systems do not freeze them off walkable area.
+    /// Runs before follower anchors and combat seek so a snap does not fight the same-frame seek override.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(NpcPlayerAnchorSyncSystem))]
-    [UpdateBefore(typeof(NpcSeparationSystem))]
+    [UpdateBefore(typeof(NpcFollowersAnchorSystem))]
     public partial class NpcFollowerTeleportBackSystem : SystemBase
     {
         /// <summary>Larger than normal path sample so teleport can recover from rough terrain / cliffs.</summary>
@@ -35,9 +36,10 @@ namespace Medieval.NpcMovement
             float3 leader = player.Position;
             var navQuery = new NavMeshQuery(NavMeshWorld.GetDefaultWorld(), Allocator.TempJob, 64);
 
-            foreach (var (tfRW, cfgRO, mcfgRO, stateRW, pathRW, corners) in SystemAPI
+            foreach (var (tfRW, cfgRO, mcfgRO, stateRW, pathRW, seekRW, facingRW, combatTargetRW, corners) in SystemAPI
                          .Query<RefRW<LocalTransform>, RefRO<NpcCombatSeekConfig>, RefRO<NpcMovementConfig>,
-                             RefRW<NpcMovementState>, RefRW<NpcPathState>, DynamicBuffer<NpcPathCorner>>()
+                             RefRW<NpcMovementState>, RefRW<NpcPathState>, RefRW<NpcSeekOverride>,
+                             RefRW<NpcOverrideFacing>, RefRW<NpcCombatTarget>, DynamicBuffer<NpcPathCorner>>()
                          .WithAll<NpcMovementTag>())
             {
                 var cfg = cfgRO.ValueRO;
@@ -75,6 +77,15 @@ namespace Medieval.NpcMovement
                 move.GroundSnapYVelocity = 0f;
                 move.SmoothTarget = placed;
                 move.SmoothTargetVel = float3.zero;
+                move.RangedMovementLock = 0;
+                move.MeleeEngageMovementLock = 0;
+                move.RangedCombatSeparationBoost = 0;
+                move.CombatLeashBlocked = 0;
+                move.HasSmoothTarget = 0;
+
+                seekRW.ValueRW = default;
+                facingRW.ValueRW = default;
+                combatTargetRW.ValueRW = default;
 
                 corners.Clear();
                 ref NpcPathState path = ref pathRW.ValueRW;

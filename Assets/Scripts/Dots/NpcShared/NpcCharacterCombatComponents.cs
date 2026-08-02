@@ -1,4 +1,5 @@
 using Unity.Entities;
+using Unity.Mathematics;
 
 namespace Medieval.Npcs
 {
@@ -106,6 +107,9 @@ namespace Medieval.Npcs
         public float MovementLockUntilUnityTime;
         public float ReleaseShotAtUnityTime;
         public Entity PendingTargetNpcEntity;
+        /// <summary>Feet goal captured at windup so release still aims if seek blinks (e.g. player / LOS).</summary>
+        public float3 PendingGoalFeet;
+        public byte HasPendingGoalFeet;
         public byte ShotInProgress;
     }
 

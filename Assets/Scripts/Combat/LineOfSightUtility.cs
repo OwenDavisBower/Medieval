@@ -7,6 +7,13 @@ public static class LineOfSightUtility
     const float MinRayLength = 0.02f;
     const float AdvanceEpsilon = 0.002f;
     const int MaxSegments = 32;
+    /// <summary>
+    /// Hits within this distance of the aim point count as reaching the target body
+    /// (WorldPoints has no target <see cref="Transform"/> hierarchy to ignore).
+    /// </summary>
+    const float TargetAimClearance = 1.0f;
+    /// <summary>When no observer hierarchy is provided, skip near-origin hits (self capsule).</summary>
+    const float SelfHitSkipDistance = 0.75f;
 
     /// <param name="observerFeetWorld">Base position of the observer (e.g. transform.position).</param>
     /// <param name="ignoreHitsUnderHierarchy">Hits whose colliders are under this transform are skipped (e.g. observer root).</param>
@@ -89,6 +96,8 @@ public static class LineOfSightUtility
         if (remain <= 0.01f)
             return true;
 
+        float targetClearSq = TargetAimClearance * TargetAimClearance;
+
         for (int seg = 0; seg < MaxSegments; seg++)
         {
             if (remain <= AdvanceEpsilon)
@@ -108,6 +117,21 @@ public static class LineOfSightUtility
                 remain -= adv;
                 continue;
             }
+
+            // No observer transform: advance past near-origin self colliders.
+            if (ignoreHitsUnderHierarchy == null && hit.distance < SelfHitSkipDistance)
+            {
+                float adv = Mathf.Max(hit.distance + AdvanceEpsilon, AdvanceEpsilon);
+                if (adv >= remain - 1e-5f)
+                    return true;
+                origin += dir * adv;
+                remain -= adv;
+                continue;
+            }
+
+            // Hitting the target's body (capsule) before the aim point is still clear LOS.
+            if ((hit.point - tgt).sqrMagnitude <= targetClearSq)
+                return true;
 
             if (hit.distance >= remain - 0.35f)
                 return true;

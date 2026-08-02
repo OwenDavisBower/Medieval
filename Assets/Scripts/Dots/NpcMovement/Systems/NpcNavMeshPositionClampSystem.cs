@@ -64,7 +64,19 @@ namespace Medieval.NpcMovement
                     return;
                 }
 
-                mstate.CurrentHorizontalVelocity = float3.zero;
+                // Expanded sample before giving up (brief off-mesh dips / cliffs).
+                float expanded = math.max(cfg.NavMeshSampleMaxDistance * 2.5f, 6f);
+                if (NpcNavMeshSampling.TryMapStartLocation(NavQuery, p, expanded, out loc))
+                {
+                    Vector3 mp = loc.position;
+                    tf.Position = new float3(mp.x, mp.y, mp.z);
+                    return;
+                }
+
+                // Soft damp — avoid permanent freeze while off walkable mesh.
+                float3 v = mstate.CurrentHorizontalVelocity;
+                v.y = 0f;
+                mstate.CurrentHorizontalVelocity = v * 0.85f;
             }
         }
     }
