@@ -1,8 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>Short-lived billboard label spawned above an NPC when they level up.</summary>
-public sealed class NpcLevelUpFloatingText : MonoBehaviour
+/// <summary>Short-lived billboard label on the HealthBar overlay (crisp, not pixelated).</summary>
+public sealed class FloatingWorldText : MonoBehaviour
 {
     const float DefaultLifetime = 1.65f;
     const float RiseSpeed = 1.1f;
@@ -21,7 +21,16 @@ public sealed class NpcLevelUpFloatingText : MonoBehaviour
 
     public static void Spawn(Vector3 worldPosition, int level)
     {
-        var go = new GameObject("LevelUpText");
+        Spawn(worldPosition, $"Level {level}", new Color(1f, 0.92f, 0.35f, 1f));
+    }
+
+    /// <summary>Spawns a floating billboard (gold/food pickup, level-up, etc.) above <paramref name="worldPosition"/>.</summary>
+    public static void Spawn(Vector3 worldPosition, string text, Color color, float lifetime = DefaultLifetime)
+    {
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        var go = new GameObject("FloatingWorldText");
         go.transform.position = worldPosition + Vector3.up * StartHeightOffset;
 
         var canvas = go.AddComponent<Canvas>();
@@ -35,14 +44,14 @@ public sealed class NpcLevelUpFloatingText : MonoBehaviour
         var labelGo = new GameObject("Label");
         labelGo.transform.SetParent(go.transform, false);
         var label = labelGo.AddComponent<Text>();
-        label.text = $"Level {level}";
+        label.text = text;
         label.font = BuiltinFont();
         label.fontSize = 42;
         label.fontStyle = FontStyle.Bold;
         label.alignment = TextAnchor.MiddleCenter;
         label.horizontalOverflow = HorizontalWrapMode.Overflow;
         label.verticalOverflow = VerticalWrapMode.Overflow;
-        label.color = new Color(1f, 0.92f, 0.35f, 1f);
+        label.color = color;
         label.raycastTarget = false;
 
         var labelRect = label.GetComponent<RectTransform>();
@@ -51,10 +60,10 @@ public sealed class NpcLevelUpFloatingText : MonoBehaviour
         labelRect.offsetMin = Vector2.zero;
         labelRect.offsetMax = Vector2.zero;
 
-        var fx = go.AddComponent<NpcLevelUpFloatingText>();
+        var fx = go.AddComponent<FloatingWorldText>();
         fx._label = label;
-        fx._color = label.color;
-        fx._life = DefaultLifetime;
+        fx._color = color;
+        fx._life = lifetime;
         fx._age = 0f;
 
         int hb = LayerMask.NameToLayer(HealthBarLayerName);

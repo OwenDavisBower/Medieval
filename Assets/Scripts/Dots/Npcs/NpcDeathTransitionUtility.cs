@@ -69,7 +69,10 @@ namespace Medieval.Npcs
             if (UnityEngine.Random.value < 0.28f && PlayerInventory.Instance != null)
             {
                 PlayerInventory.Instance.AddFood(1);
-                GameplayEvents.RaiseToast("+1 Food");
+                FloatingWorldText.Spawn(
+                    worldPos + Vector3.up * 1.9f,
+                    "+1 Food",
+                    new Color(0.55f, 0.95f, 0.45f, 1f));
             }
 
             GameplayEvents.RaiseEnemyKilled(worldPos, WellKnownFactionIds.Bandit);

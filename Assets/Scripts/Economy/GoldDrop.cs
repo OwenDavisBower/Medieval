@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 /// <summary>
 /// World pickup spawned when an enemy NPC dies. Collects into <see cref="PlayerWallet"/> when the player is nearby.
@@ -18,13 +17,14 @@ public sealed class GoldDrop : MonoBehaviour
     const float MagnetStartRadius = 3.2f;
     const float GroundLift = 0.55f;
 
+    static readonly Color CollectLabelColor = new Color(1f, 0.88f, 0.28f, 1f);
+
     int _amount;
     float _age;
     float _baseY;
     bool _collected;
     MeshRenderer _renderer;
     static Material s_sharedMat;
-    static Font s_font;
 
     /// <summary>Spawns a gold pickup at <paramref name="worldPosition"/> with a random small amount.</summary>
     public static void SpawnRandom(Vector3 worldPosition, int minAmount = DefaultMinAmount,
@@ -128,103 +128,11 @@ public sealed class GoldDrop : MonoBehaviour
         if (wallet != null)
             wallet.Add(_amount);
 
-        SpawnCollectText(transform.position, _amount);
+        // +0.95 offsets Spawn's built-in start height so the label rises from just above the coin.
+        FloatingWorldText.Spawn(
+            transform.position + Vector3.up * 0.95f,
+            $"+{_amount} Gold",
+            CollectLabelColor);
         Destroy(gameObject);
-    }
-
-    static void SpawnCollectText(Vector3 worldPosition, int amount)
-    {
-        var go = new GameObject("GoldCollectText");
-        go.transform.position = worldPosition + Vector3.up * 0.4f;
-
-        var canvas = go.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.WorldSpace;
-        canvas.sortingOrder = 240;
-
-        var rect = go.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(160f, 40f);
-        go.transform.localScale = Vector3.one * 0.012f;
-
-        var labelGo = new GameObject("Label");
-        labelGo.transform.SetParent(go.transform, false);
-        var label = labelGo.AddComponent<Text>();
-        label.text = $"+{amount} Gold";
-        label.font = BuiltinFont();
-        label.fontSize = 36;
-        label.fontStyle = FontStyle.Bold;
-        label.alignment = TextAnchor.MiddleCenter;
-        label.color = new Color(1f, 0.88f, 0.28f, 1f);
-        label.raycastTarget = false;
-        label.horizontalOverflow = HorizontalWrapMode.Overflow;
-        label.verticalOverflow = VerticalWrapMode.Overflow;
-
-        var labelRect = label.GetComponent<RectTransform>();
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = Vector2.zero;
-        labelRect.offsetMax = Vector2.zero;
-
-        go.AddComponent<GoldCollectFloatingText>().Init(label, label.color);
-    }
-
-    static Font BuiltinFont()
-    {
-        if (s_font != null)
-            return s_font;
-        s_font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (s_font == null)
-            s_font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        return s_font;
-    }
-}
-
-/// <summary>Short-lived billboard for gold pickup feedback.</summary>
-sealed class GoldCollectFloatingText : MonoBehaviour
-{
-    const float Lifetime = 1.1f;
-    const float RiseSpeed = 1.25f;
-
-    Text _label;
-    Color _color;
-    float _age;
-    Transform _cam;
-
-    public void Init(Text label, Color color)
-    {
-        _label = label;
-        _color = color;
-    }
-
-    void LateUpdate()
-    {
-        float dt = Time.deltaTime;
-        _age += dt;
-        transform.position += Vector3.up * (RiseSpeed * dt);
-
-        if (_cam == null)
-        {
-            var main = Camera.main;
-            if (main != null)
-                _cam = main.transform;
-        }
-
-        if (_cam != null)
-        {
-            Vector3 toCam = _cam.position - transform.position;
-            if (toCam.sqrMagnitude > 1e-6f)
-                transform.rotation = Quaternion.LookRotation(-toCam.normalized, Vector3.up);
-        }
-
-        float t = Mathf.Clamp01(_age / Lifetime);
-        float fade = t < 0.5f ? 1f : 1f - ((t - 0.5f) / 0.5f);
-        if (_label != null)
-        {
-            Color c = _color;
-            c.a = fade;
-            _label.color = c;
-        }
-
-        if (_age >= Lifetime)
-            Destroy(gameObject);
     }
 }

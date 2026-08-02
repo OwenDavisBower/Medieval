@@ -89,6 +89,10 @@ namespace Medieval.NpcMovement
                     return;
                 }
 
+                // Preserve one-frame ambush/dodge bursts for Integration (runs after this system).
+                if (mstate.DodgeImpulseThisFrame != 0)
+                    return;
+
                 bool hasGoal = TryComputeRawGoal(ref mstate, in cfg, in anchor, in seek, selfPos,
                     out float3 rawGoal, out bool arrivedHold);
 

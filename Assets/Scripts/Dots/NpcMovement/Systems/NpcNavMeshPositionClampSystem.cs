@@ -44,6 +44,7 @@ namespace Medieval.NpcMovement
 
         [BurstCompile]
         [WithAll(typeof(NpcMovementTag))]
+        [WithNone(typeof(NpcAmbushEmerge))]
         partial struct ClampJob : IJobEntity
         {
             public NavMeshQuery NavQuery;

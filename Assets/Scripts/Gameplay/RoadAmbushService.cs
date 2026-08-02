@@ -25,7 +25,10 @@ public sealed class RoadAmbushService : MonoBehaviour
     const float CampExclusionRadius = 60f;
     const float BanditSpacing = 2.5f;
 
-    const float TreeSearchRadius = 14f;
+    // Path occupancy stamps ~8m and tree placement needs a free disk (~4m), so trunks sit
+    // ~12m+ off the road centerline. Search in that belt with a wide enough radius.
+    const float TreeLineLateralOffset = 14f;
+    const float TreeSearchRadius = 36f;
     const float TreeExitDistance = 3.6f;
     const float TreeSpawnHeight = 2.4f;
     const float LeapImpulseSpeed = 9.5f;
@@ -203,10 +206,12 @@ public sealed class RoadAmbushService : MonoBehaviour
             float side = banditCount == 1
                 ? (UnityEngine.Random.value < 0.5f ? -1f : 1f)
                 : Mathf.Lerp(-1f, 1f, i / (float)(banditCount - 1));
-            float lateral = side * BanditSpacing * Mathf.Max(1f, (banditCount - 1) * 0.5f);
-            lateral += UnityEngine.Random.Range(-SpawnLateralJitter, SpawnLateralJitter);
+            float roadLateral = side * BanditSpacing * Mathf.Max(1f, (banditCount - 1) * 0.5f);
+            roadLateral += UnityEngine.Random.Range(-SpawnLateralJitter, SpawnLateralJitter);
+            float treeLateral = side * TreeLineLateralOffset;
+            treeLateral += UnityEngine.Random.Range(-SpawnLateralJitter, SpawnLateralJitter);
             float ahead = SpawnDistanceAhead + UnityEngine.Random.Range(-1.5f, 1.5f);
-            Vector3 searchCenter = playerPos + forward * ahead + right * lateral;
+            Vector3 searchCenter = playerPos + forward * ahead + right * treeLateral;
 
             var wc = NpcSpawnApi.WeaponClassForHalfMeleeHalfRangedSplit(i, banditCount);
 
@@ -244,7 +249,7 @@ public sealed class RoadAmbushService : MonoBehaviour
             }
 
             // Fallback: open roadside spawn if no tree is in range.
-            Vector3 offset = forward * ahead + right * lateral;
+            Vector3 offset = forward * ahead + right * roadLateral;
             Vector3 pos = TerrainSpawnUtility.GetWorldPositionOnTerrain(playerPos + offset);
             Entity open = NpcSpawnApi.SpawnBandit(pos, quaternion.identity, 1f, wc);
             if (open == Entity.Null)

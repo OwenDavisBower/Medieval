@@ -26,7 +26,7 @@ namespace Medieval.Npcs
                 {
                     var p = ltw.ValueRO.Position;
                     Vector3 world = new Vector3(p.x, p.y + HeightOffset, p.z);
-                    NpcLevelUpFloatingText.Spawn(world, xp.ValueRO.Level);
+                    FloatingWorldText.Spawn(world, xp.ValueRO.Level);
                     fx.Spawned = 1;
                 }
 
