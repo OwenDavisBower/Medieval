@@ -11,7 +11,7 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerController))]
 public sealed class PlayerBowCombat : MonoBehaviour
 {
-    [SerializeField] float combatRange = 14f;
+    [SerializeField] float combatRange = 20f;
     [SerializeField] float eyeHeight = 1.4f;
     [SerializeField] float stopSpeedThreshold = 0.04f;
     [SerializeField] LayerMask obstacleLayers = ~0;

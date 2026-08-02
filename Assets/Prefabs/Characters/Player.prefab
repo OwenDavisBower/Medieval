@@ -294,7 +294,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 534e1d740ac3475f95458b70ca0e8686, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBowCombat
-  combatRange: 14
+  combatRange: 20
   eyeHeight: 1.4
   stopSpeedThreshold: 0.04
   obstacleLayers:
