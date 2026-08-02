@@ -74,6 +74,10 @@ namespace Medieval.Npcs
         /// <summary>Unity <see cref="UnityEngine.Time.time"/> until melee-style attack stun clears; mirrors <see cref="Character.CanAttack"/>.</summary>
         public float AttackStunUntilUnityTime;
         public byte IsDead;
+        /// <summary>1 when the lethal hit was from the player or a player-side follower.</summary>
+        public byte KillCreditPlayerSide;
+        /// <summary>Follower entity that landed the killing blow; <see cref="Entity.Null"/> for player / unknown.</summary>
+        public Entity KillCreditKiller;
     }
 
     public struct NpcRangedCombatConfig : IComponentData

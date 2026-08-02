@@ -244,8 +244,10 @@ public sealed class QuestService : MonoBehaviour
         return true;
     }
 
-    void OnEnemyKilled(Vector3 worldPosition, int _)
+    void OnEnemyKilled(Vector3 worldPosition, int _, bool byPlayerOrFollower)
     {
+        if (!byPlayerOrFollower)
+            return;
         if (Active == null || Active.Type != QuestType.ClearCamp || Active.Status != QuestStatus.Active)
             return;
         if (!SettlementService.Instance.TryGetCamp(Active.TargetCampId, out CampRecord camp))

@@ -157,6 +157,12 @@ namespace Medieval.Projectiles
                     {
                         float dealt = NpcProjectileDotsNpc.ApplyProjectileDamage(em, dotsVictim,
                             damage.ValueRO.Amount, out bool killed, impactDir);
+                        if (killed)
+                        {
+                            bool playerSide = NpcKillCreditUtility.IsPlayerSideProjectileShooter(
+                                em, shooterRoot, shooterFaction.ValueRO.Value, legacyRootId);
+                            NpcKillCreditUtility.TryMarkPlayerSideKill(em, dotsVictim, playerSide, shooterRoot);
+                        }
                         if (shooterRoot != Entity.Null && shooterRoot != dotsVictim)
                             NpcExperienceUtility.GrantDamageXp(em, ref ecb, shooterRoot, dealt, killed);
                         ecb.DestroyEntity(entity);

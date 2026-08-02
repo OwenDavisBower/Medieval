@@ -1,3 +1,4 @@
+using ProjectDawn.Animation;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -38,8 +39,9 @@ namespace Medieval.Npcs
             float4 value = new float4(color.r, color.g, color.b, color.a);
 
             // Collect targets first — AddComponentData is a structural change that invalidates LinkedEntityGroup.
+            // Only skinned body meshes: weapon RenderMeshArray entities share the group but multiply full albedo by _BaseColor.
             var targets = new NativeList<Entity>(8, Allocator.Temp);
-            if (em.HasComponent<MaterialMeshInfo>(npcRoot))
+            if (IsTintableBodyMesh(em, npcRoot))
                 targets.Add(npcRoot);
 
             if (em.HasBuffer<LinkedEntityGroup>(npcRoot))
@@ -50,7 +52,7 @@ namespace Medieval.Npcs
                     Entity e = group[i].Value;
                     if (!em.Exists(e) || e == npcRoot)
                         continue;
-                    if (!em.HasComponent<MaterialMeshInfo>(e))
+                    if (!IsTintableBodyMesh(em, e))
                         continue;
                     targets.Add(e);
                 }
@@ -60,6 +62,9 @@ namespace Medieval.Npcs
                 SetClothingColor(em, targets[i], value);
             targets.Dispose();
         }
+
+        static bool IsTintableBodyMesh(EntityManager em, Entity e) =>
+            em.HasComponent<MaterialMeshInfo>(e) && em.HasComponent<SkinMatrixBufferIndex>(e);
 
         static void SetClothingColor(EntityManager em, Entity e, float4 value)
         {

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using Medieval.Npcs;
+using Unity.Entities;
 using UnityEngine;
 
 /// <summary>
@@ -15,8 +17,12 @@ public sealed class SettlementService : MonoBehaviour
     public const int ClaimReputationRequired = 35;
     public const int ClaimGoldCost = 40;
     public const float VillageInteractRadius = 18f;
-    public const float CampLinkRadius = 110f;
-    public const float BanditKillRepRadius = 90f;
+    /// <summary>Must exceed bandit camp min distance from settlements (~120m) so camps link to villages.</summary>
+    public const float CampLinkRadius = 180f;
+    /// <summary>Bandit death within this range of a village (or at a linked camp) can grant standing.</summary>
+    public const float BanditKillRepRadius = 160f;
+    const float CampKillCreditRadius = 55f;
+    const int BanditKillReputation = 2;
 
     const float StockRegenInterval = 18f;
     const int StockRegenWood = 3;
@@ -28,13 +34,14 @@ public sealed class SettlementService : MonoBehaviour
     public const int SellWoodPrice = 2;
     public const int BuyFoodPrice = 5;
     public const int SellFoodPrice = 2;
-    /// <summary>Gold to fully restore the player at standing 0 (scales down with missing HP / standing / ownership).</summary>
+    /// <summary>Gold to fully restore one character at standing 0 (scales down with missing HP / standing / ownership).</summary>
     public const int HealFullCost = 20;
 
     readonly List<SettlementRecord> _settlements = new List<SettlementRecord>();
     readonly List<CampRecord> _camps = new List<CampRecord>();
     readonly Dictionary<int, SettlementRecord> _byId = new Dictionary<int, SettlementRecord>();
     readonly Dictionary<int, CampRecord> _campById = new Dictionary<int, CampRecord>();
+    readonly List<Entity> _healFollowersScratch = new List<Entity>(PartyManager.MaxPartySize);
 
     public IReadOnlyList<SettlementRecord> Settlements => _settlements;
     public IReadOnlyList<CampRecord> Camps => _camps;
@@ -353,32 +360,44 @@ public sealed class SettlementService : MonoBehaviour
     }
 
     /// <summary>
-    /// Gold to restore the player to full HP here. 0 if already full / unavailable.
-    /// Scales with missing HP; owned villages and high standing discount like recruit.
+    /// Gold the player pays to restore their own HP here. Followers pay from their wallets separately.
+    /// 0 if already full / unavailable. Scales with missing HP; owned villages and high standing discount like recruit.
     /// </summary>
-    public int GetHealCost(SettlementRecord settlement, Character character)
+    public int GetHealCost(SettlementRecord settlement)
     {
+        int fullCost = GetDiscountedHealFullCost(settlement);
+        var character = PlayerReference.TryGetCharacter();
         if (character == null || character.IsDead || character.MaxHealth <= 0f)
             return 0;
-
-        float missing = character.MaxHealth - character.CurrentHealth;
-        if (missing <= 0.01f)
-            return 0;
-
-        int fullCost = HealFullCost;
-        if (settlement != null && settlement.OwnedByPlayer)
-            fullCost = Mathf.Max(5, fullCost / 2);
-        else if (settlement != null)
-        {
-            float discount = Mathf.Clamp01(settlement.Reputation / 100f) * 0.45f;
-            fullCost = Mathf.Max(6, Mathf.RoundToInt(fullCost * (1f - discount)));
-        }
-
-        float fraction = Mathf.Clamp01(missing / character.MaxHealth);
-        return Mathf.Max(1, Mathf.CeilToInt(fullCost * fraction));
+        return CostForMissingHp(fullCost, character.MaxHealth - character.CurrentHealth, character.MaxHealth);
     }
 
-    public bool TryHealPlayer(SettlementRecord settlement)
+    /// <summary>True when any living follower is below max HP (regardless of whether they can afford treatment).</summary>
+    public bool FollowersNeedHeal()
+    {
+        if (PartyManager.Instance == null)
+            return false;
+
+        World world = World.DefaultGameObjectInjectionWorld;
+        if (world == null || !world.IsCreated)
+            return false;
+
+        PartyManager.Instance.CopyLivingFollowers(_healFollowersScratch);
+        EntityManager em = world.EntityManager;
+        for (int i = 0; i < _healFollowersScratch.Count; i++)
+        {
+            Entity e = _healFollowersScratch[i];
+            if (!em.HasComponent<NpcCharacterCombatState>(e))
+                continue;
+            var combat = em.GetComponentData<NpcCharacterCombatState>(e);
+            if (combat.IsDead == 0 && combat.CurrentHealth < combat.MaxHealth - 0.01f)
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool TryHealParty(SettlementRecord settlement)
     {
         if (settlement == null)
             return false;
@@ -390,24 +409,129 @@ public sealed class SettlementService : MonoBehaviour
             return false;
         }
 
-        int cost = GetHealCost(settlement, character);
-        if (cost <= 0)
+        int fullCost = GetDiscountedHealFullCost(settlement);
+        int playerCost = CostForMissingHp(fullCost, character.MaxHealth - character.CurrentHealth, character.MaxHealth);
+        bool playerNeedsHeal = playerCost > 0;
+        bool followersNeedHeal = FollowersNeedHeal();
+
+        if (!playerNeedsHeal && !followersNeedHeal)
         {
-            GameplayEvents.RaiseToast("Already at full health.");
+            GameplayEvents.RaiseToast("Party already at full health.");
             return false;
         }
 
         var wallet = PlayerWallet.Instance;
-        if (wallet == null || !wallet.TrySpend(cost))
+        if (playerNeedsHeal)
         {
-            GameplayEvents.RaiseToast("Not enough gold.");
+            if (wallet == null || !wallet.TrySpend(playerCost))
+            {
+                int followerSpent = HealLivingFollowersWithOwnGold(fullCost);
+                if (followerSpent > 0)
+                {
+                    GameplayEvents.RaiseToast($"Followers healed; you need {playerCost}g.");
+                    return true;
+                }
+
+                GameplayEvents.RaiseToast("Not enough gold.");
+                return false;
+            }
+
+            float playerMissing = character.MaxHealth - character.CurrentHealth;
+            if (playerMissing > 0.01f)
+                character.Heal(playerMissing);
+        }
+
+        int spentByFollowers = HealLivingFollowersWithOwnGold(fullCost);
+        if (playerNeedsHeal && spentByFollowers > 0)
+            GameplayEvents.RaiseToast($"Party healed (−{playerCost}g)");
+        else if (playerNeedsHeal)
+            GameplayEvents.RaiseToast($"Healed (−{playerCost}g)");
+        else if (spentByFollowers > 0)
+            GameplayEvents.RaiseToast("Followers healed.");
+        else
+        {
+            GameplayEvents.RaiseToast("Followers need more gold to heal.");
             return false;
         }
 
-        float missing = character.MaxHealth - character.CurrentHealth;
-        character.Heal(missing);
-        GameplayEvents.RaiseToast($"Healed (−{cost}g)");
         return true;
+    }
+
+    int GetDiscountedHealFullCost(SettlementRecord settlement)
+    {
+        int fullCost = HealFullCost;
+        if (settlement != null && settlement.OwnedByPlayer)
+            return Mathf.Max(5, fullCost / 2);
+        if (settlement != null)
+        {
+            float discount = Mathf.Clamp01(settlement.Reputation / 100f) * 0.45f;
+            return Mathf.Max(6, Mathf.RoundToInt(fullCost * (1f - discount)));
+        }
+
+        return fullCost;
+    }
+
+    static int CostForMissingHp(int fullCost, float missing, float maxHealth)
+    {
+        if (missing <= 0.01f || maxHealth <= 0f)
+            return 0;
+        float fraction = Mathf.Clamp01(missing / maxHealth);
+        return Mathf.Max(1, Mathf.CeilToInt(fullCost * fraction));
+    }
+
+    /// <summary>
+    /// Each living follower spends their own wallet gold toward healing, restoring HP proportional to what they can afford.
+    /// Returns total gold spent by followers.
+    /// </summary>
+    int HealLivingFollowersWithOwnGold(int fullCost)
+    {
+        if (PartyManager.Instance == null || fullCost <= 0)
+            return 0;
+
+        World world = World.DefaultGameObjectInjectionWorld;
+        if (world == null || !world.IsCreated)
+            return 0;
+
+        PartyManager.Instance.CopyLivingFollowers(_healFollowersScratch);
+        EntityManager em = world.EntityManager;
+        int totalSpent = 0;
+        for (int i = 0; i < _healFollowersScratch.Count; i++)
+        {
+            Entity e = _healFollowersScratch[i];
+            if (!em.HasComponent<NpcCharacterCombatState>(e))
+                continue;
+
+            var combat = em.GetComponentData<NpcCharacterCombatState>(e);
+            if (combat.IsDead != 0 || combat.MaxHealth <= 0f)
+                continue;
+
+            float missing = combat.MaxHealth - combat.CurrentHealth;
+            int cost = CostForMissingHp(fullCost, missing, combat.MaxHealth);
+            if (cost <= 0)
+                continue;
+
+            if (!em.HasComponent<NpcWallet>(e))
+                continue;
+
+            var npcWallet = em.GetComponentData<NpcWallet>(e);
+            if (npcWallet.Gold <= 0)
+                continue;
+
+            int spend = Mathf.Min(npcWallet.Gold, cost);
+            float healFraction = spend / (float)cost;
+            float healAmount = missing * healFraction;
+            if (healAmount <= 0.01f)
+                continue;
+
+            npcWallet.Gold -= spend;
+            em.SetComponentData(e, npcWallet);
+
+            combat.CurrentHealth = Mathf.Min(combat.MaxHealth, combat.CurrentHealth + healAmount);
+            em.SetComponentData(e, combat);
+            totalSpent += spend;
+        }
+
+        return totalSpent;
     }
 
     public bool CanClaim(SettlementRecord settlement, out string failReason)
@@ -570,26 +694,19 @@ public sealed class SettlementService : MonoBehaviour
         Changed?.Invoke();
     }
 
-    void OnEnemyKilled(Vector3 worldPosition, int _)
+    void OnEnemyKilled(Vector3 worldPosition, int _, bool byPlayerOrFollower)
     {
-        // Reputation for nearby villages + camp clear progress
-        SettlementRecord nearSettle = FindNearestSettlement(worldPosition, BanditKillRepRadius);
-        if (nearSettle != null && !nearSettle.OwnedByPlayer)
-            AddReputation(nearSettle.Id, 2);
+        CampRecord nearCamp = FindNearestUnclearedCamp(worldPosition, CampKillCreditRadius);
 
-        CampRecord nearCamp = null;
-        float bestSq = 55f * 55f;
-        for (int i = 0; i < _camps.Count; i++)
+        // Player/follower kills near a village (or its linked camp) improve standing.
+        if (byPlayerOrFollower)
         {
-            CampRecord c = _camps[i];
-            if (c.Cleared)
-                continue;
-            float sq = HorizontalDistanceSq(worldPosition, c.Center);
-            if (sq <= bestSq)
-            {
-                bestSq = sq;
-                nearCamp = c;
-            }
+            SettlementRecord nearSettle = FindNearestSettlement(worldPosition, BanditKillRepRadius);
+            if (nearSettle == null && nearCamp != null && nearCamp.LinkedSettlementId >= 0)
+                _byId.TryGetValue(nearCamp.LinkedSettlementId, out nearSettle);
+
+            if (nearSettle != null && !nearSettle.OwnedByPlayer)
+                AddReputation(nearSettle.Id, BanditKillReputation, "Bandits defeated");
         }
 
         if (nearCamp == null)

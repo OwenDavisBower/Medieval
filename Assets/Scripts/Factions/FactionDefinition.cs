@@ -9,7 +9,7 @@ public class FactionDefinition : ScriptableObject
 {
     [SerializeField] int factionID;
     [SerializeField] string factionName = "Faction";
-    [Tooltip("Multiplied onto neutral villager clothing (albedo alpha mask).")]
+    [Tooltip("Multiplied onto neutral NPC clothing (albedo alpha mask on tintable materials).")]
     [SerializeField] Color clothingColor = Color.white;
 
     /// <summary>Stable numeric id used for O(1) relationship lookups.</summary>

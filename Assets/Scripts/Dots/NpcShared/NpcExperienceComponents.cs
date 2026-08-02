@@ -10,6 +10,12 @@ namespace Medieval.Npcs
         public float XpToNextLevel;
     }
 
+    /// <summary>Gold carried by an NPC (followers earn from kills; spend to heal in town; drop on death).</summary>
+    public struct NpcWallet : IComponentData
+    {
+        public int Gold;
+    }
+
     /// <summary>Requests short-lived overhead "Level N" presentation; removed when the timer expires.</summary>
     public struct NpcLevelUpFx : IComponentData
     {

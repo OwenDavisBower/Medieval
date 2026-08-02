@@ -213,6 +213,7 @@ public sealed class GameplayHUD : MonoBehaviour
             float hpFill = 1f;
             float hpCur = 0f;
             float hpMax = 1f;
+            int gold = 0;
 
             if (em.HasComponent<NpcExperience>(e))
             {
@@ -231,12 +232,17 @@ public sealed class GameplayHUD : MonoBehaviour
                 hpFill = Mathf.Clamp01(combat.CurrentHealth / hpMax);
             }
 
+            if (em.HasComponent<NpcWallet>(e))
+                gold = em.GetComponentData<NpcWallet>(e).Gold;
+
             ApplyWeaponClassIcon(row, em, e);
             row.NameLevel.text = $"{name}  ·  Lv {level}";
             row.XpFill.fillAmount = xpFill;
             row.XpLabel.text = $"XP  {Mathf.FloorToInt(xpCur)}/{Mathf.CeilToInt(xpNext)}";
             row.HpFill.fillAmount = hpFill;
-            row.HpLabel.text = $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}";
+            row.HpLabel.text = gold > 0
+                ? $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}  ·  {gold}g"
+                : $"HP  {Mathf.CeilToInt(hpCur)}/{Mathf.CeilToInt(hpMax)}";
         }
     }
 
@@ -355,13 +361,17 @@ public sealed class GameplayHUD : MonoBehaviour
 
         if (_healLabel != null)
         {
-            var character = PlayerReference.TryGetCharacter();
             int healCost = SettlementService.Instance != null
-                ? SettlementService.Instance.GetHealCost(nearby, character)
+                ? SettlementService.Instance.GetHealCost(nearby)
                 : 0;
-            _healLabel.text = healCost > 0
-                ? $"H  Heal ({healCost}g)"
-                : "H  Heal (full)";
+            bool followersNeed = SettlementService.Instance != null &&
+                                 SettlementService.Instance.FollowersNeedHeal();
+            if (healCost > 0)
+                _healLabel.text = $"H  Heal party ({healCost}g)";
+            else if (followersNeed)
+                _healLabel.text = "H  Heal party";
+            else
+                _healLabel.text = "H  Heal party (full)";
         }
     }
 
@@ -476,7 +486,7 @@ public sealed class GameplayHUD : MonoBehaviour
             CreateActionButton(_villagePanel, i, y);
         }
 
-        var healBtn = CreateTextButton(_villagePanel, "HealBtn", $"H  Heal ({SettlementService.HealFullCost}g)",
+        var healBtn = CreateTextButton(_villagePanel, "HealBtn", $"H  Heal party ({SettlementService.HealFullCost}g)",
             new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 8f), new Vector2(0f, 32f),
             () => VillageInteractionController.Instance?.Heal());
         var hb = healBtn.GetComponent<RectTransform>();

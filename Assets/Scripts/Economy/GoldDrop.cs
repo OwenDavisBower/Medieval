@@ -26,14 +26,19 @@ public sealed class GoldDrop : MonoBehaviour
     MeshRenderer _renderer;
     static Material s_sharedMat;
 
-    /// <summary>Spawns a gold pickup at <paramref name="worldPosition"/> with a random small amount.</summary>
-    public static void SpawnRandom(Vector3 worldPosition, int minAmount = DefaultMinAmount,
+    public static int RollAmount(int minAmount = DefaultMinAmount,
         int maxAmountInclusive = DefaultMaxAmountInclusive)
     {
         int lo = Mathf.Min(minAmount, maxAmountInclusive);
         int hi = Mathf.Max(minAmount, maxAmountInclusive);
-        int amount = UnityEngine.Random.Range(lo, hi + 1);
-        Spawn(worldPosition, amount);
+        return UnityEngine.Random.Range(lo, hi + 1);
+    }
+
+    /// <summary>Spawns a gold pickup at <paramref name="worldPosition"/> with a random small amount.</summary>
+    public static void SpawnRandom(Vector3 worldPosition, int minAmount = DefaultMinAmount,
+        int maxAmountInclusive = DefaultMaxAmountInclusive)
+    {
+        Spawn(worldPosition, RollAmount(minAmount, maxAmountInclusive));
     }
 
     public static void Spawn(Vector3 worldPosition, int amount)

@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Near-village actions: recruit, trade, heal, quests, claim, disband.
-/// Keyboard: E opens/advances hub focus; number keys 1–8 / H heal / C sell food when in range.
+/// Near-village actions: recruit, trade, heal party, quests, claim, disband.
+/// Keyboard: E opens/advances hub focus; number keys 1–8 / H heal party / C sell food when in range.
 /// </summary>
 public sealed class VillageInteractionController : MonoBehaviour
 {
@@ -118,7 +118,7 @@ public sealed class VillageInteractionController : MonoBehaviour
         if (_toastGate > 0f)
             return;
         _toastGate = 1.2f;
-        GameplayEvents.RaiseToast("1 Recruit  2/3 Wood  4/C Food  H Heal  5–7 Quests  8 Claim  X Dismiss");
+        GameplayEvents.RaiseToast("1 Recruit  2/3 Wood  4/C Food  H Heal party  5–7 Quests  8 Claim  X Dismiss");
     }
 
     public void Recruit() => PartyManager.Instance?.TryRecruit(_nearby);
@@ -131,7 +131,7 @@ public sealed class VillageInteractionController : MonoBehaviour
 
     public void SellFood() => SettlementService.Instance?.TrySellFood(_nearby);
 
-    public void Heal() => SettlementService.Instance?.TryHealPlayer(_nearby);
+    public void Heal() => SettlementService.Instance?.TryHealParty(_nearby);
 
     public void Disband() => PartyManager.Instance?.TryDisbandOne();
 

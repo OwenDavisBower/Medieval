@@ -271,6 +271,8 @@ namespace Medieval.Npcs
                 : selfFeet;
             float dealt = NpcProjectileDotsNpc.ApplyProjectileDamage(em, tgt, dmg, out bool killed,
                 victimFeet - selfFeet);
+            if (killed)
+                NpcKillCreditUtility.TryMarkPlayerSideKill(em, tgt, NpcKillCreditUtility.IsPlayerSideNpc(em, attacker), attacker);
             NpcExperienceUtility.GrantDamageXp(em, ref ecb, attacker, dealt, killed);
 
             victim = em.GetComponentData<NpcCharacterCombatState>(tgt);
