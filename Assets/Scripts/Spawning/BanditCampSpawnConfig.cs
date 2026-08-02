@@ -11,7 +11,7 @@ public class BanditCampSpawnConfig : ScriptableObject
 
     [Header("Separation")]
     [Tooltip("Minimum XZ distance from settlement centers (SettlementBuilder transform).")]
-    [SerializeField] float minDistanceFromSettlements = 30f;
+    [SerializeField] float minDistanceFromSettlements = 120f;
     [Tooltip("Minimum XZ distance from other bandit camps.")]
     [SerializeField] float minDistanceFromOtherCamps = 20f;
     [SerializeField] int maxSpawnAttemptsPerCamp = 120;

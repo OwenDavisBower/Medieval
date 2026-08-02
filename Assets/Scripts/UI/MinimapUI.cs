@@ -5,6 +5,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Top-right screen minimap baked from terrain height + splat (paths / rock / water) with village and player markers.
+/// Village markers use live <see cref="SettlementBuilder"/> world centers when available (not nominal plan points).
 /// Follows the same runtime uGUI pattern as <see cref="VirtualJoystick"/>.
 /// Spawns itself at play mode start so scene script GUID wiring is not required.
 /// </summary>
@@ -51,6 +52,8 @@ public class MinimapUI : MonoBehaviour
 
     bool _rebuildQueued;
     TerrainGenerator _boundTerrain;
+    bool _subscribedSettlements;
+    readonly List<Vector3> _lastPaintedSettlementCenters = new List<Vector3>();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Bootstrap()
@@ -71,6 +74,7 @@ public class MinimapUI : MonoBehaviour
         TerrainGenerator.TerrainGenerated += OnTerrainGenerated;
         TerrainGenerator.SplatmapChanged += OnSplatmapChanged;
         WorldGenerationCoordinator.WorldContentPlanned += OnWorldContentPlanned;
+        TrySubscribeSettlements();
         QueueRebuild();
     }
 
@@ -79,6 +83,7 @@ public class MinimapUI : MonoBehaviour
         TerrainGenerator.TerrainGenerated -= OnTerrainGenerated;
         TerrainGenerator.SplatmapChanged -= OnSplatmapChanged;
         WorldGenerationCoordinator.WorldContentPlanned -= OnWorldContentPlanned;
+        UnsubscribeSettlements();
     }
 
     void OnDestroy()
@@ -97,6 +102,8 @@ public class MinimapUI : MonoBehaviour
 
     void LateUpdate()
     {
+        TrySubscribeSettlements();
+
         if (_rebuildQueued)
         {
             _rebuildQueued = false;
@@ -113,6 +120,58 @@ public class MinimapUI : MonoBehaviour
     void OnSplatmapChanged(TerrainGenerator _) => QueueRebuild();
 
     void OnWorldContentPlanned() => QueueRebuild();
+
+    void OnSettlementsChanged()
+    {
+        // Stock/reputation churn also raises Changed; only rebake when centers moved.
+        if (SettlementCentersChanged())
+            QueueRebuild();
+    }
+
+    void TrySubscribeSettlements()
+    {
+        if (_subscribedSettlements)
+            return;
+        if (SettlementService.Instance == null)
+            return;
+
+        SettlementService.Instance.Changed += OnSettlementsChanged;
+        _subscribedSettlements = true;
+        if (SettlementCentersChanged())
+            QueueRebuild();
+    }
+
+    void UnsubscribeSettlements()
+    {
+        if (!_subscribedSettlements)
+            return;
+        if (SettlementService.Instance != null)
+            SettlementService.Instance.Changed -= OnSettlementsChanged;
+        _subscribedSettlements = false;
+    }
+
+    bool SettlementCentersChanged()
+    {
+        var settlements = SettlementService.Instance != null
+            ? SettlementService.Instance.Settlements
+            : null;
+        int count = settlements != null ? settlements.Count : 0;
+        if (count != _lastPaintedSettlementCenters.Count)
+            return true;
+
+        const float epsSq = 0.01f;
+        for (int i = 0; i < count; i++)
+        {
+            Vector3 a = settlements[i].WorldCenter;
+            Vector3 b = _lastPaintedSettlementCenters[i];
+            float dx = a.x - b.x;
+            float dz = a.z - b.z;
+            if (dx * dx + dz * dz > epsSq)
+                return true;
+        }
+
+        return false;
+    }
 
     void QueueRebuild() => _rebuildQueued = true;
 
@@ -362,6 +421,29 @@ public class MinimapUI : MonoBehaviour
 
     void PaintVillages(int res, Vector3 origin, float viewSize)
     {
+        float r = Mathf.Max(1.5f, villageMarkerRadiusTexels);
+        float rSq = r * r;
+        Color32 fill = villageColor;
+        Color32 outline = new Color32(40, 28, 8, 255);
+
+        // Prefer SettlementBuilder world centers (flat-ground snap + mesh layout origin).
+        // Fall back to planned centers before any live instance has reported in.
+        var settlements = SettlementService.Instance != null
+            ? SettlementService.Instance.Settlements
+            : null;
+        if (settlements != null && settlements.Count > 0)
+        {
+            _lastPaintedSettlementCenters.Clear();
+            for (int i = 0; i < settlements.Count; i++)
+            {
+                Vector3 center = settlements[i].WorldCenter;
+                _lastPaintedSettlementCenters.Add(center);
+                PaintVillageMarker(center, res, origin, viewSize, r, rSq, fill, outline);
+            }
+            return;
+        }
+
+        _lastPaintedSettlementCenters.Clear();
         var coordinator = ResolveWorldGeneration();
         IReadOnlyList<Vector3> centers = coordinator != null
             ? coordinator.PlannedSettlementCenters
@@ -369,37 +451,45 @@ public class MinimapUI : MonoBehaviour
         if (centers == null || centers.Count == 0)
             return;
 
-        float r = Mathf.Max(1.5f, villageMarkerRadiusTexels);
-        float rSq = r * r;
-        Color32 fill = villageColor;
-        Color32 outline = new Color32(40, 28, 8, 255);
-
         for (int i = 0; i < centers.Count; i++)
         {
-            Vector3 p = centers[i];
-            float u = (p.x - origin.x) / viewSize + 0.5f;
-            float v = (p.z - origin.z) / viewSize + 0.5f;
-            if (u < 0f || u > 1f || v < 0f || v > 1f)
-                continue;
+            _lastPaintedSettlementCenters.Add(centers[i]);
+            PaintVillageMarker(centers[i], res, origin, viewSize, r, rSq, fill, outline);
+        }
+    }
 
-            float cx = u * res - 0.5f;
-            float cy = v * res - 0.5f;
-            int x0 = Mathf.Max(0, Mathf.FloorToInt(cx - r - 1f));
-            int x1 = Mathf.Min(res - 1, Mathf.CeilToInt(cx + r + 1f));
-            int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - r - 1f));
-            int y1 = Mathf.Min(res - 1, Mathf.CeilToInt(cy + r + 1f));
+    void PaintVillageMarker(
+        Vector3 worldPos,
+        int res,
+        Vector3 origin,
+        float viewSize,
+        float r,
+        float rSq,
+        Color32 fill,
+        Color32 outline)
+    {
+        float u = (worldPos.x - origin.x) / viewSize + 0.5f;
+        float v = (worldPos.z - origin.z) / viewSize + 0.5f;
+        if (u < 0f || u > 1f || v < 0f || v > 1f)
+            return;
 
-            for (int y = y0; y <= y1; y++)
+        float cx = u * res - 0.5f;
+        float cy = v * res - 0.5f;
+        int x0 = Mathf.Max(0, Mathf.FloorToInt(cx - r - 1f));
+        int x1 = Mathf.Min(res - 1, Mathf.CeilToInt(cx + r + 1f));
+        int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - r - 1f));
+        int y1 = Mathf.Min(res - 1, Mathf.CeilToInt(cy + r + 1f));
+
+        for (int y = y0; y <= y1; y++)
+        {
+            for (int x = x0; x <= x1; x++)
             {
-                for (int x = x0; x <= x1; x++)
-                {
-                    float dx = x + 0.5f - (cx + 0.5f);
-                    float dy = y + 0.5f - (cy + 0.5f);
-                    float dSq = dx * dx + dy * dy;
-                    if (dSq > rSq)
-                        continue;
-                    _pixels[y * res + x] = dSq > (r - 1.1f) * (r - 1.1f) ? outline : fill;
-                }
+                float dx = x + 0.5f - (cx + 0.5f);
+                float dy = y + 0.5f - (cy + 0.5f);
+                float dSq = dx * dx + dy * dy;
+                if (dSq > rSq)
+                    continue;
+                _pixels[y * res + x] = dSq > (r - 1.1f) * (r - 1.1f) ? outline : fill;
             }
         }
     }
