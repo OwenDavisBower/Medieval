@@ -12,13 +12,14 @@ public sealed class RoadAmbushService : MonoBehaviour
 {
     public static RoadAmbushService Instance { get; private set; }
 
-    const int BanditsPerAmbush = 2;
+    const int MinBanditsPerAmbush = 1;
+    const int MaxBanditsPerAmbush = 4;
     const float SpawnDistanceAhead = 16f;
     const float SpawnLateralJitter = 4f;
     const float EscortRouteTriggerFraction = 0.4f;
-    const float OpenCooldownSeconds = 100f;
-    const float OpenMinTravelMeters = 80f;
-    const float OpenAmbushChance = 0.45f;
+    const float OpenCooldownSeconds = 45f;
+    const float OpenMinTravelMeters = 40f;
+    const float OpenAmbushChance = 0.7f;
     const float MinMoveSpeedForOpen = 2f;
     const float SettlementExclusionRadius = 35f;
     const float CampExclusionRadius = 60f;
@@ -119,7 +120,7 @@ public sealed class RoadAmbushService : MonoBehaviour
         if (!CanSpawnAt(playerPos))
             return;
 
-        if (!SpawnAmbushPair(playerPos, _travelForward))
+        if (!SpawnAmbush(playerPos, _travelForward))
             return;
 
         quest.AmbushTriggered = true;
@@ -147,7 +148,7 @@ public sealed class RoadAmbushService : MonoBehaviour
         if (UnityEngine.Random.value > OpenAmbushChance)
             return;
 
-        if (!SpawnAmbushPair(playerPos, _travelForward))
+        if (!SpawnAmbush(playerPos, _travelForward))
             return;
 
         _lastAmbushTime = Time.time;
@@ -179,7 +180,7 @@ public sealed class RoadAmbushService : MonoBehaviour
         return true;
     }
 
-    bool SpawnAmbushPair(Vector3 playerPos, Vector3 forward)
+    bool SpawnAmbush(Vector3 playerPos, Vector3 forward)
     {
         forward.y = 0f;
         if (forward.sqrMagnitude < 0.0001f)
@@ -191,20 +192,23 @@ public sealed class RoadAmbushService : MonoBehaviour
         if (world == null || !world.IsCreated)
             return false;
 
+        int banditCount = UnityEngine.Random.Range(MinBanditsPerAmbush, MaxBanditsPerAmbush + 1);
         EntityManager em = world.EntityManager;
         int spawned = 0;
-        var usedTrees = new float3[BanditsPerAmbush];
+        var usedTrees = new float3[banditCount];
         int usedTreeCount = 0;
 
-        for (int i = 0; i < BanditsPerAmbush; i++)
+        for (int i = 0; i < banditCount; i++)
         {
-            float side = i == 0 ? -1f : 1f;
-            float lateral = side * (BanditSpacing * 0.5f);
+            float side = banditCount == 1
+                ? (UnityEngine.Random.value < 0.5f ? -1f : 1f)
+                : Mathf.Lerp(-1f, 1f, i / (float)(banditCount - 1));
+            float lateral = side * BanditSpacing * Mathf.Max(1f, (banditCount - 1) * 0.5f);
             lateral += UnityEngine.Random.Range(-SpawnLateralJitter, SpawnLateralJitter);
             float ahead = SpawnDistanceAhead + UnityEngine.Random.Range(-1.5f, 1.5f);
             Vector3 searchCenter = playerPos + forward * ahead + right * lateral;
 
-            var wc = NpcSpawnApi.WeaponClassForHalfMeleeHalfRangedSplit(i, BanditsPerAmbush);
+            var wc = NpcSpawnApi.WeaponClassForHalfMeleeHalfRangedSplit(i, banditCount);
 
             if (TryPickAmbushTree(em, searchCenter, TreeSearchRadius, usedTrees, usedTreeCount, out float3 treePos))
             {
