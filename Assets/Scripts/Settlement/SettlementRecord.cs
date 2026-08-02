@@ -13,8 +13,12 @@ public sealed class SettlementRecord
     public float StockRegenTimer;
     public float TaxTimer;
     public bool HasLiveInstance;
+    /// <summary>True after <see cref="SettlementBuilder"/> successfully placed at least one structure.</summary>
+    public bool IsBuilt;
+    /// <summary>True when placement failed (no flat center or no structures); minimap hides these.</summary>
+    public bool BuildFailed;
 
-    public Vector3 Center => HasLiveInstance ? WorldCenter : PlannedCenter;
+    public Vector3 Center => HasLiveInstance || IsBuilt ? WorldCenter : PlannedCenter;
 
     public string DisplayName => OwnedByPlayer ? $"Your Village #{Id + 1}" : $"Village #{Id + 1}";
 

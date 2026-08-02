@@ -137,7 +137,7 @@ public class SettlementSpawnConfig : ScriptableObject
     [Tooltip("Inset from procedural terrain edges when picking settlement centers (XZ).")]
     [SerializeField] float terrainEdgeMargin = 64f;
     [Tooltip("Minimum distance between settlement centers (XZ).")]
-    [SerializeField] float minSettlementSeparation = 30f;
+    [SerializeField] float minSettlementSeparation = 37.5f;
     [SerializeField] int maxSpawnAttemptsPerSettlement = 120;
     [Tooltip("XZ disk radius for procedural placement mask: settlement center must be free of path and prior burns.")]
     [SerializeField] float settlementCenterFootprintRadius = 14f;

@@ -155,19 +155,38 @@ public class MinimapUI : MonoBehaviour
         var settlements = SettlementService.Instance != null
             ? SettlementService.Instance.Settlements
             : null;
-        int count = settlements != null ? settlements.Count : 0;
-        if (count != _lastPaintedSettlementCenters.Count)
+
+        int visibleCount = 0;
+        if (settlements != null)
+        {
+            for (int i = 0; i < settlements.Count; i++)
+            {
+                if (!settlements[i].BuildFailed)
+                    visibleCount++;
+            }
+        }
+
+        if (visibleCount != _lastPaintedSettlementCenters.Count)
             return true;
 
         const float epsSq = 0.01f;
-        for (int i = 0; i < count; i++)
+        int painted = 0;
+        if (settlements != null)
         {
-            Vector3 a = settlements[i].WorldCenter;
-            Vector3 b = _lastPaintedSettlementCenters[i];
-            float dx = a.x - b.x;
-            float dz = a.z - b.z;
-            if (dx * dx + dz * dz > epsSq)
-                return true;
+            for (int i = 0; i < settlements.Count; i++)
+            {
+                SettlementRecord s = settlements[i];
+                if (s.BuildFailed)
+                    continue;
+
+                Vector3 a = s.IsBuilt ? s.WorldCenter : s.PlannedCenter;
+                Vector3 b = _lastPaintedSettlementCenters[painted];
+                float dx = a.x - b.x;
+                float dz = a.z - b.z;
+                if (dx * dx + dz * dz > epsSq)
+                    return true;
+                painted++;
+            }
         }
 
         return false;
@@ -426,35 +445,23 @@ public class MinimapUI : MonoBehaviour
         Color32 fill = villageColor;
         Color32 outline = new Color32(40, 28, 8, 255);
 
-        // Prefer SettlementBuilder world centers (flat-ground snap + mesh layout origin).
-        // Fall back to planned centers before any live instance has reported in.
+        _lastPaintedSettlementCenters.Clear();
         var settlements = SettlementService.Instance != null
             ? SettlementService.Instance.Settlements
             : null;
-        if (settlements != null && settlements.Count > 0)
-        {
-            _lastPaintedSettlementCenters.Clear();
-            for (int i = 0; i < settlements.Count; i++)
-            {
-                Vector3 center = settlements[i].WorldCenter;
-                _lastPaintedSettlementCenters.Add(center);
-                PaintVillageMarker(center, res, origin, viewSize, r, rSq, fill, outline);
-            }
-            return;
-        }
-
-        _lastPaintedSettlementCenters.Clear();
-        var coordinator = ResolveWorldGeneration();
-        IReadOnlyList<Vector3> centers = coordinator != null
-            ? coordinator.PlannedSettlementCenters
-            : null;
-        if (centers == null || centers.Count == 0)
+        if (settlements == null || settlements.Count == 0)
             return;
 
-        for (int i = 0; i < centers.Count; i++)
+        for (int i = 0; i < settlements.Count; i++)
         {
-            _lastPaintedSettlementCenters.Add(centers[i]);
-            PaintVillageMarker(centers[i], res, origin, viewSize, r, rSq, fill, outline);
+            SettlementRecord s = settlements[i];
+            if (s.BuildFailed)
+                continue;
+
+            // Built villages use mesh placement center; others stay on the plan point until resolved.
+            Vector3 center = s.IsBuilt ? s.WorldCenter : s.PlannedCenter;
+            _lastPaintedSettlementCenters.Add(center);
+            PaintVillageMarker(center, res, origin, viewSize, r, rSq, fill, outline);
         }
     }
 

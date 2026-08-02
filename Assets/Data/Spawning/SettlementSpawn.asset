@@ -73,7 +73,7 @@ MonoBehaviour:
     outerRadius: 30
   settlementsPerLogicalChunk: 1
   terrainEdgeMargin: 64
-  minSettlementSeparation: 100
+  minSettlementSeparation: 125
   maxSpawnAttemptsPerSettlement: 120
   settlementCenterFootprintRadius: 14
   minDistanceFromPathMeters: 12

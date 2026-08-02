@@ -152,7 +152,11 @@ public class SettlementBuilder : MonoBehaviour
             return;
 
         if (!TryFindFlatCenter(gen, out Vector3 centerWorld))
+        {
+            // Retry on later terrain events; hide the planned map marker while unresolved.
+            NotifyBuildFailed();
             return;
+        }
 
         transform.position = new Vector3(centerWorld.x, transform.position.y, centerWorld.z);
 
@@ -206,8 +210,15 @@ public class SettlementBuilder : MonoBehaviour
             }
         }
 
-        if (structureRoots.Count > 0)
-            SettlementPathSplatOverlay.ApplyToTerrain(gen, transform, structureRoots, pathRingOutsideFootprint, pathSegmentStepMeters, pathWobbleAmplitude);
+        if (structureRoots.Count == 0)
+        {
+            // No meshes placed — treat as a failed settlement and stop retrying this instance.
+            _built = true;
+            NotifyBuildFailed();
+            return;
+        }
+
+        SettlementPathSplatOverlay.ApplyToTerrain(gen, transform, structureRoots, pathRingOutsideFootprint, pathSegmentStepMeters, pathWobbleAmplitude);
 
         _built = true;
         if (HasSpawnedVillagersAlready())
@@ -215,6 +226,12 @@ public class SettlementBuilder : MonoBehaviour
 
         if (_settlementId != int.MinValue && SettlementService.Instance != null)
             SettlementService.Instance.NotifySettlementInstance(_settlementId, transform.position, true);
+    }
+
+    void NotifyBuildFailed()
+    {
+        if (_settlementId != int.MinValue && SettlementService.Instance != null)
+            SettlementService.Instance.NotifySettlementBuildFailed(_settlementId);
     }
 
     /// <summary>Releases structure burns from the mask (e.g. when streaming unloads this settlement). Path bits are unchanged.</summary>

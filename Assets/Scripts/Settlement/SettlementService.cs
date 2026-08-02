@@ -149,6 +149,8 @@ public sealed class SettlementService : MonoBehaviour
                     Id = i,
                     PlannedCenter = settlementCenters[i],
                     WorldCenter = settlementCenters[i],
+                    IsBuilt = false,
+                    BuildFailed = false,
                     Reputation = 0,
                     WoodStock = 35 + (i * 3) % 20,
                     FoodStock = 20 + (i * 2) % 15
@@ -185,7 +187,27 @@ public sealed class SettlementService : MonoBehaviour
             return;
         rec.HasLiveInstance = active;
         if (active)
+        {
             rec.WorldCenter = worldCenter;
+            rec.IsBuilt = true;
+            rec.BuildFailed = false;
+        }
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>Marks a planned settlement as unable to place structures so UI (e.g. minimap) can hide it.</summary>
+    public void NotifySettlementBuildFailed(int settlementId)
+    {
+        if (!_byId.TryGetValue(settlementId, out SettlementRecord rec))
+            return;
+
+        // Keep a prior successful placement on the map if this spawn attempt failed.
+        if (rec.IsBuilt)
+            return;
+
+        rec.BuildFailed = true;
+        rec.HasLiveInstance = false;
         Changed?.Invoke();
     }
 
