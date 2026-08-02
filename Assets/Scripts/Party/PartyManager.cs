@@ -384,7 +384,8 @@ public sealed class PartyManager : MonoBehaviour
             em.SetComponentData(e, new NpcFactionId { Value = WellKnownFactionIds.Player });
         else
             em.AddComponentData(e, new NpcFactionId { Value = WellKnownFactionIds.Player });
-        NpcFactionClothingUtility.ApplyClothingColorForFaction(em, e, WellKnownFactionIds.Player);
+        // Keep villager cloth tint even though combat faction is Player.
+        NpcFactionClothingUtility.ApplyClothingColorForFaction(em, e, WellKnownFactionIds.Villager);
 
         NpcMovementApi.SetAnchorPosition(em, e, new float3(nearPlayer.x, nearPlayer.y, nearPlayer.z));
         return e;
